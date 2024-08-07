@@ -1,15 +1,15 @@
-TEMPLATE = subdirs
-SUBDIRS = src/libfet.pro \
-          src/src.pro \
-          src/src-cl.pro \
-          tests
-
-# With C++11 support
-greaterThan(QT_MAJOR_VERSION, 4){
-CONFIG += c++11
-} else {
-QMAKE_CXXFLAGS += -std=c++11
+lessThan(QT_MAJOR_VERSION, 5) {
+	error(Qt version $$QT_VERSION is not supported. The minimum supported Qt version is 5.7.0.)
 }
+
+equals(QT_MAJOR_VERSION, 5) {
+	lessThan(QT_MINOR_VERSION, 7){
+		error(Qt version $$QT_VERSION is not supported. The minimum supported Qt version is 5.7.0.)
+	}
+}
+
+TEMPLATE = subdirs
+SUBDIRS = src/src.pro src/src-cl.pro
 
 unix {
 translations.path = /usr/share/fet/translations
@@ -21,17 +21,27 @@ examples.files = examples/
 desktop.path = /usr/share/applications
 desktop.files = fet.desktop
 
+manual.path = /usr/share/man/man1
+manual.files = man/*
+
+licenses.path = /usr/share/doc/fet/licenses
+licenses.files = licenses/*
+
 documentation.path = /usr/share/doc/fet
 documentation.files = doc/* AUTHORS COPYING ChangeLog README REFERENCES THANKS TODO TRANSLATORS
 
-manual.path = /usr/share/man/man1
-manual.files = man/*
+icon_png.path = /usr/share/icons/hicolor/128x128/apps
+icon_png.files = icons/fet.png
+
+icon_png_256x256.path = /usr/share/icons/hicolor/256x256/apps
+icon_png_256x256.files = icons/256x256/fet.png
+
+icon_png_512x512.path = /usr/share/icons/hicolor/512x512/apps
+icon_png_512x512.files = icons/512x512/fet.png
 
 icon_svg.path = /usr/share/icons/hicolor/scalable/apps
 icon_svg.files = icons/fet.svg
 
-icon_png.path = /usr/share/pixmaps
-icon_png.files = icons/fet.png
-
-INSTALLS += translations examples desktop manual documentation icon_svg icon_png
+# The "licenses" entry needs to appear before the "documentation" entry, so that "make uninstall" can remove the "/usr/share/doc/fet" directory.
+INSTALLS += translations examples desktop manual licenses documentation icon_png icon_png_256x256 icon_png_512x512 icon_svg
 }

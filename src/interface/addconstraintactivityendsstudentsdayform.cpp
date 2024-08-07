@@ -2,8 +2,8 @@
                           addconstraintactivityendsstudentsdayform.cpp  -  description
                              -------------------
     begin                : Sept 14, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivityendsstudentsdayform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintActivityEndsStudentsDayForm::AddConstraintActivityEndsStudentsDayForm(QWidget* parent): QDialog(parent)
 {
@@ -32,12 +28,8 @@ AddConstraintActivityEndsStudentsDayForm::AddConstraintActivityEndsStudentsDayFo
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivityEndsStudentsDayForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivityEndsStudentsDayForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -77,10 +69,15 @@ AddConstraintActivityEndsStudentsDayForm::AddConstraintActivityEndsStudentsDayFo
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 	
 	updateActivitiesComboBox();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityEndsStudentsDayForm::filterChanged);
 }
 
 AddConstraintActivityEndsStudentsDayForm::~AddConstraintActivityEndsStudentsDayForm()
@@ -93,13 +90,13 @@ bool AddConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -113,13 +110,13 @@ bool AddConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -131,7 +128,6 @@ bool AddConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 	return ok;
 }
 
-
 void AddConstraintActivityEndsStudentsDayForm::updateActivitiesComboBox(){
 	activitiesComboBox->clear();
 	activitiesList.clear();
@@ -140,7 +136,7 @@ void AddConstraintActivityEndsStudentsDayForm::updateActivitiesComboBox(){
 		Activity* act=gt.rules.activitiesList[i];
 		
 		if(filterOk(act)){
-			activitiesComboBox->addItem(act->getDescription());
+			activitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->activitiesList.append(act->id);
 		}
 	}
@@ -153,7 +149,7 @@ void AddConstraintActivityEndsStudentsDayForm::filterChanged()
 
 void AddConstraintActivityEndsStudentsDayForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -163,11 +159,11 @@ void AddConstraintActivityEndsStudentsDayForm::addCurrentConstraint()
 			tr("Invalid weight (percentage)"));
 		return;
 	}
-	if(weight!=100.0){
+	/*if(weight!=100.0){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid weight (percentage) - must be 100%"));
 		return;
-	}
+	}*/
 
 	int id;
 	int tmp2=activitiesComboBox->currentIndex();
@@ -184,12 +180,15 @@ void AddConstraintActivityEndsStudentsDayForm::addCurrentConstraint()
 	ctr=new ConstraintActivityEndsStudentsDay(weight, id);
 
 	bool tmp3=gt.rules.addTimeConstraint(ctr);
-	if(tmp3)
+	if(tmp3){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - please report bug"));
+			tr("Constraint NOT added - please report error"));
 		delete ctr;
 	}
 }

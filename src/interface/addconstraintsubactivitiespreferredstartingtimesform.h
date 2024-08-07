@@ -2,8 +2,8 @@
                           addconstraintsubactivitiespreferredstartingtimesform.h  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -35,13 +35,21 @@ public:
 	void updateSubjectsComboBox();
 	void updateActivityTagsComboBox();
 
+	void colorItem(QTableWidgetItem* item);
+
 public slots:
 	void addConstraint();
+	
+	void itemClicked(QTableWidgetItem* item);
+	void horizontalHeaderClicked(int col);
+	void verticalHeaderClicked(int row);
+	
+	void cellEntered(int row, int col);
 	
 	void setAllSlotsAllowed();
 	void setAllSlotsNotAllowed();
 
-	void on_durationCheckBox_toggled();
+	void durationCheckBox_toggled();
 };
 
 #endif

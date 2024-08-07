@@ -34,11 +34,11 @@
 #include <QPrinter>
 #endif
 
-class QTableWidget;
+//class QTableWidget;
 class QRadioButton;
 class QCheckBox;
 class QPushButton;
-class QTableWidgetItem;
+//class QTableWidgetItem;
 class QGroupBox;
 class QComboBox;
 class QToolButton;
@@ -95,6 +95,8 @@ private:
 	
 	//QCheckBox* printDetailedTables;	//maybe TODO: only a single number per cell if not detailed
 	QCheckBox* printActivityTags;
+
+	QCheckBox* onlyBlackFonts;
 	
 	QPushButton* pbPrintPreviewSmall;
 	QPushButton* pbPrintPreviewFull;

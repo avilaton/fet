@@ -2,8 +2,8 @@
                           constraintactivitiessamestartingdayform.h  -  description
                              -------------------
     begin                : 15 Feb 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,20 +18,30 @@
 #ifndef CONSTRAINTACTIVITIESSAMESTARTINGDAYFORM_H
 #define CONSTRAINTACTIVITIESSAMESTARTINGDAYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintactivitiessamestartingdayform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesSameStartingDayForm : public TimeConstraintBaseDialog  {
+class ConstraintActivitiesSameStartingDayForm : public QDialog, Ui::ConstraintActivitiesSameStartingDayForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintActivitiesSameStartingDayForm(QWidget* parent);
 	~ConstraintActivitiesSameStartingDayForm();
-	
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
 
-	virtual bool filterOk(const TimeConstraint* ctr) const;
-	void setHelp();
+	bool filterOk(TimeConstraint* ctr);
+	
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void removeConstraint();
+	void modifyConstraint();
+
+	void filterChanged();
+	
+	void help();
 };
 
 #endif

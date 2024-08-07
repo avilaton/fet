@@ -3,7 +3,7 @@
                              -------------------
     begin                : 8 Apr 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteacherhomeroomform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintTeacherHomeRoomForm::ModifyConstraintTeacherHomeRoomForm(QWidget* parent, ConstraintTeacherHomeRoom* ctr): QDialog(parent)
 {
@@ -27,8 +25,8 @@ ModifyConstraintTeacherHomeRoomForm::ModifyConstraintTeacherHomeRoomForm(QWidget
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherHomeRoomForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherHomeRoomForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,11 +52,15 @@ ModifyConstraintTeacherHomeRoomForm::~ModifyConstraintTeacherHomeRoomForm()
 
 void ModifyConstraintTeacherHomeRoomForm::updateTeachersComboBox(){
 	teachersComboBox->clear();
-	for(int i=0; i<gt.rules.teachersList.size(); i++){
-		Teacher* t=gt.rules.teachersList[i];
-		teachersComboBox->addItem(t->name);
+	int i=0, j=-1;
+	for(int k=0; k<gt.rules.teachersList.size(); k++, i++){
+		Teacher* tch=gt.rules.teachersList[k];
+		teachersComboBox->addItem(tch->name);
+		if(tch->name==this->_ctr->teacherName)
+			j=i;
 	}
-	teachersComboBox->setCurrentText(this->_ctr->teacherName);
+	assert(j>=0);
+	teachersComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintTeacherHomeRoomForm::updateRoomsComboBox()
@@ -74,6 +76,11 @@ void ModifyConstraintTeacherHomeRoomForm::updateRoomsComboBox()
 	}
 	assert(j>=0);
 	roomsComboBox->setCurrentIndex(j);
+}
+
+void ModifyConstraintTeacherHomeRoomForm::cancel()
+{
+	this->close();
 }
 
 void ModifyConstraintTeacherHomeRoomForm::ok()
@@ -98,12 +105,17 @@ void ModifyConstraintTeacherHomeRoomForm::ok()
 	}
 	QString room=roomsComboBox->currentText();
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->roomName=room;
 	this->_ctr->teacherName=teacher;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }

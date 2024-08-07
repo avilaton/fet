@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,12 +15,13 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "timetableexport.h"
+#include "timetable_defs.h"
 
 #include "settingstimetablehtmllevelform.h"
 
+extern QApplication* pqapplication;
+
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 SettingsTimetableHtmlLevelForm::SettingsTimetableHtmlLevelForm(QWidget* parent): QDialog(parent)
 {
@@ -28,12 +29,12 @@ SettingsTimetableHtmlLevelForm::SettingsTimetableHtmlLevelForm(QWidget* parent):
 	
 	okPushButton->setDefault(true);
 	
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &SettingsTimetableHtmlLevelForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &SettingsTimetableHtmlLevelForm::cancel);
 	
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	if(TIMETABLE_HTML_LEVEL==0)
 		level0RadioButton->setChecked(true);
 	else if(TIMETABLE_HTML_LEVEL==1)
@@ -83,7 +84,7 @@ void SettingsTimetableHtmlLevelForm::ok()
 	
 	assert(level>=0);
 
-	if(level>=3){
+	/*if(level>=3){
 		int t=QMessageBox::information(this, tr("FET information"), tr("This level might generate very large timetables, maybe 1 MB per file"
 		 " and 20 MB for all files of a timetable or even more."
 		 " Are you sure you have enough disk space?"),
@@ -91,9 +92,14 @@ void SettingsTimetableHtmlLevelForm::ok()
 		
 		if(t==QMessageBox::Cancel)
 			return;
-	}
+	}*/
 	
 	TIMETABLE_HTML_LEVEL=level;
 	
+	this->close();
+}
+
+void SettingsTimetableHtmlLevelForm::cancel()
+{
 	this->close();
 }

@@ -2,8 +2,8 @@
                           modifystudentsgroupform.h  -  description
                              -------------------
     begin                : Feb 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,18 +20,23 @@
 
 #include "ui_modifystudentsgroupform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class ModifyStudentsGroupForm : public QDialog, Ui::ModifyStudentsGroupForm_template {
 	Q_OBJECT
 public:
-//	QString _yearName;
+	//QString _yearName;
 	QString _initialGroupName;
-//	int _initialNumberOfStudents;
+	int _initialNumberOfStudents;
 
 	ModifyStudentsGroupForm(QWidget* parent, const QString& yearName, const QString& initialGroupName, int initialNumberOfStudents);
 	~ModifyStudentsGroupForm();
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

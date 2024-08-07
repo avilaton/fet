@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxgapsperweekform.h  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -32,7 +32,6 @@ public:
 	void updateStudentsSetComboBox();
 
 public slots:
-	void constraintChanged();
 	void addCurrentConstraint();
 };
 

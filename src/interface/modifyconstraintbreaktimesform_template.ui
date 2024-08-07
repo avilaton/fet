@@ -58,7 +58,7 @@
     </layout>
    </item>
    <item row="2" column="0">
-    <widget class="SelectableTimeTable" name="notAllowedTimesTable"/>
+    <widget class="QTableWidget" name="notAllowedTimesTable"/>
    </item>
    <item row="3" column="0">
     <layout class="QGridLayout" name="buttonsGridLayout">
@@ -86,7 +86,7 @@
      <item row="1" column="1">
       <widget class="QPushButton" name="okPushButton">
        <property name="text">
-        <string>Ok</string>
+        <string>OK</string>
        </property>
       </widget>
      </item>
@@ -102,13 +102,6 @@
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>SelectableTimeTable</class>
-   <extends>QTableWidget</extends>
-   <header>selectabletimetable.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

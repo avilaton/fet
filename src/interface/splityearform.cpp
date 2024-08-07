@@ -2,8 +2,8 @@
                           splityearform.cpp  -  description
                              -------------------
     begin                : 10 Aug 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -19,15 +19,13 @@
 
 #include "splityearform.h"
 
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 #include <QtWidgets>
 #else
 #include <QtGui>
 #endif
 
 #include <QMessageBox>
-
-#include <QSettings>
 
 #include <QListWidget>
 #include <QAbstractItemView>
@@ -37,8 +35,6 @@
 #include <QSet>
 #include <QHash>
 
-#include "centerwidgetonscreen.h"
-
 #include "longtextmessagebox.h"
 
 SplitYearForm::SplitYearForm(QWidget* parent, const QString& _year): QDialog(parent)
@@ -47,11 +43,11 @@ SplitYearForm::SplitYearForm(QWidget* parent, const QString& _year): QDialog(par
 	
 	okPushButton->setDefault(true);
 	
-	connect(tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabIndexChanged(int)));
+	connect(tabWidget, &QTabWidget::currentChanged, this, &SplitYearForm::tabIndexChanged);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(categoriesSpinBox, SIGNAL(valueChanged(int)), this, SLOT(numberOfCategoriesChanged()));
+	connect(okPushButton, &QPushButton::clicked, this, &SplitYearForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &SplitYearForm::close);
+	connect(categoriesSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &SplitYearForm::numberOfCategoriesChanged);
 	
 	listWidgets[0]=listWidget1;
 	listWidgets[1]=listWidget2;
@@ -73,53 +69,42 @@ SplitYearForm::SplitYearForm(QWidget* parent, const QString& _year): QDialog(par
 		listWidgets[i]->setSelectionMode(QAbstractItemView::SingleSelection);
 	}
 
-	connect(listWidgets[0], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list0DoubleClicked()));
-	connect(listWidgets[1], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list1DoubleClicked()));
-	connect(listWidgets[2], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list2DoubleClicked()));
-	connect(listWidgets[3], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list3DoubleClicked()));
-	connect(listWidgets[4], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list4DoubleClicked()));
-	connect(listWidgets[5], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list5DoubleClicked()));
-	connect(listWidgets[6], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list6DoubleClicked()));
-	connect(listWidgets[7], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list7DoubleClicked()));
-	connect(listWidgets[8], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list8DoubleClicked()));
-	connect(listWidgets[9], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list9DoubleClicked()));
-	connect(listWidgets[10], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list10DoubleClicked()));
-	connect(listWidgets[11], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list11DoubleClicked()));
-	connect(listWidgets[12], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list12DoubleClicked()));
-	connect(listWidgets[13], SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(list13DoubleClicked()));
+	connect(listWidgets[0], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list0DoubleClicked);
+	connect(listWidgets[1], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list1DoubleClicked);
+	connect(listWidgets[2], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list2DoubleClicked);
+	connect(listWidgets[3], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list3DoubleClicked);
+	connect(listWidgets[4], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list4DoubleClicked);
+	connect(listWidgets[5], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list5DoubleClicked);
+	connect(listWidgets[6], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list6DoubleClicked);
+	connect(listWidgets[7], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list7DoubleClicked);
+	connect(listWidgets[8], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list8DoubleClicked);
+	connect(listWidgets[9], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list9DoubleClicked);
+	connect(listWidgets[10], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list10DoubleClicked);
+	connect(listWidgets[11], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list11DoubleClicked);
+	connect(listWidgets[12], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list12DoubleClicked);
+	connect(listWidgets[13], &QListWidget::itemDoubleClicked, this, &SplitYearForm::list13DoubleClicked);
 	
-	connect(addPushButton,  SIGNAL(clicked()), this, SLOT(addClicked()));
-	connect(modifyPushButton,  SIGNAL(clicked()), this, SLOT(modifyClicked()));
-	connect(removePushButton,  SIGNAL(clicked()), this, SLOT(removeClicked()));
-	connect(removeAllPushButton,  SIGNAL(clicked()), this, SLOT(removeAllClicked()));
+	connect(addPushButton, &QPushButton::clicked, this, &SplitYearForm::addClicked);
+	connect(modifyPushButton, &QPushButton::clicked, this, &SplitYearForm::modifyClicked);
+	connect(removePushButton, &QPushButton::clicked, this, &SplitYearForm::removeClicked);
+	connect(removeAllPushButton, &QPushButton::clicked, this, &SplitYearForm::removeAllClicked);
 	
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
-	connect(resetPushButton, SIGNAL(clicked()), this, SLOT(reset()));
+	connect(helpPushButton, &QPushButton::clicked, this, &SplitYearForm::help);
+	connect(resetPushButton, &QPushButton::clicked, this, &SplitYearForm::reset);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
-	QSettings settings;
-	
-	_sep=settings.value(this->metaObject()->className()+QString("/separator-string"), QString("")).toString();
-	
-	_nCategories=settings.value(this->metaObject()->className()+QString("/number-of-categories"), 1).toInt();
-	
+	//2020-09-03
+	StudentsSet* ss=gt.rules.searchStudentsSet(_year);
+	assert(ss!=nullptr);
+	assert(ss->type==STUDENTS_YEAR);
+	StudentsYear* sy=(StudentsYear*)ss;
+	_sep=sy->separator;
+	_nCategories=sy->divisions.count();
 	for(int i=0; i<_nCategories; i++){
-		_nDivisions[i]=settings.value(this->metaObject()->className()+QString("/category/%1/number-of-divisions").arg(i+1), 0).toInt();
-		for(int j=0; j<_nDivisions[i]; j++){
-			QString ts=settings.value(this->metaObject()->className()+QString("/category/%1/division/%2").arg(i+1).arg(j+1), QString("")).toString();
-			if(!ts.isEmpty())
-				_divisions[i].append(ts);
-			else
-				_nDivisions[i]--;
-		}
-		if(_nDivisions[i]!=_divisions[i].count()){
-			QMessageBox::warning(this, tr("FET warning"), tr("You have met a minor bug in FET, please report it. FET expected to read"
-			 " from settings %1 divisions in category %2, but read %3. FET will now continue operation, nothing will be lost.")
-			 .arg(_nDivisions[i]).arg(i).arg(_divisions[i].count()));
-			_nDivisions[i]=_divisions[i].count();
-		}
+		_nDivisions[i]=sy->divisions.at(i).count();
+		_divisions[i]=sy->divisions.at(i);
 	}
 
 	year=_year;
@@ -129,7 +114,7 @@ SplitYearForm::SplitYearForm(QWidget* parent, const QString& _year): QDialog(par
 	
 	//restore saved values
 	separatorLineEdit->setText(_sep);
-	categoriesSpinBox->setValue(_nCategories);
+	
 	for(int i=0; i<_nCategories; i++)
 		for(int j=0; j<_nDivisions[i]; j++)
 			listWidgets[i]->addItem(_divisions[i].at(j));
@@ -137,29 +122,19 @@ SplitYearForm::SplitYearForm(QWidget* parent, const QString& _year): QDialog(par
 	maxSubgroupsPerYearLabel->setText(tr("Max subgroups per year: %1").arg(MAX_TOTAL_SUBGROUPS));
 	maxTotalSubgroupsLabel->setText(tr("Max total subgroups: %1").arg(MAX_TOTAL_SUBGROUPS));
 	
+	disconnect(categoriesSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &SplitYearForm::numberOfCategoriesChanged);
+	categoriesSpinBox->setValue(_nCategories);
+	connect(categoriesSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &SplitYearForm::numberOfCategoriesChanged);
+	
 	numberOfCategoriesChanged();
 	
-	tabIndexChanged(0);
+	if(_nCategories>0)
+		tabIndexChanged(0);
 }
 
 SplitYearForm::~SplitYearForm()
 {
 	saveFETDialogGeometry(this);
-
-	QSettings settings;
-	
-	settings.setValue(this->metaObject()->className()+QString("/separator-string"), _sep);
-	
-	settings.setValue(this->metaObject()->className()+QString("/number-of-categories"), _nCategories);
-
-	settings.remove(this->metaObject()->className()+QString("/category"));
-
-	for(int i=0; i<_nCategories; i++){
-		settings.setValue(this->metaObject()->className()+QString("/category/%1/number-of-divisions").arg(i+1), _nDivisions[i]);
-		assert(_nDivisions[i]==_divisions[i].count());
-		for(int j=0; j<_nDivisions[i]; j++)
-			settings.setValue(this->metaObject()->className()+QString("/category/%1/division/%2").arg(i+1).arg(j+1), _divisions[i].at(j));
-	}
 }
 
 void SplitYearForm::tabIndexChanged(int i)
@@ -178,9 +153,28 @@ void SplitYearForm::numberOfCategoriesChanged()
 			tabWidget->setTabEnabled(i, true);
 		else
 			tabWidget->setTabEnabled(i, false);
-			
+	
 	updateNumberOfSubgroups();
 	updateDivisionsLabel();
+	
+	if(categoriesSpinBox->value()==0){
+		tabWidget->setCurrentIndex(0);
+
+		addPushButton->setEnabled(false);
+		modifyPushButton->setEnabled(false);
+		removePushButton->setEnabled(false);
+		removeAllPushButton->setEnabled(false);
+		
+		separatorGroupBox->setEnabled(false);
+	}
+	else{
+		addPushButton->setEnabled(true);
+		modifyPushButton->setEnabled(true);
+		removePushButton->setEnabled(true);
+		removeAllPushButton->setEnabled(true);
+		
+		separatorGroupBox->setEnabled(true);
+	}
 }
 
 void SplitYearForm::addClicked()
@@ -196,7 +190,8 @@ void SplitYearForm::addClicked()
 		for(int k=0; k<categoriesSpinBox->value(); k++)
 			for(int j=0; j<listWidgets[k]->count(); j++)
 				if(listWidgets[k]->item(j)->text()==text){
-					QMessageBox::information(this, tr("FET information"), tr("Duplicates not allowed!"));
+					QMessageBox::information(this, tr("FET information"), tr("Duplicate names are not allowed (the current string is found in category number %1, division number %2).")
+					 .arg(k+1).arg(j+1));
 					return;
 				}
 	
@@ -230,7 +225,8 @@ void SplitYearForm::modifyDoubleClicked(int i)
 				for(int k=0; k<categoriesSpinBox->value(); k++)
 					for(int j=0; j<listWidgets[k]->count(); j++)
 						if(listWidgets[k]->item(j)->text()==text){
-							QMessageBox::information(this, tr("FET information"), tr("Duplicates not allowed!"));
+							QMessageBox::information(this, tr("FET information"), tr("Duplicate names are not allowed (the current string is found in category number %1, division number %2).")
+							 .arg(k+1).arg(j+1));
 							return;
 						}
 						
@@ -389,18 +385,18 @@ void SplitYearForm::ok()
 	
 	//warn if there are too many total subgroups - suggested by Volker Dirr
 	QSet<QString> tmpSet;
-	for(StudentsYear* sty : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* sty : std::as_const(gt.rules.yearsList)){
 		if(sty->name!=year){
 			if(sty->groupsList.count()==0){
 				tmpSet.insert(sty->name);
 			}
 			else{
-				for(StudentsGroup* stg : qAsConst(sty->groupsList)){
+				for(StudentsGroup* stg : std::as_const(sty->groupsList)){
 					if(stg->subgroupsList.count()==0){
 						tmpSet.insert(stg->name);
 					}
 					else{
-						for(StudentsSubgroup* sts : qAsConst(stg->subgroupsList))
+						for(StudentsSubgroup* sts : std::as_const(stg->subgroupsList))
 							tmpSet.insert(sts->name);
 					}
 				}
@@ -426,25 +422,27 @@ void SplitYearForm::ok()
 		for(int j=0; j<listWidgets[i]->count(); j++){
 			QString ts=listWidgets[i]->item(j)->text();
 			if(tmp.contains(ts)){
-				QMessageBox::information(this, tr("FET information"), tr("Duplicate names not allowed"));
+				QMessageBox::information(this, tr("FET information"), tr("Duplicate names not allowed (%1 appears a second time in category number %2, division number %3).",
+				 "%1 is the name of a division (of a year).")
+				 .arg(ts).arg(i+1).arg(j+1));
 				return;
 			}
 			else if(ts.isEmpty()){
-				QMessageBox::information(this, tr("FET information"), tr("Empty names not allowed"));
+				QMessageBox::information(this, tr("FET information"), tr("Empty names not allowed (the entry in category number %1, division number %2 has an empty name).").arg(i+1).arg(j+1));
 				return;
 			}
 			tmp.insert(ts);
 		}
 		
 	QSet<QString> existingNames;
-	for(StudentsYear* sty : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* sty : std::as_const(gt.rules.yearsList)){
 		assert(!existingNames.contains(sty->name));
 		existingNames.insert(sty->name);
 		if(sty->name!=year){
-			for(StudentsGroup* group : qAsConst(sty->groupsList)){
+			for(StudentsGroup* group : std::as_const(sty->groupsList)){
 				if(!existingNames.contains(group->name))
 					existingNames.insert(group->name);
-				for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+				for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 					if(!existingNames.contains(subgroup->name))
 						existingNames.insert(subgroup->name);
 				}
@@ -464,7 +462,7 @@ void SplitYearForm::ok()
 			newStudentsSets.insert(ts);
 		}
 		
-	//As in Knuth TAOCP vol 4A, generate all tuples
+	//As in Knuth TAOCP vol 4A section 7.2.1.1, generate all n-tuples
 	int b[MAX_CATEGORIES];
 	int ii;
 	
@@ -500,7 +498,7 @@ again_here_1:
 	
 	QHash<QString, StudentsGroup*> groupsHash;
 	
-	StudentsYear* yearPointer=NULL;
+	StudentsYear* yearPointer=nullptr;
 	int yearIndex=-1;
 	for(int i=0; i<gt.rules.yearsList.count(); i++)
 		if(gt.rules.yearsList[i]->name==year){
@@ -508,19 +506,19 @@ again_here_1:
 			yearIndex=i;
 			break;
 		}
-	assert(yearPointer!=NULL);
+	assert(yearPointer!=nullptr);
 	assert(yearIndex>=0);
 	
 	QSet<QString> notExistingGroupsSet;
 	QSet<QString> notExistingSubgroupsSet;
 	QStringList notExistingGroupsList;
 	QStringList notExistingSubgroupsList;
-	for(StudentsGroup* group : qAsConst(yearPointer->groupsList)){
+	for(StudentsGroup* group : std::as_const(yearPointer->groupsList)){
 		if(!existingNames.contains(group->name) && !newStudentsSets.contains(group->name) && !notExistingGroupsSet.contains(group->name)){
 			notExistingGroupsSet.insert(group->name);
 			notExistingGroupsList.append(group->name);
 		}
-		for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+		for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 			if(!existingNames.contains(subgroup->name) && !newStudentsSets.contains(subgroup->name) && !notExistingSubgroupsSet.contains(subgroup->name)){
 				notExistingSubgroupsSet.insert(subgroup->name);
 				notExistingSubgroupsList.append(subgroup->name);
@@ -579,7 +577,7 @@ again_here_1:
 	
 	if(!description.isEmpty()){
 		int lres=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
-		 description, tr("Yes"), tr("No"), 0, 0, 1);
+		 description, tr("Yes"), tr("No"), QString(), 0, 1);
 		if(lres!=0){
 			return;
 		}
@@ -592,15 +590,31 @@ again_here_1:
 			return;
 	}
 	
+	QString sb=tr("Number of categories: %1").arg(yearPointer->divisions.count());
+	sb+=QString("\n");
+	for(int i=0; i<yearPointer->divisions.count(); i++){
+		sb+=tr("Category %1: %2").arg(i+1).arg(yearPointer->divisions.at(i).join(", "));
+		sb+=QString("\n");
+	}
+	/*if(yearPointer->divisions.count()==0){
+		sb+=tr("No categories");
+		sb+=QString("\n");
+	}*/
+	
 	StudentsYear* newYear=new StudentsYear;
 	newYear->name=yearPointer->name;
+	newYear->longName=yearPointer->longName;
+	newYear->code=yearPointer->code;
 	newYear->numberOfStudents=yearPointer->numberOfStudents;
+	
+	newYear->comments=yearPointer->comments;
+	
 	newYear->indexInAugmentedYearsList=yearPointer->indexInAugmentedYearsList;
 	
 	QHash<QString, int> numberOfStudents;
-	for(StudentsGroup* group : qAsConst(yearPointer->groupsList)){
+	for(StudentsGroup* group : std::as_const(yearPointer->groupsList)){
 		numberOfStudents.insert(group->name, group->numberOfStudents);
-		for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList))
+		for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList))
 			numberOfStudents.insert(subgroup->name, subgroup->numberOfStudents);
 	}
 	
@@ -628,11 +642,11 @@ again_here_1:
 			QStringList groups;
 			for(int i=0; i<categoriesSpinBox->value(); i++)
 				groups.append(year+separator+listWidgets[i]->item(b[i])->text());
-	
+			
 			QString sbn=year;
 			for(int i=0; i<categoriesSpinBox->value(); i++)
 				sbn+=separator+listWidgets[i]->item(b[i])->text();
-				
+			
 			StudentsSubgroup* sb=new StudentsSubgroup;
 			sb->name=sbn;
 			if(numberOfStudents.contains(sb->name))
@@ -701,7 +715,10 @@ again_here_2:
 	 " of the year to make sure that everything is OK.")+s);
 	
 	//saving page
-	_sep=separatorLineEdit->text();
+	if(categoriesSpinBox->value()>0)
+		_sep=separatorLineEdit->text();
+	else
+		_sep=QString(" ");
 	
 	_nCategories=categoriesSpinBox->value();
 	
@@ -712,8 +729,27 @@ again_here_2:
 		for(int j=0; j<listWidgets[i]->count(); j++)
 			_divisions[i].append(listWidgets[i]->item(j)->text());
 	}
+
+	//2020-09-03
+	newYear->separator=_sep;
+	QString sa=tr("Number of categories: %1").arg(_nCategories);
+	sa+=QString("\n");
+	for(int i=0; i<_nCategories; i++){
+		newYear->divisions.append(_divisions[i]);
+
+		sa+=tr("Category %1: %2").arg(i+1).arg(_divisions[i].join(", "));
+		sa+=QString("\n");
+	}
+	/*if(_nCategories==0){
+		sa+=tr("No categories");
+		sa+=QString("\n");
+	}*/
+
+	gt.rules.addUndoPoint(tr("Modified the categories and the divisions of the year %1 from\n\n%2\ninto\n\n%3")
+	 .arg(newYear->name).arg(sb).arg(sa));
 	
-	//No need for gt.rules.internalStructureComputed=false and the rest of it, because there are invoked addGroupFast and addSubgroupFast
+	//No need for gt.rules.internalStructureComputed=false and the rest of it, because there was invoked gt.rules.removeYearPointerAfterSplit(yearPointer)
+	//(and in case the number of categories is nonzero, there was also invoked addGroupFast and addSubgroupFast).
 	
 	this->close();
 }
@@ -725,8 +761,7 @@ void SplitYearForm::help()
 	s+=tr("You might first want to consider if dividing a year is necessary and on what options. Please remember"
 	 " that FET can handle activities with multiple teachers/students sets. If you have say students set 9a, which is split"
 	 " into 2 parts: English (teacher TE) and French (teacher TF), and language activities must be simultaneous, then you might not want to divide"
-	 " according to this category, but add more larger activities, with students set 9a and teachers TE+TF."
-	 " The only drawback is that each activity can take place only in one room in FET, so you might need to find a way to overcome that.");
+	 " according to this category, but add more larger activities, with students set 9a and teachers TE+TF.");
 	
 	s+="\n\n";
 	
@@ -736,23 +771,12 @@ void SplitYearForm::help()
 
 	s+="\n\n";
 
-	/*s+=tr("Please input from the beginning the correct divisions. After you inputted activities and constraints"
-	 " for this year's groups and subgroups, dividing it again will remove the activities and constraints referring"
-	 " to these groups/subgroups. I know this is not elegant, I hope I'll solve that in the future."
-	 " You might want to use the alternative of manually adding/editing/removing groups/subgroups"
-	 " in the groups/subgroups menu, though removing a group/subgroup will also remove the activities");
-	
-	s+="\n\n";*/
-
 	s+=tr("If your number of subgroups is reasonable, probably you need not worry about empty subgroups (regarding speed of generation)."
 		" But more tests need to be done. You just need to know that for the moment the maximum total number of subgroups is %1 (which can be changed,"
 		" but nobody needed larger values)").arg(MAX_TOTAL_SUBGROUPS);
 
 	s+="\n\n";
 
-	s+=tr("Please note that the dialog here will keep the last configuration of the last"
-		" divided year, it will not remember the values for a specific year you need to modify.");
-	s+=" ";
 	s+=tr("If you intend to divide again a year by categories and you want to keep (the majority of) the existing groups in this year,"
 		" you will need to use the exact same separator character(s) for dividing this year as you used when previously dividing this year,"
 		" and the same division names (any old division which is no longer entered means a group which will be removed from this year).");
@@ -776,9 +800,9 @@ void SplitYearForm::help()
 		" the disk at all, and if you have many total subgroups, a good idea is to disable writing the subgroups, groups AND years timetables"
 		" to the hard disk, as these take a long time to compute (not only subgroups, but also groups and years!).");
 	s+=" ";
-	s+=tr("(Also the conflicts timetable might take long to write, if the file is big.)");
+	s+=tr("(Also the conflicts timetable might take long to write, if the file is large.)");
 	s+=" ";
-	s+=tr("After that, you can re-enable writing the students timetables on the disk, and re-generate.");
+	s+=tr("After that, you can enable the writing of the students timetables on the disk, and regenerate.");
 	
 	s+="\n\n";
 	s+=tr("About using a large number of categories, divisions per category and subgroups: it is highly recommended to"
@@ -818,11 +842,12 @@ void SplitYearForm::help()
 
 	vl->addWidget(te);
 	vl->addLayout(hl);
-	connect(pb, SIGNAL(clicked()), &dialog, SLOT(close()));
+	connect(pb, &QPushButton::clicked, &dialog, &QDialog::close);
 
 	dialog.resize(700,500);
 	centerWidgetOnScreen(&dialog);
 
+	setParentAndOtherThings(&dialog, this);
 	dialog.exec();
 }
 
@@ -836,14 +861,10 @@ void SplitYearForm::reset() //reset to defaults
 
 	separatorLineEdit->setText(" ");
 	
-	categoriesSpinBox->setValue(1);
-	
 	for(int i=0; i<MAX_CATEGORIES; i++)
 		listWidgets[i]->clear();
 	
-	numberOfCategoriesChanged();
-
-	tabIndexChanged(0);
+	categoriesSpinBox->setValue(0);
 }
 
 void SplitYearForm::updateNumberOfSubgroups()
@@ -858,9 +879,14 @@ void SplitYearForm::updateDivisionsLabel()
 {
 	QString ts;
 	
-	ts=CustomFETString::number(listWidgets[0]->count());
-	for(int i=1; i<categoriesSpinBox->value(); i++)
-		ts+=QString(2, ' ')+CustomFETString::number(listWidgets[i]->count());
+	if(categoriesSpinBox->value()>0){
+		ts=CustomFETString::number(listWidgets[0]->count());
+		for(int i=1; i<categoriesSpinBox->value(); i++)
+			ts+=QString(2, ' ')+CustomFETString::number(listWidgets[i]->count());
+	}
+	else{
+		ts=QString("");
+	}
 
 	divisionsLabel->setText(ts);
 }

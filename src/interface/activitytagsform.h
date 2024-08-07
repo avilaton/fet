@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -47,6 +47,8 @@ public slots:
 	void printableActivityTag();
 	void notPrintableActivityTag();
 	
+	void longName();
+	void code();
 	void comments();
 	
 	void help();

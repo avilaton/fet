@@ -2,8 +2,8 @@
                           addconstraintmingapsbetweenactivitiesform.h  -  description
                              -------------------
     begin                : 10 July 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -31,8 +31,6 @@ class AddConstraintMinGapsBetweenActivitiesForm : public QDialog, Ui::AddConstra
 public:
 	AddConstraintMinGapsBetweenActivitiesForm(QWidget* parent);
 	~AddConstraintMinGapsBetweenActivitiesForm();
-
-	void updateActivitiesListWidget();
 
 	bool filterOk(Activity* a);
 

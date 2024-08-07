@@ -2,8 +2,8 @@
                           constraintactivitiesendstudentsdayform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,19 +15,39 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintactivitiesendstudentsdayform.h"
 #include "addconstraintactivitiesendstudentsdayform.h"
 #include "modifyconstraintactivitiesendstudentsdayform.h"
 
-#include "centerwidgetonscreen.h"
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-ConstraintActivitiesEndStudentsDayForm::ConstraintActivitiesEndStudentsDayForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintActivitiesEndStudentsDayForm::ConstraintActivitiesEndStudentsDayForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintActivitiesEndStudentsDayForm_template", "Constraints activities end students day"));
+	setupUi(this);
 
+	currentConstraintTextEdit->setReadOnly(true);
+
+	modifyConstraintPushButton->setDefault(true);
+
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintActivitiesEndStudentsDayForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintActivitiesEndStudentsDayForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintActivitiesEndStudentsDayForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintActivitiesEndStudentsDayForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintActivitiesEndStudentsDayForm::modifyConstraint);
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintActivitiesEndStudentsDayForm::modifyConstraint);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-	filterChanged();
+	
+	this->filterChanged();
 }
 
 ConstraintActivitiesEndStudentsDayForm::~ConstraintActivitiesEndStudentsDayForm()
@@ -35,7 +55,27 @@ ConstraintActivitiesEndStudentsDayForm::~ConstraintActivitiesEndStudentsDayForm(
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintActivitiesEndStudentsDayForm::filterOk(const TimeConstraint* ctr) const
+void ConstraintActivitiesEndStudentsDayForm::filterChanged()
+{
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			QString s;
+			s=ctr->getDescription(gt.rules);
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(s);
+		}
+	}
+
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		this->constraintChanged(-1);
+}
+
+bool ConstraintActivitiesEndStudentsDayForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type==CONSTRAINT_ACTIVITIES_END_STUDENTS_DAY)
 		return true;
@@ -43,12 +83,101 @@ bool ConstraintActivitiesEndStudentsDayForm::filterOk(const TimeConstraint* ctr)
 		return false;
 }
 
-QDialog * ConstraintActivitiesEndStudentsDayForm::createAddDialog()
+void ConstraintActivitiesEndStudentsDayForm::constraintChanged(int index)
 {
-	return new AddConstraintActivitiesEndStudentsDayForm(this);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+		return;
+	}
+	QString s;
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	s=ctr->getDetailedDescription(gt.rules);
+	currentConstraintTextEdit->setPlainText(s);
 }
 
-QDialog * ConstraintActivitiesEndStudentsDayForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintActivitiesEndStudentsDayForm::addConstraint()
 {
-	return new ModifyConstraintActivitiesEndStudentsDayForm(this, (ConstraintActivitiesEndStudentsDay*)ctr);
+	AddConstraintActivitiesEndStudentsDayForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	this->filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintActivitiesEndStudentsDayForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintActivitiesEndStudentsDayForm form(this, (ConstraintActivitiesEndStudentsDay*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	this->filterChanged();
+	
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintActivitiesEndStudentsDayForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
+	s+="\n\n";
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
+
+	QString oc;
+
+	switch( LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 ) ){
+	case 0: // The user clicked the OK button or pressed Enter
+		oc=ctr->getDetailedDescription(gt.rules);
+
+		gt.rules.removeTimeConstraint(ctr);
+
+		gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+		
+		visibleConstraintsList.removeAt(i);
+		constraintsListWidget->setCurrentRow(-1);
+		item=constraintsListWidget->takeItem(i);
+		delete item;
+		
+		break;
+	case 1: // The user clicked the Cancel button or pressed Escape
+		break;
+	}
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
 }

@@ -32,33 +32,88 @@
 #include <QPrinter>
 #endif
 
-class QTableWidget;
+//class QTableWidget;
 class QRadioButton;
 class QCheckBox;
 class QPushButton;
-class QTableWidgetItem;
+//class QTableWidgetItem;
 class QComboBox;
 class QGroupBox;
 class QToolButton;
 class QSizePolicy;
 class QListWidget;
 
-#include "ui_timetableprintform_template.h"
-
 class StartTimetablePrint: public QObject{
 	Q_OBJECT
 
 public:
+	StartTimetablePrint();
+	~StartTimetablePrint();
+
 	static void startTimetablePrint(QWidget* parent);
 };
 
-class TimetablePrintForm: public QDialog, Ui::TimetablePrintForm_template
-{
+class TimetablePrintForm: public QDialog{
 	Q_OBJECT
 	
 public:
 	TimetablePrintForm(QWidget* parent);
 	~TimetablePrintForm();
+
+private:
+	QList<int> subgroupsSortedOrder;
+
+	QComboBox* CBTables;
+	QListWidget* namesList;
+	QPushButton* pbSelectAll;
+	QPushButton* pbUnselectAll;
+
+	QGroupBox* actionsBox;
+	QRadioButton* RBDaysHorizontal;
+	QRadioButton* RBDaysVertical;
+	QRadioButton* RBTimeHorizontal;
+	QRadioButton* RBTimeVertical;
+	//By Liviu Lalescu - unused anymore
+	//QCheckBox* CBDivideTimeAxisByDay;
+	QRadioButton* RBTimeHorizontalDay;
+	QRadioButton* RBTimeVerticalDay;
+
+	QGroupBox* optionsBox;
+	QComboBox* CBBreak;
+	QComboBox* CBWhiteSpace;
+//	QComboBox* CBprinterMode;
+	QComboBox* CBpaperSize;
+	QComboBox* CBorientationMode;
+	QSpinBox* activitiesPadding;
+	QSpinBox* tablePadding;
+	QSpinBox* fontSizeTable;
+	QSpinBox* maxNames;
+	
+	QSpinBox* leftPageMargin;
+	QSpinBox* topPageMargin;
+	QSpinBox* rightPageMargin;
+	QSpinBox* bottomPageMargin;
+	
+//	QCheckBox* markNotAvailable;
+//	QCheckBox* markBreak;
+//	QCheckBox* printSameStartingTime;
+	QCheckBox* printDetailedTables;
+	QCheckBox* printActivityTags;	//TODO: do this with combo box: "always", "never", "if available".
+	
+	QCheckBox* printSubjects;
+	QCheckBox* printTeachers;
+	QCheckBox* printStudents;
+	QCheckBox* printRooms;
+	
+	QCheckBox* repeatNames;
+	QCheckBox* automaticColors;
+	QCheckBox* onlyBlackFonts;
+	
+	QPushButton* pbPrintPreviewSmall;
+	QPushButton* pbPrintPreviewFull;
+	QPushButton* pbPrint;
+	
+	QPushButton* pbClose;
 
 private slots:
 	void selectAll();
@@ -71,11 +126,11 @@ private slots:
 
 	void print();
 	void printPreviewFull();
-	void printPreviewSmall();
-#ifndef QT_NO_PRINTER
 	void updatePreviewFull(QPrinter* printer);
+	void printPreviewSmall();
 	void updatePreviewSmall(QPrinter* printer);
-#endif
+	
+	void automaticColorsCheckBoxToggled();
 };
 
 #endif

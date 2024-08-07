@@ -2,8 +2,8 @@
                           constraintteacheractivitytagmaxhourscontinuouslyform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTTEACHERACTIVITYTAGMAXHOURSCONTINUOUSLYFORM_H
 #define CONSTRAINTTEACHERACTIVITYTAGMAXHOURSCONTINUOUSLYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintteacheractivitytagmaxhourscontinuouslyform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTeacherActivityTagMaxHoursContinuouslyForm : public TimeConstraintBaseDialog  {
+class ConstraintTeacherActivityTagMaxHoursContinuouslyForm : public QDialog, Ui::ConstraintTeacherActivityTagMaxHoursContinuouslyForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintTeacherActivityTagMaxHoursContinuouslyForm(QWidget* parent);
 	~ConstraintTeacherActivityTagMaxHoursContinuouslyForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

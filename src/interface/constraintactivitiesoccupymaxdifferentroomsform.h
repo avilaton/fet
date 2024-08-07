@@ -2,8 +2,8 @@
                           constraintactivitiesoccupymaxdifferentroomsform.h  -  description
                              -------------------
     begin                : Apr 29, 2012
-    copyright            : (C) 2012 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2012 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,32 @@
 #ifndef CONSTRAINTACTIVITIESOCCUPYMAXDIFFERENTROOMSFORM_H
 #define CONSTRAINTACTIVITIESOCCUPYMAXDIFFERENTROOMSFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintactivitiesoccupymaxdifferentroomsform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesOccupyMaxDifferentRoomsForm : public SpaceConstraintBaseDialog  {
+class ConstraintActivitiesOccupyMaxDifferentRoomsForm : public QDialog, Ui::ConstraintActivitiesOccupyMaxDifferentRoomsForm_template  {
 	Q_OBJECT
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintActivitiesOccupyMaxDifferentRoomsForm(QWidget* parent);
 	~ConstraintActivitiesOccupyMaxDifferentRoomsForm();
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
-	void setHelp();
+
+	bool filterOk(SpaceConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
+	
+	void help();
+	
+	void addRemoveMultipleConstraints();
 };
 
 #endif

@@ -2,8 +2,8 @@
                           addconstraintactivitypreferredstartingtimeform.cpp  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivitypreferredstartingtimeform.h"
 #include "timeconstraint.h"
@@ -26,21 +25,14 @@
 #include <QSet>
 #include "lockunlock.h"
 
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
-
 AddConstraintActivityPreferredStartingTimeForm::AddConstraintActivityPreferredStartingTimeForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivityPreferredStartingTimeForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivityPreferredStartingTimeForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -84,11 +76,16 @@ AddConstraintActivityPreferredStartingTimeForm::AddConstraintActivityPreferredSt
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 	
 	updatePeriodGroupBox();
-	updateActivitiesComboBox();
+	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredStartingTimeForm::filterChanged);
 }
 
 AddConstraintActivityPreferredStartingTimeForm::~AddConstraintActivityPreferredStartingTimeForm()
@@ -101,13 +98,13 @@ bool AddConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -121,13 +118,13 @@ bool AddConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -139,7 +136,7 @@ bool AddConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 	return ok;
 }
 
-void AddConstraintActivityPreferredStartingTimeForm::updateActivitiesComboBox(){
+void AddConstraintActivityPreferredStartingTimeForm::filterChanged(){
 	activitiesComboBox->clear();
 	activitiesList.clear();
 	
@@ -147,15 +144,10 @@ void AddConstraintActivityPreferredStartingTimeForm::updateActivitiesComboBox(){
 		Activity* act=gt.rules.activitiesList[i];
 		
 		if(filterOk(act)){
-			activitiesComboBox->addItem(act->getDescription());
+			activitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->activitiesList.append(act->id);
 		}
 	}
-}
-
-void AddConstraintActivityPreferredStartingTimeForm::filterChanged()
-{
-	this->updateActivitiesComboBox();
 }
 
 void AddConstraintActivityPreferredStartingTimeForm::updatePeriodGroupBox(){
@@ -170,7 +162,7 @@ void AddConstraintActivityPreferredStartingTimeForm::updatePeriodGroupBox(){
 
 void AddConstraintActivityPreferredStartingTimeForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -212,8 +204,10 @@ void AddConstraintActivityPreferredStartingTimeForm::addCurrentConstraint()
 	if(tmp3){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
-		
-		LockUnlock::computeLockedUnlockedActivitiesOnlyTime(&gt.rules);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+
+		LockUnlock::computeLockedUnlockedActivitiesOnlyTime();
 		LockUnlock::increaseCommunicationSpinBox();
 	}
 	else{

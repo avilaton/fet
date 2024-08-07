@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -22,14 +22,10 @@
 #include "fet.h"
 #include "yearsform.h"
 #include "studentsset.h"
-#include "interface/editcommentsform.h"
 
 #include "splityearform.h"
 
-#include "timetableexport.h"
-
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include <QListWidget>
 #include <QScrollBar>
@@ -39,6 +35,13 @@
 #include <QSettings>
 #include <QObject>
 #include <QMetaObject>
+
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
 
 YearsForm::YearsForm(QWidget* parent): QDialog(parent)
 {
@@ -50,27 +53,29 @@ YearsForm::YearsForm(QWidget* parent): QDialog(parent)
 
 	yearsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(addYearPushButton, SIGNAL(clicked()), this, SLOT(addYear()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(removeYearPushButton, SIGNAL(clicked()), this, SLOT(removeYear()));
-	connect(yearsListWidget, SIGNAL(currentRowChanged(int)), this, SLOT(yearChanged()));
-	connect(modifyYearPushButton, SIGNAL(clicked()), this, SLOT(modifyYear()));
+	connect(addYearPushButton, &QPushButton::clicked, this, &YearsForm::addYear);
+	connect(closePushButton, &QPushButton::clicked, this, &YearsForm::close);
+	connect(removeYearPushButton, &QPushButton::clicked, this, &YearsForm::removeYear);
+	connect(yearsListWidget, &QListWidget::currentRowChanged, this, &YearsForm::yearChanged);
+	connect(modifyYearPushButton, &QPushButton::clicked, this, &YearsForm::modifyYear);
 
-	connect(moveYearUpPushButton, SIGNAL(clicked()), this, SLOT(moveYearUp()));
-	connect(moveYearDownPushButton, SIGNAL(clicked()), this, SLOT(moveYearDown()));
+	connect(moveYearUpPushButton, &QPushButton::clicked, this, &YearsForm::moveYearUp);
+	connect(moveYearDownPushButton, &QPushButton::clicked, this, &YearsForm::moveYearDown);
 
-	connect(sortYearsPushButton, SIGNAL(clicked()), this, SLOT(sortYears()));
-	connect(activateStudentsPushButton, SIGNAL(clicked()), this, SLOT(activateStudents()));
-	connect(deactivateStudentsPushButton, SIGNAL(clicked()), this, SLOT(deactivateStudents()));
-	connect(divisionsPushButton, SIGNAL(clicked()), this, SLOT(divideYear()));
-	connect(yearsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(modifyYear()));
+	connect(sortYearsPushButton, &QPushButton::clicked, this, &YearsForm::sortYears);
+	connect(activateStudentsPushButton, &QPushButton::clicked, this, &YearsForm::activateStudents);
+	connect(deactivateStudentsPushButton, &QPushButton::clicked, this, &YearsForm::deactivateStudents);
+	connect(divisionsPushButton, &QPushButton::clicked, this, &YearsForm::divideYear);
+	connect(yearsListWidget, &QListWidget::itemDoubleClicked, this, &YearsForm::modifyYear);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &YearsForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &YearsForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &YearsForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
 	
@@ -88,13 +93,14 @@ YearsForm::~YearsForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
 void YearsForm::addYear()
 {
 	AddStudentsYearForm form(this);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	yearsListWidget->clear();
@@ -118,14 +124,20 @@ void YearsForm::removeYear()
 	int yearIndex=gt.rules.searchYear(yearName);
 	assert(yearIndex>=0);
 
+	/*if(QMessageBox::warning( this, tr("FET"),
+	 tr("Are you sure you want to delete year %1 and all related groups, subgroups, activities and constraints?").arg(yearName),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
+		return;*/
 	if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete year %1 and all related groups, subgroups, activities and constraints?").arg(yearName),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete year %1 and all related groups, subgroups, activities and constraints?").arg(yearName),
+	 QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
 		return;
 
 	bool tmp=gt.rules.removeYear(yearName);
 	assert(tmp);
 	if(tmp){
+		gt.rules.addUndoPoint(tr("Removed the year %1.").arg(yearName));
+
 		int q=yearsListWidget->currentRow();
 
 		yearsListWidget->setCurrentRow(-1);
@@ -165,15 +177,26 @@ void YearsForm::moveYearUp()
 	QString s1=yearsListWidget->item(i)->text();
 	QString s2=yearsListWidget->item(i-1)->text();
 	
+	StudentsYear* sy1=gt.rules.yearsList.at(i);
+	StudentsYear* sy2=gt.rules.yearsList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	yearsListWidget->item(i)->setText(s2);
 	yearsListWidget->item(i-1)->setText(s1);
 	
-	gt.rules.yearsList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.yearsList[i]=sy2;
+	gt.rules.yearsList[i-1]=sy1;
+	
+	gt.rules.addUndoPoint(tr("Moved the year %1 up.").arg(s1));
 
 	yearsListWidget->setCurrentRow(i-1);
+	yearChanged(/*i-1*/);
 }
 
 void YearsForm::moveYearDown()
@@ -189,20 +212,33 @@ void YearsForm::moveYearDown()
 	QString s1=yearsListWidget->item(i)->text();
 	QString s2=yearsListWidget->item(i+1)->text();
 	
+	StudentsYear* sy1=gt.rules.yearsList.at(i);
+	StudentsYear* sy2=gt.rules.yearsList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	yearsListWidget->item(i)->setText(s2);
 	yearsListWidget->item(i+1)->setText(s1);
 	
-	gt.rules.yearsList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.yearsList[i]=sy2;
+	gt.rules.yearsList[i+1]=sy1;
+	
+	gt.rules.addUndoPoint(tr("Moved the year %1 down.").arg(s1));
 
 	yearsListWidget->setCurrentRow(i+1);
+	yearChanged(/*i+1*/);
 }
 
 void YearsForm::sortYears()
 {
 	gt.rules.sortYearsAlphabetically();
+
+	gt.rules.addUndoPoint(tr("Sorted the years."));
 
 	yearsListWidget->clear();
 	for(int i=0; i<gt.rules.yearsList.size(); i++){
@@ -226,11 +262,12 @@ void YearsForm::modifyYear()
 	}
 	QString yearName=yearsListWidget->currentItem()->text();
 	
-	StudentsSet* sset=gt.rules.searchStudentsSet(yearName);
-	assert(sset!=NULL);
-	int numberOfStudents=sset->numberOfStudents;
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(yearName);
+	assert(studentsSet!=nullptr);
+	int numberOfStudents=studentsSet->numberOfStudents;
 
 	ModifyStudentsYearForm form(this, yearName, numberOfStudents);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	yearsListWidget->clear();
@@ -260,6 +297,9 @@ void YearsForm::activateStudents()
 	QString yearName=yearsListWidget->currentItem()->text();
 	int count=gt.rules.activateStudents(yearName);
 	QMessageBox::information(this, tr("FET information"), tr("Activated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Activated the year %1 (%2 activities).", "%2 is the number of activated activities").arg(yearName).arg(count));
 }
 
 void YearsForm::deactivateStudents()
@@ -271,7 +311,10 @@ void YearsForm::deactivateStudents()
 	
 	QString yearName=yearsListWidget->currentItem()->text();
 	int count=gt.rules.deactivateStudents(yearName);
-	QMessageBox::information(this, tr("FET information"), tr("De-activated a number of %1 activities").arg(count));
+	QMessageBox::information(this, tr("FET information"), tr("Deactivated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Deactivated year %1 (%2 activities).", "%2 is the number of deactivated activities").arg(yearName).arg(count));
 }
 
 void YearsForm::divideYear()
@@ -284,6 +327,7 @@ void YearsForm::divideYear()
 	QString yearName=yearsListWidget->currentItem()->text();
 	
 	SplitYearForm form(this, yearName);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 }
 
@@ -297,19 +341,183 @@ void YearsForm::comments()
 	
 	QString yearName=yearsListWidget->currentItem()->text();
 	
-	StudentsSet* sset=gt.rules.searchStudentsSet(yearName);
-	assert(sset!=NULL);
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(yearName);
+	assert(studentsSet!=nullptr);
+
+	QDialog getCommentsDialog(this);
 	
-	EditCommentsForm dialog("StudentsYearCommentsDialog", this, tr("Students year comments"));
-	dialog.setComments(sset->comments);
+	getCommentsDialog.setWindowTitle(tr("Students year comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
 
-	int t=dialog.exec();
-
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(studentsSet->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("StudentsYearCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
+	
 	if(t==QDialog::Accepted){
-		sset->comments=dialog.getComments();
+		QString ocs=studentsSet->comments;
+
+		studentsSet->comments=commentsPT->toPlainText();
+
+		gt.rules.addUndoPoint(tr("Changed the comments for the year %1 from\n%2\nto\n%3.").arg(yearName).arg(ocs).arg(studentsSet->comments));
 
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		yearChanged();
+	}
+}
+
+void YearsForm::longName()
+{
+	int ind=yearsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected year"));
+		return;
+	}
+	
+	QString yearName=yearsListWidget->currentItem()->text();
+	
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(yearName);
+	assert(studentsSet!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Year long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(studentsSet->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("YearLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=studentsSet->longName;
+	
+		studentsSet->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the year %1 from\n%2\nto\n%3.").arg(studentsSet->name).arg(oln).arg(studentsSet->longName));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		yearChanged();
+	}
+}
+
+void YearsForm::code()
+{
+	int ind=yearsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected year"));
+		return;
+	}
+	
+	QString yearName=yearsListWidget->currentItem()->text();
+	
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(yearName);
+	assert(studentsSet!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Year code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(studentsSet->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("YearCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=studentsSet->code;
+	
+		studentsSet->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the year %1 from\n%2\nto\n%3.").arg(studentsSet->name).arg(oc).arg(studentsSet->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		yearChanged();
 	}

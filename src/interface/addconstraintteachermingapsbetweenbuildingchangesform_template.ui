@@ -24,6 +24,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="addConstraintsPushButton">
+       <property name="text">
+        <string>Add constraints</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="closePushButton">
        <property name="text">
         <string>Close</string>
@@ -57,9 +64,6 @@
        </property>
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
-       </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
        </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>

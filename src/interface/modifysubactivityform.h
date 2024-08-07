@@ -2,8 +2,8 @@
                           modifysubactivityform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,31 +20,22 @@
 
 #include "ui_modifysubactivityform_template.h"
 
-#include "activity.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
 #include <QSet>
 //#include <QHash>
 #include <QList>
 
-#include "addremovebykeypress.h"
-
 class ModifySubactivityForm : public QDialog, Ui::ModifySubactivityForm_template  {
 	Q_OBJECT
 	
 private:
-	QSet<QString> teacherNamesSet;
-	QSet<QString> subjectNamesSet;
-	QSet<QString> activityTagNamesSet;
+	QSet<QString> teachersNamesSet;
+	QSet<QString> subjectsNamesSet;
+	QSet<QString> activityTagsNamesSet;
 	//QHash<QString, int> numberOfStudentsHash;
-
-	AddRemoveByKeyPress * addRemoveTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveActivityTagKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedActivityTagKeyFilter;
-
-	void setupAddRemoveKeyFilters();
 
 public:
 	QList<QString> canonicalStudentsSetsNames;
@@ -70,6 +61,7 @@ public slots:
 	void updateAllTeachersListWidget();
 
 	void ok();
+	void cancel();
 	
 	void addTeacher();
 	void removeTeacher();

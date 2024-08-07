@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetearlymaxbeginningsatsecondhourform.h  -  description
                              -------------------
     begin                : July 18, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -33,6 +33,7 @@ public:
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

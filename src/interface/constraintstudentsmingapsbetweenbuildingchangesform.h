@@ -2,8 +2,8 @@
                           constraintstudentsmingapsbetweenbuildingchangesform.h  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTSTUDENTSMINGAPSBETWEENBUILDINGCHANGESFORM_H
 #define CONSTRAINTSTUDENTSMINGAPSBETWEENBUILDINGCHANGESFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintstudentsmingapsbetweenbuildingchangesform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintStudentsMinGapsBetweenBuildingChangesForm : public SpaceConstraintBaseDialog  {
+class ConstraintStudentsMinGapsBetweenBuildingChangesForm : public QDialog, Ui::ConstraintStudentsMinGapsBetweenBuildingChangesForm_template  {
 	Q_OBJECT
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintStudentsMinGapsBetweenBuildingChangesForm(QWidget* parent);
 	~ConstraintStudentsMinGapsBetweenBuildingChangesForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
+	bool filterOk(SpaceConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

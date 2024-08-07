@@ -2,8 +2,8 @@
                           addconstraintteachersmaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintteachersmaxhourscontinuouslyform.h"
 #include "timeconstraint.h"
@@ -29,15 +28,14 @@ AddConstraintTeachersMaxHoursContinuouslyForm::AddConstraintTeachersMaxHoursCont
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintTeachersMaxHoursContinuouslyForm::addCurrentConstraint);
+	connect(addConstraintsPushButton, &QPushButton::clicked, this, &AddConstraintTeachersMaxHoursContinuouslyForm::addCurrentConstraints);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintTeachersMaxHoursContinuouslyForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
 	updateMaxHoursSpinBox();
-	
-	constraintChanged();
 }
 
 AddConstraintTeachersMaxHoursContinuouslyForm::~AddConstraintTeachersMaxHoursContinuouslyForm()
@@ -51,13 +49,9 @@ void AddConstraintTeachersMaxHoursContinuouslyForm::updateMaxHoursSpinBox(){
 	maxHoursSpinBox->setValue(gt.rules.nHoursPerDay);
 }
 
-void AddConstraintTeachersMaxHoursContinuouslyForm::constraintChanged()
-{
-}
-
 void AddConstraintTeachersMaxHoursContinuouslyForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -73,12 +67,52 @@ void AddConstraintTeachersMaxHoursContinuouslyForm::addCurrentConstraint()
 	ctr=new ConstraintTeachersMaxHoursContinuously(weight, max_hours);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));
 		delete ctr;
 	}
+}
+
+void AddConstraintTeachersMaxHoursContinuouslyForm::addCurrentConstraints()
+{
+	QMessageBox::StandardButton res=QMessageBox::question(this, tr("FET confirmation"),
+	 tr("This operation will add multiple constraints, one for each teacher. Do you want to continue?"),
+	 QMessageBox::Cancel | QMessageBox::Yes);
+	if(res==QMessageBox::Cancel)
+		return;
+
+	double weight;
+	QString tmp=weightLineEdit->text();
+	weight_sscanf(tmp, "%lf", &weight);
+	if(weight<0.0 || weight>100.0){
+		QMessageBox::warning(this, tr("FET information"),
+			tr("Invalid weight (percentage)"));
+		return;
+	}
+
+	int max_hours=maxHoursSpinBox->value();
+
+	QString ctrs;
+	for(Teacher* tch : std::as_const(gt.rules.teachersList)){
+		TimeConstraint *ctr=new ConstraintTeacherMaxHoursContinuously(weight, max_hours, tch->name);
+		bool tmp2=gt.rules.addTimeConstraint(ctr);
+		assert(tmp2);
+
+		ctrs+=ctr->getDetailedDescription(gt.rules);
+		ctrs+="\n";
+	}
+
+	QMessageBox::information(this, tr("FET information"), tr("Added %1 time constraints. Please note that these constraints"
+	 " will be visible as constraints for individual teachers.").arg(gt.rules.teachersList.count()));
+
+	if(gt.rules.teachersList.count()>0)
+		gt.rules.addUndoPoint(tr("Added %1 constraints, one for each teacher:\n\n%2", "%1 is the number of constraints, %2 is their detailed description")
+						  .arg(gt.rules.teachersList.count()).arg(ctrs));
 }

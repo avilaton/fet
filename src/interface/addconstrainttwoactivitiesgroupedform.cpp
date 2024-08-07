@@ -2,8 +2,8 @@
                           addconstrainttwoactivitiesgroupedform.cpp  -  description
                              -------------------
     begin                : Aug 21, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstrainttwoactivitiesgroupedform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintTwoActivitiesGroupedForm::AddConstraintTwoActivitiesGroupedForm(QWidget* parent): QDialog(parent)
 {
@@ -32,12 +28,8 @@ AddConstraintTwoActivitiesGroupedForm::AddConstraintTwoActivitiesGroupedForm(QWi
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintTwoActivitiesGroupedForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintTwoActivitiesGroupedForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -80,10 +72,15 @@ AddConstraintTwoActivitiesGroupedForm::AddConstraintTwoActivitiesGroupedForm(QWi
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 
-	updateActivitiesComboBox();
+	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintTwoActivitiesGroupedForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintTwoActivitiesGroupedForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintTwoActivitiesGroupedForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintTwoActivitiesGroupedForm::filterChanged);
 }
 
 AddConstraintTwoActivitiesGroupedForm::~AddConstraintTwoActivitiesGroupedForm()
@@ -96,13 +93,13 @@ bool AddConstraintTwoActivitiesGroupedForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -116,13 +113,13 @@ bool AddConstraintTwoActivitiesGroupedForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -134,7 +131,7 @@ bool AddConstraintTwoActivitiesGroupedForm::filterOk(Activity* act)
 	return ok;
 }
 
-void AddConstraintTwoActivitiesGroupedForm::updateActivitiesComboBox(){
+void AddConstraintTwoActivitiesGroupedForm::filterChanged(){
 	firstActivitiesComboBox->clear();
 	firstActivitiesList.clear();
 
@@ -145,29 +142,26 @@ void AddConstraintTwoActivitiesGroupedForm::updateActivitiesComboBox(){
 		Activity* act=gt.rules.activitiesList[i];
 		
 		if(filterOk(act)){
-			firstActivitiesComboBox->addItem(act->getDescription());
+			firstActivitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->firstActivitiesList.append(act->id);
 
-			secondActivitiesComboBox->addItem(act->getDescription());
+			secondActivitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->secondActivitiesList.append(act->id);
 		}
 	}
 
-	constraintChanged();
-}
+	if(firstActivitiesComboBox->count()>=1)
+		firstActivitiesComboBox->setCurrentIndex(0);
 
-void AddConstraintTwoActivitiesGroupedForm::filterChanged()
-{
-	this->updateActivitiesComboBox();
-}
-
-void AddConstraintTwoActivitiesGroupedForm::constraintChanged()
-{
+	if(secondActivitiesComboBox->count()>=2)
+		secondActivitiesComboBox->setCurrentIndex(1);
+	else if(secondActivitiesComboBox->count()>=1)
+		secondActivitiesComboBox->setCurrentIndex(0);
 }
 
 void AddConstraintTwoActivitiesGroupedForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -211,9 +205,12 @@ void AddConstraintTwoActivitiesGroupedForm::addCurrentConstraint()
 	ctr=new ConstraintTwoActivitiesGrouped(weight, fid, sid);
 
 	bool tmp4=gt.rules.addTimeConstraint(ctr);
-	if(tmp4)
+	if(tmp4){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - error?"));

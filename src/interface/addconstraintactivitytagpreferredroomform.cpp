@@ -3,7 +3,7 @@
                              -------------------
     begin                : 2009
     copyright            : (C) 2009 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,10 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivitytagpreferredroomform.h"
-#include "spaceconstraint.h"
 
 AddConstraintActivityTagPreferredRoomForm::AddConstraintActivityTagPreferredRoomForm(QWidget* parent): QDialog(parent)
 {
@@ -29,8 +27,8 @@ AddConstraintActivityTagPreferredRoomForm::AddConstraintActivityTagPreferredRoom
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivityTagPreferredRoomForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivityTagPreferredRoomForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -70,7 +68,7 @@ void AddConstraintActivityTagPreferredRoomForm::updateRoomsComboBox()
 
 void AddConstraintActivityTagPreferredRoomForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -80,14 +78,6 @@ void AddConstraintActivityTagPreferredRoomForm::addConstraint()
 			tr("Invalid weight"));
 		return;
 	}
-
-/*	int i=subjectsComboBox->currentIndex();
-	if(i<0 || subjectsComboBox->count()<=0){
-		QMessageBox::warning(this, tr("FET information"),
-			tr("Invalid subject"));
-		return;
-	}
-	QString subject=subjectsComboBox->currentText();*/
 
 	int i=activityTagsComboBox->currentIndex();
 	if(i<0 || activityTagsComboBox->count()<=0){
@@ -105,7 +95,7 @@ void AddConstraintActivityTagPreferredRoomForm::addConstraint()
 	}
 	QString room=roomsComboBox->currentText();
 
-	ctr=new ConstraintActivityTagPreferredRoom(weight/*, subject*/, activityTag, room);
+	ctr=new ConstraintActivityTagPreferredRoom(weight, activityTag, room);
 
 	bool tmp2=gt.rules.addSpaceConstraint(ctr);
 	if(tmp2){
@@ -113,10 +103,12 @@ void AddConstraintActivityTagPreferredRoomForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - error ?"));
+			tr("Constraint NOT added - error?"));
 		delete ctr;
 	}
 }

@@ -2,8 +2,8 @@
                           constraintactivitytagpreferredroomform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTACTIVITYTAGPREFERREDROOMFORM_H
 #define CONSTRAINTACTIVITYTAGPREFERREDROOMFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintactivitytagpreferredroomform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivityTagPreferredRoomForm : public SpaceConstraintBaseDialog  {
+class ConstraintActivityTagPreferredRoomForm : public QDialog, Ui::ConstraintActivityTagPreferredRoomForm_template  {
 	Q_OBJECT
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintActivityTagPreferredRoomForm(QWidget* parent);
 	~ConstraintActivityTagPreferredRoomForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
+	bool filterOk(SpaceConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

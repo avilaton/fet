@@ -2,8 +2,8 @@
                           modifyconstraintstudentsmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2013
-    copyright            : (C) 2013 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2013 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintstudentsmaxdaysperweekform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintStudentsMaxDaysPerWeekForm::ModifyConstraintStudentsMaxDaysPerWe
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -48,7 +47,7 @@ ModifyConstraintStudentsMaxDaysPerWeekForm::~ModifyConstraintStudentsMaxDaysPerW
 }
 
 void ModifyConstraintStudentsMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
-	maxDaysSpinBox->setMinimum(0);
+	maxDaysSpinBox->setMinimum(1);
 	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 }
 
@@ -68,13 +67,23 @@ void ModifyConstraintStudentsMaxDaysPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	int max_days=maxDaysSpinBox->value();
 
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxDaysPerWeek=max_days;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsMaxDaysPerWeekForm::cancel()
+{
 	this->close();
 }

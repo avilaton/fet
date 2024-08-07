@@ -2,8 +2,8 @@
                           modifyconstraintteachersmindaysperweekform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,11 +15,10 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
 #include "modifyconstraintteachersmindaysperweekform.h"
 #include "timeconstraint.h"
-
-#include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 ModifyConstraintTeachersMinDaysPerWeekForm::ModifyConstraintTeachersMinDaysPerWeekForm(QWidget* parent, ConstraintTeachersMinDaysPerWeek* ctr): QDialog(parent)
 {
@@ -27,8 +26,8 @@ ModifyConstraintTeachersMinDaysPerWeekForm::ModifyConstraintTeachersMinDaysPerWe
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMinDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMinDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -49,7 +48,7 @@ ModifyConstraintTeachersMinDaysPerWeekForm::~ModifyConstraintTeachersMinDaysPerW
 
 void ModifyConstraintTeachersMinDaysPerWeekForm::updateMinDaysSpinBox(){
 	minDaysSpinBox->setMinimum(1);
-	minDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);	
+	minDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 }
 
 void ModifyConstraintTeachersMinDaysPerWeekForm::ok()
@@ -70,11 +69,21 @@ void ModifyConstraintTeachersMinDaysPerWeekForm::ok()
 
 	int min_days=minDaysSpinBox->value();
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->minDaysPerWeek=min_days;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeachersMinDaysPerWeekForm::cancel()
+{
 	this->close();
 }

@@ -2,8 +2,8 @@
                           addconstraintactivitiesendstudentsdayform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,12 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivitiesendstudentsdayform.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintActivitiesEndStudentsDayForm::AddConstraintActivitiesEndStudentsDayForm(QWidget* parent): QDialog(parent)
 {
@@ -31,8 +27,8 @@ AddConstraintActivitiesEndStudentsDayForm::AddConstraintActivitiesEndStudentsDay
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivitiesEndStudentsDayForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivitiesEndStudentsDayForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -67,7 +63,7 @@ void AddConstraintActivitiesEndStudentsDayForm::updateTeachersComboBox(){
 }
 
 void AddConstraintActivitiesEndStudentsDayForm::updateStudentsComboBox(){
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 }
 
 void AddConstraintActivitiesEndStudentsDayForm::updateSubjectsComboBox(){
@@ -90,7 +86,7 @@ void AddConstraintActivitiesEndStudentsDayForm::updateActivityTagsComboBox(){
 
 void AddConstraintActivitiesEndStudentsDayForm::addConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -100,11 +96,11 @@ void AddConstraintActivitiesEndStudentsDayForm::addConstraint()
 			tr("Invalid weight (percentage)"));
 		return;
 	}
-	if(weight!=100.0){
+	/*if(weight!=100.0){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid weight (percentage) - must be 100%"));
 		return;
-	}
+	}*/
 
 	QString teacher=teachersComboBox->currentText();
 	if(teacher!="")
@@ -112,7 +108,7 @@ void AddConstraintActivitiesEndStudentsDayForm::addConstraint()
 
 	QString students=studentsComboBox->currentText();
 	if(students!="")
-		assert(gt.rules.searchStudentsSet(students)!=NULL);
+		assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QString subject=subjectsComboBox->currentText();
 	if(subject!="")
@@ -130,6 +126,8 @@ void AddConstraintActivitiesEndStudentsDayForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),

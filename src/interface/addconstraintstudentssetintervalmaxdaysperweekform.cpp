@@ -2,8 +2,8 @@
                           addconstraintstudentssetintervalmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetintervalmaxdaysperweekform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::AddConstraintStudentsSetIntervalMaxDaysPerWeekForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +28,8 @@ AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::AddConstraintStudentsSetInte
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -59,9 +55,7 @@ AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::~AddConstraintStudentsSetInt
 
 void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateStudentsComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
@@ -76,8 +70,6 @@ void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateStartHoursComboBo
 	for(int i=0; i<gt.rules.nHoursPerDay; i++)
 		startHourComboBox->addItem(gt.rules.hoursOfTheDay[i]);
 	startHourComboBox->setCurrentIndex(gt.rules.nHoursPerDay-1);
-	
-	constraintChanged();
 }
 
 void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateEndHoursComboBox()
@@ -87,17 +79,11 @@ void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateEndHoursComboBox(
 		endHourComboBox->addItem(gt.rules.hoursOfTheDay[i]);
 	endHourComboBox->addItem(tr("End of day"));
 	endHourComboBox->setCurrentIndex(gt.rules.nHoursPerDay);
-	
-	constraintChanged();
-}
-
-void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::constraintChanged()
-{
 }
 
 void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -117,7 +103,7 @@ void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::addCurrentConstraint()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -144,9 +130,12 @@ void AddConstraintStudentsSetIntervalMaxDaysPerWeekForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsSetIntervalMaxDaysPerWeek(weight, max_days, students_name, startHour, endHour);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

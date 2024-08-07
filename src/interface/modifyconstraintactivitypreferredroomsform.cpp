@@ -2,8 +2,8 @@
                           modifyconstraintactivitypreferredroomsform.cpp  -  description
                              -------------------
     begin                : March 28, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintactivitypreferredroomsform.h"
 
@@ -32,11 +31,11 @@ ModifyConstraintActivityPreferredRoomsForm::ModifyConstraintActivityPreferredRoo
 	roomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedRoomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(roomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addRoom()));
-	connect(selectedRoomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeRoom()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomsForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomsForm::ok);
+	connect(roomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintActivityPreferredRoomsForm::addRoom);
+	connect(selectedRoomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintActivityPreferredRoomsForm::removeRoom);
+	connect(clearPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomsForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -51,7 +50,7 @@ ModifyConstraintActivityPreferredRoomsForm::ModifyConstraintActivityPreferredRoo
 	int j=-1, i=0;
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* ac=gt.rules.activitiesList[k];
-		activitiesComboBox->addItem(ac->getDescription());
+		activitiesComboBox->addItem(ac->getDescription(gt.rules));
 		if(ac->id==ctr->activityId){
 			assert(j==-1);
 			j=i;
@@ -65,7 +64,7 @@ ModifyConstraintActivityPreferredRoomsForm::ModifyConstraintActivityPreferredRoo
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
-	for(QStringList::Iterator it=ctr->roomsNames.begin(); it!=ctr->roomsNames.end(); it++)
+	for(QStringList::const_iterator it=ctr->roomsNames.constBegin(); it!=ctr->roomsNames.constEnd(); it++)
 		selectedRoomsListWidget->addItem(*it);
 }
 
@@ -112,6 +111,9 @@ void ModifyConstraintActivityPreferredRoomsForm::ok()
 			tr("Invalid selected activity"));
 		return;
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	int id=gt.rules.activitiesList.at(activitiesComboBox->currentIndex())->id;
 	
 	QStringList roomsList;
@@ -122,9 +124,17 @@ void ModifyConstraintActivityPreferredRoomsForm::ok()
 	this->_ctr->activityId=id;
 	this->_ctr->roomsNames=roomsList;
 	
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintActivityPreferredRoomsForm::cancel()
+{
 	this->close();
 }
 

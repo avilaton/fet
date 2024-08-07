@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>511</width>
-    <height>251</height>
+    <width>529</width>
+    <height>292</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,9 +39,6 @@
        </property>
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
-       </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
        </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
@@ -75,7 +72,8 @@
        </property>
        <property name="text">
         <string>Weight percentage
-(recommended: 0.0%-100.0%)</string>
+(recommended: 100.0%,
+allowed: 0.0%-100.0%)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>

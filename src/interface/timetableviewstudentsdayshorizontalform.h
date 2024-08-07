@@ -2,8 +2,8 @@
                           timetableviewstudentsdayshorizontalform.h  -  description
                              -------------------
     begin                : Tue Apr 22 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,13 +20,37 @@
 
 #include <QResizeEvent>
 
-class QColor; //by Marco Vassura
+#include <QAbstractItemDelegate>
+#include <QStyledItemDelegate>
 
 #include "ui_timetableviewstudentsdayshorizontalform_template.h"
+
+class QColor; //by Marco Vassura
+
+class TimetableViewStudentsDaysHorizontalDelegate: public QStyledItemDelegate
+{
+	Q_OBJECT
+	
+public:
+	int nRows; //The number of rows after which a line is drawn
+	int nColumns;
+	
+public:
+	TimetableViewStudentsDaysHorizontalDelegate(QWidget* parent, int _nRows, int _nColumns): QStyledItemDelegate(parent){
+		nRows=_nRows;
+		nColumns=_nColumns;
+	}
+	
+	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const;
+};
 
 class TimetableViewStudentsDaysHorizontalForm : public QDialog, public Ui::TimetableViewStudentsDaysHorizontalForm_template
 {
 	Q_OBJECT
+
+private:
+	QAbstractItemDelegate* oldItemDelegate;
+	TimetableViewStudentsDaysHorizontalDelegate* newItemDelegate;
 
 public:
 	TimetableViewStudentsDaysHorizontalForm(QWidget* parent);
@@ -53,11 +77,11 @@ public slots:
 
 	void help();
 	
-	void shownComboBoxChanged(QString shownCategory);
+	void shownComboBoxChanged();
 
 protected:
 	void resizeEvent(QResizeEvent* event);
-	QColor stringToColor(QString s); //by Marco Vassura
+	QColor stringToColor(const QString& s); //by Marco Vassura
 };
 
 #endif

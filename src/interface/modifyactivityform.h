@@ -2,8 +2,8 @@
                           modifyactivityform.h  -  description
                              -------------------
     begin                : Feb 9, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,14 +20,12 @@
 
 #include "ui_modifyactivityform_template.h"
 
+#include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
 
 #include <QSet>
-//#include <QHash>
 #include <QList>
-
-#include "addremovebykeypress.h"
 
 class ModifyActivityForm : public QDialog, Ui::ModifyActivityForm_template  {
 	Q_OBJECT
@@ -39,19 +37,9 @@ private:
 	QSpinBox* dur(int i);
 	QCheckBox* activ(int i);
 
-	QSet<QString> teacherNamesSet;
-	QSet<QString> subjectNamesSet;
-	QSet<QString> activityTagNamesSet;
-	//QHash<QString, int> numberOfStudentsHash;
-
-	AddRemoveByKeyPress * addRemoveTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveActivityTagKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedActivityTagKeyFilter;
-
-	void setupAddRemoveKeyFilters();
+	QSet<QString> teachersNamesSet;
+	QSet<QString> subjectsNamesSet;
+	QSet<QString> activityTagsNamesSet;
 
 public:
 	QList<QString> canonicalStudentsSetsNames;
@@ -70,13 +58,16 @@ public:
 	void updateStudentsListWidget();
 	void updateSubjectsComboBox();
 	void updateActivityTagsListWidget();
-	
+
+	void populateSubactivitiesTabWidget(int n);
+
 public slots:
 	void allTeachersRadioButtonToggled(bool checked);
 	void qualifiedTeachersRadioButtonToggled(bool checked);
 	void updateAllTeachersListWidget();
 
 	void ok();
+	void cancel();
 
 	void addTeacher();
 	void removeTeacher();

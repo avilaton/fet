@@ -2,8 +2,8 @@
                           subjectsstatisticsform.cpp  -  description
                              -------------------
     begin                : March 25, 2006
-    copyright            : (C) 2006 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2006 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,13 +15,14 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "centerwidgetonscreen.h"
-
 #include "subjectsstatisticsform.h"
 
+#include "timetable_defs.h"
 #include "timetable.h"
 
 #include "fet.h"
+
+#include <Qt>
 
 #include <QString>
 #include <QStringList>
@@ -38,14 +39,16 @@ SubjectsStatisticsForm::SubjectsStatisticsForm(QWidget* parent): QDialog(parent)
 	
 	closeButton->setDefault(true);
 	
-	connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closeButton, &QPushButton::clicked, this, &SubjectsStatisticsForm::close);
+
+	tableViewSetHighlightHeader(tableWidget);
 
 	tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
 	tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-		
+	
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	tableWidget->clear();
 	tableWidget->setColumnCount(3);
 	tableWidget->setRowCount(gt.rules.subjectsList.size());
@@ -57,9 +60,9 @@ SubjectsStatisticsForm::SubjectsStatisticsForm(QWidget* parent): QDialog(parent)
 	
 	tableWidget->setHorizontalHeaderLabels(columns);
 	
-	QHash<QString, QSet<Activity*> > activitiesForSubject;
+	QHash<QString, QSet<Activity*>> activitiesForSubject;
 	
-	for(Activity* act : qAsConst(gt.rules.activitiesList))
+	for(Activity* act : std::as_const(gt.rules.activitiesList))
 		if(act->active){
 			QSet<Activity*> acts=activitiesForSubject.value(act->subjectName, QSet<Activity*>());
 			acts.insert(act);
@@ -78,7 +81,7 @@ SubjectsStatisticsForm::SubjectsStatisticsForm(QWidget* parent): QDialog(parent)
 		
 		QSet<Activity*> acts=activitiesForSubject.value(s->name, QSet<Activity*>());
 		
-		for(Activity* act : qAsConst(acts)){
+		for(Activity* act : std::as_const(acts)){
 			if(act->active){
 				nSubActivities++;
 				nHours+=act->duration;

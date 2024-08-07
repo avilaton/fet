@@ -5,8 +5,8 @@ File export.h
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                           export.h  -  description
                              -------------------
@@ -26,106 +26,83 @@ File export.h
 #define EXPORT_H
 
 #include "timetable.h"
+#include "timetable_defs.h"
+
+class QWidget;
 
 #ifndef FET_COMMAND_LINE
 #include <QDialog>
-#include <QWidget>
+#include <QMessageBox>
 #endif
 
+#ifndef FET_COMMAND_LINE
 class Export: public QObject{
 	Q_OBJECT
 
 public:
-#ifndef FET_COMMAND_LINE
-	Export(const Timetable &gt, const Solution &solution);
-#else
-	Export(const Timetable &gt);
-#endif
+	Export();
 	~Export();
 
-#ifndef FET_COMMAND_LINE
-	void exportCSV(QWidget* parent);
-#else
-	void exportCSV(Solution* bestOrHighest, Solution* current=NULL);
-#endif
-
-	QString getTextQuote() const;
-	void setTextQuote(const QString &value);
-
-	QString getFieldSeparator() const;
-	void setFieldSeparator(const QString &value);
-
-	bool getHeader() const;
-	void setHeader(bool value);
-
-	QString getSetSeparator() const;
-
-	QString getDirectoryCSV() const;
-	void setDirectoryCSV(const QString &value);
-
-	enum OverwriteOptions {
-		OVERWRITE_ALL,
-		OVERWRITE_NONE,
-		OVERWRITE_PROMPT
-	};
-
-	OverwriteOptions getOverwrite() const;
-	void setOverwrite(const OverwriteOptions& value);
-
+	static void exportCSV(QWidget* parent);
 private:
-	const Timetable &gt;
-#ifndef FET_COMMAND_LINE
-	const Solution &solution;
-#endif
+	static bool okToWrite(QWidget* parent, const QString& file, QMessageBox::StandardButton& msgBoxButton);
 
-	QString directoryCSV;
-
-	QString textquote;
-	QString fieldSeparator;
-	bool header;
-	QString setSeparator;
-	OverwriteOptions overwrite;
-
-	QString lastWarnings;
-
-#ifndef FET_COMMAND_LINE
-	bool okToWrite(QWidget* parent, const QString& file);
-#else
-	bool okToWrite(const QString& file);
-#endif
-	static bool checkSetSeparator(const QString& str, const QString &setSeparator);
+	static bool checkComponentSeparator(const QString& str, const QString& componentSeparator);
+	static bool checkSetSeparator(const QString& str, const QString& setSeparator);
 	static QString protectCSV(const QString& str);
+	static QString protectCSVComments(const QString& str);
 
-	bool isActivityNotManualyEdited(int activityIndex, bool& diffTeachers, bool& diffSubject, bool& diffActivityTags, bool& diffStudents, bool& diffCompNStud, bool& diffNStud, bool& diffActive);
+	static bool isActivityNotManuallyEditedPart1(int activityIndex, bool& diffTeachers, bool& diffSubject, bool& diffActivityTags, bool& diffStudents,
+		QString& tl, QString& sl, QString& atl, QString& stl);
+	static bool isActivityNotManuallyEditedPart2(int activityIndex, bool& diffCompNStud, bool& diffNStud, bool& diffActive);
 
-#ifndef FET_COMMAND_LINE
-	static bool selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, QString& textquote, QString& fieldSeparator, bool& head);
+	static bool selectSeparatorAndTextQuote(QWidget* parent, QDialog* &newParent, QString& textquote, QString& fieldSeparator, bool& head);
 
-	bool exportCSVActivities(QWidget* parent);
-	bool exportCSVActivitiesStatistic(QWidget* parent);
-	bool exportCSVActivityTags(QWidget* parent);
-	bool exportCSVRoomsAndBuildings(QWidget* parent);
-	bool exportCSVSubjects(QWidget* parent);
-	bool exportCSVTeachers(QWidget* parent);
-	bool exportCSVStudents(QWidget* parent);
-	bool exportCSVTimetable(QWidget* parent);
-#else
-	bool exportCSVActivities();
-	bool exportCSVActivitiesStatistic();
-	bool exportCSVActivityTags();
-	bool exportCSVRoomsAndBuildings();
-	bool exportCSVSubjects();
-	bool exportCSVTeachers();
-	bool exportCSVStudents();
-	bool exportCSVTimetable(const Solution& solution);
-#endif
-	QString getFilePath(QString suffix);
+	static bool exportCSVActivities(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVActivitiesStatistics(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVActivityTags(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVRoomsAndBuildings(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVSubjects(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVTeachers(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVStudents(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton);
+	static bool exportCSVTimetable(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton);
 };
+#else
+class Export: public QObject{
+	Q_OBJECT
+
+public:
+	Export();
+	~Export();
+
+	static void exportCSV(Solution* bestOrHighest, Solution* current=nullptr);
+private:
+	static bool okToWrite(const QString& file);
+
+	static bool checkComponentSeparator(const QString& str, const QString& componentSeparator);
+	static bool checkSetSeparator(const QString& str, const QString& setSeparator);
+	static QString protectCSV(const QString& str);
+	static QString protectCSVComments(const QString& str);
+
+	static bool isActivityNotManuallyEditedPart1(int activityIndex, bool& diffTeachers, bool& diffSubject, bool& diffActivityTags, bool& diffStudents,
+		QString& tl, QString& sl, QString& atl, QString& stl);
+	static bool isActivityNotManuallyEditedPart2(int activityIndex, bool& diffCompNStud, bool& diffNStud, bool& diffActive);
+
+	static bool exportCSVActivities(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head);
+	static bool exportCSVActivitiesStatistics(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head);
+	static bool exportCSVActivityTags(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator);
+	static bool exportCSVRoomsAndBuildings(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head);
+	static bool exportCSVSubjects(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator);
+	static bool exportCSVTeachers(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator);
+	static bool exportCSVStudents(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator);
+	static bool exportCSVTimetable(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head);
+};
+#endif
 
 #ifndef FET_COMMAND_LINE
 class LastWarningsDialogE: public QDialog{
 	Q_OBJECT
-
+	
 public:				//can I do that private too?
 	LastWarningsDialogE(QWidget *parent, const QString& lastWarning);
 	~LastWarningsDialogE();

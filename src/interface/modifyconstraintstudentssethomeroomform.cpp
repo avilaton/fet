@@ -3,7 +3,7 @@
                              -------------------
     begin                : 8 Apr 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssethomeroomform.h"
-#include "spaceconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetHomeRoomForm::ModifyConstraintStudentsSetHomeRoomForm(QWidget* parent, ConstraintStudentsSetHomeRoom* ctr): QDialog(parent)
 {
@@ -31,8 +25,8 @@ ModifyConstraintStudentsSetHomeRoomForm::ModifyConstraintStudentsSetHomeRoomForm
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetHomeRoomForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetHomeRoomForm::ok);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -47,7 +41,7 @@ ModifyConstraintStudentsSetHomeRoomForm::ModifyConstraintStudentsSetHomeRoomForm
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 	updateRoomsComboBox();
 }
 
@@ -56,10 +50,12 @@ ModifyConstraintStudentsSetHomeRoomForm::~ModifyConstraintStudentsSetHomeRoomFor
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetHomeRoomForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName, true);
+void ModifyConstraintStudentsSetHomeRoomForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
@@ -78,10 +74,15 @@ void ModifyConstraintStudentsSetHomeRoomForm::updateRoomsComboBox()
 	roomsComboBox->setCurrentIndex(j);
 }
 
+void ModifyConstraintStudentsSetHomeRoomForm::cancel()
+{
+	this->close();
+}
+
 void ModifyConstraintStudentsSetHomeRoomForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -95,7 +96,7 @@ void ModifyConstraintStudentsSetHomeRoomForm::ok()
 	}
 
 	QString students=studentsComboBox->currentText();
-	assert(gt.rules.searchStudentsSet(students)!=NULL);
+	assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	int i=roomsComboBox->currentIndex();
 	if(i<0 || roomsComboBox->count()<=0){
@@ -103,14 +104,20 @@ void ModifyConstraintStudentsSetHomeRoomForm::ok()
 			tr("Invalid room"));
 		return;
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	QString room=roomsComboBox->currentText();
 
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->roomName=room;
 	this->_ctr->studentsName=students;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }

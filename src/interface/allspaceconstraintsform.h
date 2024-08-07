@@ -2,8 +2,8 @@
                           allspaceconstraintsform.h  -  description
                              -------------------
     begin                : Feb 13, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -23,10 +23,14 @@
 #include "timetable.h"
 #include "fet.h"
 
+#include "advancedfilterform.h"
+
 class AllSpaceConstraintsForm : public QDialog, Ui::AllSpaceConstraintsForm_template  {
 	Q_OBJECT
 
 private:
+	AdvancedFilterForm* filterForm;
+
 	QList<SpaceConstraint*> visibleSpaceConstraintsList;
 	
 	bool all; //all or any, true means all, false means any
@@ -48,7 +52,7 @@ public:
 public slots:
 	void constraintChanged();
 	void modifyConstraint();
-	void removeConstraint();
+	void removeConstraints();
 	void filter(bool active);
 
 	void moveSpaceConstraintUp();
@@ -56,10 +60,13 @@ public slots:
 
 	void sortedChanged(bool checked);
 
-	//void sortConstraintsByComments();
-	void activateConstraint();
-	void deactivateConstraint();
+	void activateConstraints();
+	void deactivateConstraints();
+	//void activateAllConstraints();
+	//void deactivateAllConstraints();
 	void constraintComments();
+	
+	void selectionChanged();
 };
 
 #endif

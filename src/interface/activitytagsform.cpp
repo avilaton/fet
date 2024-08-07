@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,15 +15,14 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
 #include "activitytagsform.h"
+#include "studentsset.h"
+#include "teacher.h"
+#include "subject.h"
 #include "activitytag.h"
-#include "interface/editcommentsform.h"
-
-#include "timetableexport.h"
-
-#include "centerwidgetonscreen.h"
 
 #include <QInputDialog>
 
@@ -37,49 +36,58 @@
 #include <QObject>
 #include <QMetaObject>
 
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
+
 ActivityTagsForm::ActivityTagsForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
-
+	
 	currentActivityTagTextEdit->setReadOnly(true);
 
 	renameActivityTagPushButton->setDefault(true);
 
 	activityTagsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addActivityTagPushButton, SIGNAL(clicked()), this, SLOT(addActivityTag()));
-	connect(removeActivityTagPushButton, SIGNAL(clicked()), this, SLOT(removeActivityTag()));
-	connect(renameActivityTagPushButton, SIGNAL(clicked()), this, SLOT(renameActivityTag()));
+	connect(closePushButton, &QPushButton::clicked, this, &ActivityTagsForm::close);
+	connect(addActivityTagPushButton, &QPushButton::clicked, this, &ActivityTagsForm::addActivityTag);
+	connect(removeActivityTagPushButton, &QPushButton::clicked, this, &ActivityTagsForm::removeActivityTag);
+	connect(renameActivityTagPushButton, &QPushButton::clicked, this, &ActivityTagsForm::renameActivityTag);
 
-	connect(moveActivityTagUpPushButton, SIGNAL(clicked()), this, SLOT(moveActivityTagUp()));
-	connect(moveActivityTagDownPushButton, SIGNAL(clicked()), this, SLOT(moveActivityTagDown()));
+	connect(moveActivityTagUpPushButton, &QPushButton::clicked, this, &ActivityTagsForm::moveActivityTagUp);
+	connect(moveActivityTagDownPushButton, &QPushButton::clicked, this, &ActivityTagsForm::moveActivityTagDown);
 
-	connect(sortActivityTagsPushButton, SIGNAL(clicked()), this, SLOT(sortActivityTags()));
-	connect(activityTagsListWidget, SIGNAL(currentRowChanged(int)), this, SLOT(activityTagChanged(int)));
-	connect(activateActivityTagPushButton, SIGNAL(clicked()), this, SLOT(activateActivityTag()));
-	connect(deactivateActivityTagPushButton, SIGNAL(clicked()), this, SLOT(deactivateActivityTag()));
-	connect(activityTagsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(renameActivityTag()));
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
+	connect(sortActivityTagsPushButton, &QPushButton::clicked, this, &ActivityTagsForm::sortActivityTags);
+	connect(activityTagsListWidget, &QListWidget::currentRowChanged, this, &ActivityTagsForm::activityTagChanged);
+	connect(activateActivityTagPushButton, &QPushButton::clicked, this, &ActivityTagsForm::activateActivityTag);
+	connect(deactivateActivityTagPushButton, &QPushButton::clicked, this, &ActivityTagsForm::deactivateActivityTag);
+	connect(activityTagsListWidget, &QListWidget::itemDoubleClicked, this, &ActivityTagsForm::renameActivityTag);
+	connect(helpPushButton, &QPushButton::clicked, this, &ActivityTagsForm::help);
 
-	connect(printablePushButton, SIGNAL(clicked()), this, SLOT(printableActivityTag()));
-	connect(notPrintablePushButton, SIGNAL(clicked()), this, SLOT(notPrintableActivityTag()));
+	connect(printablePushButton, &QPushButton::clicked, this, &ActivityTagsForm::printableActivityTag);
+	connect(notPrintablePushButton, &QPushButton::clicked, this, &ActivityTagsForm::notPrintableActivityTag);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &ActivityTagsForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &ActivityTagsForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &ActivityTagsForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
-
+	
 	activityTagsListWidget->clear();
 	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* sbt=gt.rules.activityTagsList[i];
-		activityTagsListWidget->addItem(sbt->name);
+		ActivityTag* at=gt.rules.activityTagsList[i];
+		activityTagsListWidget->addItem(at->name);
 	}
-
+	
 	if(activityTagsListWidget->count()>0)
 		activityTagsListWidget->setCurrentRow(0);
 }
@@ -89,34 +97,36 @@ ActivityTagsForm::~ActivityTagsForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
 void ActivityTagsForm::addActivityTag()
 {
 	bool ok = false;
-	ActivityTag* sbt=new ActivityTag();
-	sbt->name = QInputDialog::getText( this, tr("Add activity tag"), tr("Please enter activity tag's name") ,
+	ActivityTag* at=new ActivityTag();
+	at->name = QInputDialog::getText( this, tr("Add activity tag"), tr("Please enter activity tag's name") ,
 	 QLineEdit::Normal, QString(), &ok );
 
-	if ( ok && !((sbt->name).isEmpty()) ){
+	if ( ok && !((at->name).isEmpty()) ){
 		// user entered something and pressed OK
-		if(!gt.rules.addActivityTag(sbt)){
+		if(!gt.rules.addActivityTag(at)){
 			QMessageBox::information( this, tr("Activity tag insertion dialog"),
 				tr("Could not insert item. Must be a duplicate"));
-			delete sbt;
+			delete at;
 		}
 		else{
-			activityTagsListWidget->addItem(sbt->name);
+			activityTagsListWidget->addItem(at->name);
 			activityTagsListWidget->setCurrentRow(activityTagsListWidget->count()-1);
+			
+			gt.rules.addUndoPoint(tr("Added the activity tag %1.").arg(at->name));
 		}
 	}
 	else{
 		if(ok){ //the user entered nothing
 			QMessageBox::information(this, tr("FET information"), tr("Incorrect name"));
 		}
-		delete sbt;// user entered nothing or pressed Cancel
+		delete at;// user entered nothing or pressed Cancel
 	}
 }
 
@@ -135,9 +145,13 @@ void ActivityTagsForm::removeActivityTag()
 		return;
 	}
 
+	/*if(QMessageBox::warning( this, tr("FET"),
+	 tr("Are you sure you want to delete this activity tag?"),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
+		return;*/
 	if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete this activity tag?"),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete this activity tag?"),
+	 QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
 		return;
 
 	int tmp=gt.rules.removeActivityTag(text);
@@ -146,13 +160,15 @@ void ActivityTagsForm::removeActivityTag()
 		QListWidgetItem* item;
 		item=activityTagsListWidget->takeItem(i);
 		delete item;
-
+		
 		if(i>=activityTagsListWidget->count())
 			i=activityTagsListWidget->count()-1;
 		if(i>=0)
 			activityTagsListWidget->setCurrentRow(i);
 		else
 			currentActivityTagTextEdit->setPlainText(QString(""));
+
+		gt.rules.addUndoPoint(tr("Removed the activity tag %1.").arg(text));
 	}
 }
 
@@ -163,7 +179,7 @@ void ActivityTagsForm::renameActivityTag()
 		QMessageBox::information(this, tr("FET information"), tr("Invalid selected activity tag"));
 		return;
 	}
-
+	
 	QString initialActivityTagName=activityTagsListWidget->currentItem()->text();
 
 	int activity_tag_ID=gt.rules.searchActivityTag(initialActivityTagName);
@@ -187,6 +203,8 @@ void ActivityTagsForm::renameActivityTag()
 			gt.rules.modifyActivityTag(initialActivityTagName, finalActivityTagName);
 			activityTagsListWidget->item(i)->setText(finalActivityTagName);
 			activityTagChanged(activityTagsListWidget->currentRow());
+			
+			gt.rules.addUndoPoint(tr("Renamed the activity tag from %1 to %2.").arg(initialActivityTagName).arg(finalActivityTagName));
 		}
 	}
 }
@@ -200,19 +218,30 @@ void ActivityTagsForm::moveActivityTagUp()
 		return;
 	if(i==0)
 		return;
-
+	
 	QString s1=activityTagsListWidget->item(i)->text();
 	QString s2=activityTagsListWidget->item(i-1)->text();
+	
+	ActivityTag* at1=gt.rules.activityTagsList.at(i);
+	ActivityTag* at2=gt.rules.activityTagsList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
 
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+	
 	activityTagsListWidget->item(i)->setText(s2);
 	activityTagsListWidget->item(i-1)->setText(s1);
+	
+	gt.rules.activityTagsList[i]=at2;
+	gt.rules.activityTagsList[i-1]=at1;
 
-	gt.rules.activityTagsList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
-
+	gt.rules.addUndoPoint(tr("Moved the activity tag %1 up.").arg(s1));
+	
 	activityTagsListWidget->setCurrentRow(i-1);
+	activityTagChanged(i-1);
 }
 
 void ActivityTagsForm::moveActivityTagDown()
@@ -224,29 +253,42 @@ void ActivityTagsForm::moveActivityTagDown()
 		return;
 	if(i==activityTagsListWidget->count()-1)
 		return;
-
+		
 	QString s1=activityTagsListWidget->item(i)->text();
 	QString s2=activityTagsListWidget->item(i+1)->text();
+	
+	ActivityTag* at1=gt.rules.activityTagsList.at(i);
+	ActivityTag* at2=gt.rules.activityTagsList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
 
 	activityTagsListWidget->item(i)->setText(s2);
 	activityTagsListWidget->item(i+1)->setText(s1);
-
-	gt.rules.activityTagsList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	
+	gt.rules.activityTagsList[i]=at2;
+	gt.rules.activityTagsList[i+1]=at1;
+	
+	gt.rules.addUndoPoint(tr("Moved the activity tag %1 down.").arg(s1));
 
 	activityTagsListWidget->setCurrentRow(i+1);
+	activityTagChanged(i+1);
 }
 
 void ActivityTagsForm::sortActivityTags()
 {
 	gt.rules.sortActivityTagsAlphabetically();
 
+	gt.rules.addUndoPoint(tr("Sorted the activity tags."));
+
 	activityTagsListWidget->clear();
 	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* sbt=gt.rules.activityTagsList[i];
-		activityTagsListWidget->addItem(sbt->name);
+		ActivityTag* at=gt.rules.activityTagsList[i];
+		activityTagsListWidget->addItem(at->name);
 	}
 
 	if(activityTagsListWidget->count()>0)
@@ -259,9 +301,9 @@ void ActivityTagsForm::activityTagChanged(int index)
 		currentActivityTagTextEdit->setPlainText(QString(""));
 		return;
 	}
-
+	
 	ActivityTag* st=gt.rules.activityTagsList.at(index);
-	assert(st);
+	assert(st!=nullptr);
 	QString s=st->getDetailedDescriptionWithConstraints(gt.rules);
 	currentActivityTagTextEdit->setPlainText(s);
 }
@@ -276,6 +318,9 @@ void ActivityTagsForm::activateActivityTag()
 	QString text=activityTagsListWidget->currentItem()->text();
 	int count=gt.rules.activateActivityTag(text);
 	QMessageBox::information(this, tr("FET information"), tr("Activated a number of %1 activities").arg(count));
+	
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Activated the activity tag %1 (%2 activities).", "%2 is the number of activated activities").arg(text).arg(count));
 }
 
 void ActivityTagsForm::deactivateActivityTag()
@@ -287,7 +332,10 @@ void ActivityTagsForm::deactivateActivityTag()
 
 	QString text=activityTagsListWidget->currentItem()->text();
 	int count=gt.rules.deactivateActivityTag(text);
-	QMessageBox::information(this, tr("FET information"), tr("De-activated a number of %1 activities").arg(count));
+	QMessageBox::information(this, tr("FET information"), tr("Deactivated a number of %1 activities").arg(count));
+	
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Deactivated the activity tag %1 (%2 activities).", "%2 is the number of deactivated activities").arg(text).arg(count));
 }
 
 void ActivityTagsForm::printableActivityTag()
@@ -298,10 +346,13 @@ void ActivityTagsForm::printableActivityTag()
 	}
 
 	QString text=activityTagsListWidget->currentItem()->text();
+	
+	bool t=gt.rules.makeActivityTagPrintable(text);
 
-	gt.rules.makeActivityTagPrintable(text);
-
-	activityTagChanged(activityTagsListWidget->currentRow());
+	if(t){
+		activityTagChanged(activityTagsListWidget->currentRow());
+		gt.rules.addUndoPoint(tr("The activity tag %1 was made printable.").arg(text));
+	}
 }
 
 void ActivityTagsForm::notPrintableActivityTag()
@@ -312,10 +363,13 @@ void ActivityTagsForm::notPrintableActivityTag()
 	}
 
 	QString text=activityTagsListWidget->currentItem()->text();
-
-	gt.rules.makeActivityTagNotPrintable(text);
-
-	activityTagChanged(activityTagsListWidget->currentRow());
+	
+	bool t=gt.rules.makeActivityTagNotPrintable(text);
+	
+	if(t){
+		activityTagChanged(activityTagsListWidget->currentRow());
+		gt.rules.addUndoPoint(tr("The activity tag %1 was made not printable.").arg(text));
+	}
 }
 
 void ActivityTagsForm::help()
@@ -333,20 +387,180 @@ void ActivityTagsForm::comments()
 		QMessageBox::information(this, tr("FET information"), tr("Invalid selected activity tag"));
 		return;
 	}
-
+	
 	ActivityTag* at=gt.rules.activityTagsList[ind];
-	assert(at!=NULL);
+	assert(at!=nullptr);
 
-	EditCommentsForm dialog("ActivityTagCommentsDialog", this, tr("Activity tag comments"));
-	dialog.setComments(at->comments);
+	QDialog getCommentsDialog(this);
+	
+	getCommentsDialog.setWindowTitle(tr("Activity tag comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
 
-	int t=dialog.exec();
-
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(at->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("ActivityTagCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
+	
 	if(t==QDialog::Accepted){
-		at->comments=dialog.getComments();
-
+		QString oc=at->comments;
+	
+		at->comments=commentsPT->toPlainText();
+	
+		gt.rules.addUndoPoint(tr("Changed the comments for the activity tag %1 from\n%2\nto\n%3.").arg(at->name).arg(oc).arg(at->comments));
+	
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		activityTagChanged(ind);
+	}
+}
+
+void ActivityTagsForm::longName()
+{
+	int ind=activityTagsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected activity tag"));
+		return;
+	}
+	
+	ActivityTag* at=gt.rules.activityTagsList[ind];
+	assert(at!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Activity tag long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(at->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("ActivityTagLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=at->longName;
+	
+		at->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the activity tag %1 from\n%2\nto\n%3.").arg(at->name).arg(oln).arg(at->longName));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		activityTagChanged(ind);
+	}
+}
+
+void ActivityTagsForm::code()
+{
+	int ind=activityTagsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected activity tag"));
+		return;
+	}
+	
+	ActivityTag* at=gt.rules.activityTagsList[ind];
+	assert(at!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Activity tag code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(at->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("ActivityTagCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=at->code;
+	
+		at->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the activity tag %1 from\n%2\nto\n%3.").arg(at->name).arg(oc).arg(at->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		activityTagChanged(ind);
 	}

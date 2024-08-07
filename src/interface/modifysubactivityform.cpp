@@ -2,8 +2,8 @@
                           modifysubactivityform.cpp  -  description
                              -------------------
     begin                : Feb 9, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -22,10 +22,6 @@
 
 #include "activityplanningform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
 
 #include <QListWidget>
@@ -38,43 +34,19 @@
 #include <QObject>
 #include <QMetaObject>
 
-void ModifySubactivityForm::setupAddRemoveKeyFilters()
-{
-	addRemoveTeacherKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveTeacherKeyFilter->setAddDstCallback("addTeacher");
-	allTeachersListWidget->installEventFilter(addRemoveTeacherKeyFilter);
-
-	addRemoveSelectedTeacherKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedTeacherKeyFilter->setRemoveDstCallback("removeTeacher");
-	selectedTeachersListWidget->installEventFilter(addRemoveSelectedTeacherKeyFilter);
-
-	addRemoveStudentKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveStudentKeyFilter->setAddDstCallback("addStudents");
-	allStudentsListWidget->installEventFilter(addRemoveStudentKeyFilter);
-
-	addRemoveSelectedStudentKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedStudentKeyFilter->setRemoveDstCallback("removeStudents");
-	selectedStudentsListWidget->installEventFilter(addRemoveSelectedStudentKeyFilter);
-
-	addRemoveActivityTagKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveActivityTagKeyFilter->setAddDstCallback("addActivityTag");
-	allActivityTagsListWidget->installEventFilter(addRemoveActivityTagKeyFilter);
-
-	addRemoveSelectedActivityTagKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedActivityTagKeyFilter->setRemoveDstCallback("removeActivityTag");
-	selectedActivityTagsListWidget->installEventFilter(addRemoveSelectedActivityTagKeyFilter);
-}
+extern const QString COMPANY;
+extern const QString PROGRAM;
 
 ModifySubactivityForm::ModifySubactivityForm(QWidget* parent, int id, int activityGroupId): QDialog(parent)
 {
 	setupUi(this);
 
-	for(Teacher* tch : qAsConst(gt.rules.teachersList))
-		teacherNamesSet.insert(tch->name);
-	for(Subject* sbj : qAsConst(gt.rules.subjectsList))
-		subjectNamesSet.insert(sbj->name);
-	for(ActivityTag* at : qAsConst(gt.rules.activityTagsList))
-		activityTagNamesSet.insert(at->name);
+	for(Teacher* tch : std::as_const(gt.rules.teachersList))
+		teachersNamesSet.insert(tch->name);
+	for(Subject* sbj : std::as_const(gt.rules.subjectsList))
+		subjectsNamesSet.insert(sbj->name);
+	for(ActivityTag* at : std::as_const(gt.rules.activityTagsList))
+		activityTagsNamesSet.insert(at->name);
 
 	allTeachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedTeachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -83,7 +55,7 @@ ModifySubactivityForm::ModifySubactivityForm(QWidget* parent, int id, int activi
 	allActivityTagsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivityTagsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 
 	showSubgroupsCheckBox->setChecked(settings.value(this->metaObject()->className()+QString("/show-subgroups-check-box-state"), "false").toBool());
 	showGroupsCheckBox->setChecked(settings.value(this->metaObject()->className()+QString("/show-groups-check-box-state"), "true").toBool());
@@ -92,23 +64,21 @@ ModifySubactivityForm::ModifySubactivityForm(QWidget* parent, int id, int activi
 	allTeachersRadioButton->setChecked(settings.value(this->metaObject()->className()+QString("/all-teachers-radio-button-state"), "true").toBool());
 	qualifiedTeachersRadioButton->setChecked(settings.value(this->metaObject()->className()+QString("/qualified-teachers-radio-button-state"), "false").toBool());
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(reject()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(clearTeacherPushButton, SIGNAL(clicked()), this, SLOT(clearTeachers()));
-	connect(clearStudentsPushButton, SIGNAL(clicked()), this, SLOT(clearStudents()));
-	connect(allTeachersListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addTeacher()));
-	connect(selectedTeachersListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeTeacher()));
-	connect(allStudentsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addStudents()));
-	connect(selectedStudentsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeStudents()));
-	connect(clearActivityTagPushButton, SIGNAL(clicked()), this, SLOT(clearActivityTags()));
-	connect(allActivityTagsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivityTag()));
-	connect(selectedActivityTagsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivityTag()));
-	connect(showYearsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showYearsChanged()));
-	connect(showGroupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showGroupsChanged()));
-	connect(showSubgroupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showSubgroupsChanged()));
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
-
-	setupAddRemoveKeyFilters();
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::ok);
+	connect(clearTeachersPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::clearTeachers);
+	connect(clearStudentsPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::clearStudents);
+	connect(allTeachersListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::addTeacher);
+	connect(selectedTeachersListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::removeTeacher);
+	connect(allStudentsListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::addStudents);
+	connect(selectedStudentsListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::removeStudents);
+	connect(clearActivityTagsPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::clearActivityTags);
+	connect(allActivityTagsListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::addActivityTag);
+	connect(selectedActivityTagsListWidget, &QListWidget::itemDoubleClicked, this, &ModifySubactivityForm::removeActivityTag);
+	connect(showYearsCheckBox, &QCheckBox::toggled, this, &ModifySubactivityForm::showYearsChanged);
+	connect(showGroupsCheckBox, &QCheckBox::toggled, this, &ModifySubactivityForm::showGroupsChanged);
+	connect(showSubgroupsCheckBox, &QCheckBox::toggled, this, &ModifySubactivityForm::showSubgroupsChanged);
+	connect(helpPushButton, &QPushButton::clicked, this, &ModifySubactivityForm::help);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -161,17 +131,17 @@ ModifySubactivityForm::ModifySubactivityForm(QWidget* parent, int id, int activi
 	updateActivityTagsListWidget();
 
 	//after updateSubjectsComboBox
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(updateAllTeachersListWidget()));
-	connect(allTeachersRadioButton, SIGNAL(toggled(bool)), this, SLOT(allTeachersRadioButtonToggled(bool)));
-	connect(qualifiedTeachersRadioButton, SIGNAL(toggled(bool)), this, SLOT(qualifiedTeachersRadioButtonToggled(bool)));
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifySubactivityForm::updateAllTeachersListWidget);
+	connect(allTeachersRadioButton, &QRadioButton::toggled, this, &ModifySubactivityForm::allTeachersRadioButtonToggled);
+	connect(qualifiedTeachersRadioButton, &QRadioButton::toggled, this, &ModifySubactivityForm::qualifiedTeachersRadioButtonToggled);
 	updateAllTeachersListWidget();
 	
 	selectedTeachersListWidget->clear();
-	for(QStringList::Iterator it=this->_teachers.begin(); it!=this->_teachers.end(); it++)
+	for(QStringList::const_iterator it=this->_teachers.constBegin(); it!=this->_teachers.constEnd(); it++)
 		selectedTeachersListWidget->addItem(*it);
 
 	selectedStudentsListWidget->clear();
-	for(QStringList::Iterator it=this->_students.begin(); it!=this->_students.end(); it++)
+	for(QStringList::const_iterator it=this->_students.constBegin(); it!=this->_students.constEnd(); it++)
 		selectedStudentsListWidget->addItem(*it);
 	
 	okPushButton->setDefault(true);
@@ -182,7 +152,7 @@ ModifySubactivityForm::~ModifySubactivityForm()
 {
 	saveFETDialogGeometry(this);
 
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 
 	settings.setValue(this->metaObject()->className()+QString("/show-subgroups-check-box-state"), showSubgroupsCheckBox->isChecked());
 	settings.setValue(this->metaObject()->className()+QString("/show-groups-check-box-state"), showGroupsCheckBox->isChecked());
@@ -216,7 +186,7 @@ void ModifySubactivityForm::updateAllTeachersListWidget()
 		else{
 			assert(qualifiedTeachersRadioButton->isChecked());
 			assert(subjectsComboBox->currentText()!="");
-			assert(subjectNamesSet.contains(subjectsComboBox->currentText()));
+			assert(subjectsNamesSet.contains(subjectsComboBox->currentText()));
 			if(tch->qualifiedSubjectsHash.contains(subjectsComboBox->currentText())){
 				allTeachersListWidget->addItem(tch->name);
 			}
@@ -337,7 +307,7 @@ void ModifySubactivityForm::updateActivityTagsListWidget()
 	}
 		
 	selectedActivityTagsListWidget->clear();
-	for(QStringList::Iterator it=this->_activityTags.begin(); it!=this->_activityTags.end(); it++)
+	for(QStringList::const_iterator it=this->_activityTags.constBegin(); it!=this->_activityTags.constEnd(); it++)
 		selectedActivityTagsListWidget->addItem(*it);
 }
 
@@ -375,15 +345,19 @@ void ModifySubactivityForm::updateStudentsListWidget()
 		for(int j=0; j<sty->groupsList.size(); j++){
 			StudentsGroup* stg=sty->groupsList[j];
 			if(showGroups){
-				QString ident=QString(INDENT, ' ');
-				allStudentsListWidget->addItem(ident+stg->name);
+				QString begin=QString("");
+				QString end=QString("");
+				begin=QString(INDENT, ' ');
+				allStudentsListWidget->addItem(begin+stg->name+end);
 				canonicalStudentsSetsNames.append(stg->name);
 			}
 			if(showSubgroups) for(int k=0; k<stg->subgroupsList.size(); k++){
 				StudentsSubgroup* sts=stg->subgroupsList[k];
 
-				QString ident=QString(2*INDENT, ' ');
-				allStudentsListWidget->addItem(ident+sts->name);
+				QString begin=QString("");
+				QString end=QString("");
+				begin=QString(2*INDENT, ' ');
+				allStudentsListWidget->addItem(begin+sts->name+end);
 				canonicalStudentsSetsNames.append(sts->name);
 			}
 		}
@@ -393,13 +367,18 @@ void ModifySubactivityForm::updateStudentsListWidget()
 	allStudentsListWidget->verticalScrollBar()->setValue(q);
 }
 
+void ModifySubactivityForm::cancel()
+{
+	this->reject();
+}
+
 void ModifySubactivityForm::ok()
 {
 	//subject
 	QString subject_name=subjectsComboBox->currentText();
 	/*int subject_index=gt.rules.searchSubject(subject_name);
 	if(subject_index<0){*/
-	bool found=subjectNamesSet.contains(subject_name);
+	bool found=subjectsNamesSet.contains(subject_name);
 	if(!found){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid subject"));
@@ -410,7 +389,7 @@ void ModifySubactivityForm::ok()
 	QStringList activity_tags_names;
 	for(int i=0; i<selectedActivityTagsListWidget->count(); i++){
 		//assert(gt.rules.searchActivityTag(selectedActivityTagsListWidget->item(i)->text())>=0);
-		assert(activityTagNamesSet.contains(selectedActivityTagsListWidget->item(i)->text()));
+		assert(activityTagsNamesSet.contains(selectedActivityTagsListWidget->item(i)->text()));
 		activity_tags_names.append(selectedActivityTagsListWidget->item(i)->text());
 	}
 
@@ -427,7 +406,7 @@ void ModifySubactivityForm::ok()
 	else{
 		for(int i=0; i<selectedTeachersListWidget->count(); i++){
 			//assert(gt.rules.searchTeacher(selectedTeachersListWidget->item(i)->text())>=0);
-			assert(teacherNamesSet.contains(selectedTeachersListWidget->item(i)->text()));
+			assert(teachersNamesSet.contains(selectedTeachersListWidget->item(i)->text()));
 			teachers_names.append(selectedTeachersListWidget->item(i)->text());
 		}
 	}
@@ -445,7 +424,7 @@ void ModifySubactivityForm::ok()
 	}
 	else{
 		for(int i=0; i<selectedStudentsListWidget->count(); i++){
-			//assert(gt.rules.searchStudentsSet(selectedStudentsListWidget->item(i)->text())!=NULL);
+			//assert(gt.rules.searchStudentsSet(selectedStudentsListWidget->item(i)->text())!=nullptr);
 			/*assert(numberOfStudentsHash.contains(selectedStudentsListWidget->item(i)->text()));
 			numberOfStudents+=numberOfStudentsHash.value(selectedStudentsListWidget->item(i)->text());*/
 			assert(gt.rules.permanentStudentsHash.contains(selectedStudentsListWidget->item(i)->text()));
@@ -457,10 +436,12 @@ void ModifySubactivityForm::ok()
 	/*int total_number_of_students=0;
 	for(QStringList::Iterator it=students_names.begin(); it!=students_names.end(); it++){
 		StudentsSet* ss=gt.rules.searchStudentsSet(*it);
-		assert(ss!=NULL);
+		assert(ss!=nullptr);
 		total_number_of_students+=ss->numberOfStudents;
 	}*/
 	int total_number_of_students=numberOfStudents;
+
+	QString od=this->_activity->getDetailedDescription(gt.rules);
 
 	if(nStudentsSpinBox->value()==-1){
 		gt.rules.modifySubactivity(this->_id, this->_activityGroupId, teachers_names, subject_name,
@@ -475,6 +456,11 @@ void ModifySubactivityForm::ok()
 	
 	PlanningChanged::increasePlanningCommunicationSpinBox();
 	
+	QString nd=this->_activity->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the subactivity with id=%1.").arg(this->_id)
+	 +QString("\n\n")+tr("The old description was:\n%1").arg(od)
+	 +QString("\n")+tr("The new description was:\n%1", "It is 'was', not 'is', because it is a recorded history (undo/redo) point.").arg(nd));
+
 	this->accept();
 }
 
@@ -521,10 +507,11 @@ void ModifySubactivityForm::help()
 
 	vl->addWidget(te);
 	vl->addLayout(hl);
-	connect(pb, SIGNAL(clicked()), &dialog, SLOT(close()));
+	connect(pb, &QPushButton::clicked, &dialog, &QDialog::close);
 
 	dialog.resize(600,470);
 	centerWidgetOnScreen(&dialog);
 
+	setParentAndOtherThings(&dialog, this);
 	dialog.exec();
 }

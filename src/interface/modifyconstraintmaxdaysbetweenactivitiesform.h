@@ -2,8 +2,8 @@
                           modifyconstraintmaxdaysbetweenactivitiesform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -26,7 +26,7 @@
 #include <QList>
 
 class ModifyConstraintMaxDaysBetweenActivitiesForm : public QDialog, Ui::ModifyConstraintMaxDaysBetweenActivitiesForm_template  {
-	Q_OBJECT	
+	Q_OBJECT
 
 public:
 	ModifyConstraintMaxDaysBetweenActivitiesForm(QWidget* parent, ConstraintMaxDaysBetweenActivities* ctr);
@@ -42,6 +42,7 @@ public slots:
 	void clear();
 
 	void ok();
+	void cancel();
 	
 	void filterChanged();
 

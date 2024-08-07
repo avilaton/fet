@@ -1,13 +1,13 @@
 /*
-File fet.cpp - this is where the program FET starts
+File fet.cpp - this is where FET starts
 */
 
 /***************************************************************************
                           fet.cpp  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -25,15 +25,13 @@ File fet.cpp - this is where the program FET starts
 
 #include "messageboxes.h"
 
-#include "randomknuth.h"
+#include "rules.h"
 
 #ifndef FET_COMMAND_LINE
 #include <QMessageBox>
 
 #include <QWidget>
 #endif
-
-#include <QStandardPaths>
 
 #include <QLocale>
 #include <QTime>
@@ -44,32 +42,52 @@ File fet.cpp - this is where the program FET starts
 
 static QSet<QString> languagesSet;
 
-#include <ctime>
+//#include <ctime>
 #include <cstdlib>
 
 #include "timetableexport.h"
 #include "generate.h"
+#include "generate_pre.h"
 
 #include "timetable_defs.h"
 #include "timetable.h"
 
+//extern MRG32k3a rng;
+
+#ifndef FET_COMMAND_LINE
+FetSettings fetSettings;
+#endif
+
+#ifdef FET_COMMAND_LINE
+Generate gen;
+#else
+extern Generate gen;
+#endif
+
 #ifndef FET_COMMAND_LINE
 #include "fetmainform.h"
 
+#include "helpblockplanningform.h"
+#include "helptermsform.h"
+#include "helpmoroccoform.h"
+#include "helpalgeriaform.h"
+
 #include "helpaboutform.h"
+#include "helpaboutlibrariesform.h"
 #include "helpfaqform.h"
 #include "helptipsform.h"
 #include "helpinstructionsform.h"
 
 #include "timetableshowconflictsform.h"
 #include "timetableviewstudentsdayshorizontalform.h"
+#include "timetableviewstudentsdaysverticalform.h"
 #include "timetableviewstudentstimehorizontalform.h"
 #include "timetableviewteachersdayshorizontalform.h"
+#include "timetableviewteachersdaysverticalform.h"
 #include "timetableviewteacherstimehorizontalform.h"
 #include "timetableviewroomsdayshorizontalform.h"
+#include "timetableviewroomsdaysverticalform.h"
 #include "timetableviewroomstimehorizontalform.h"
-
-#include "fetguisettings.h"
 #endif
 
 #include <QCoreApplication>
@@ -87,24 +105,41 @@ static QSet<QString> languagesSet;
 #include <QTranslator>
 
 #include <QDir>
+#include <QFileInfo>
 
 #include <QTextStream>
 #include <QFile>
 
+#include <Qt>
+
 #ifdef FET_COMMAND_LINE
 #include <csignal>
+#include <QtGlobal>
 #endif
 
 #include <iostream>
 using namespace std;
 
-extern int initialOrderOfActivitiesIndices[MAX_ACTIVITIES];
-
 #ifndef FET_COMMAND_LINE
-extern QMutex myMutex;
-#else
-QMutex myMutex;
+extern QRect mainFormSettingsRect;
+extern int MAIN_FORM_SHORTCUTS_TAB_POSITION;
 #endif
+
+//extern Solution highestStageSolution;
+
+//extern int maxActivitiesPlaced;
+
+extern bool students_schedule_ready;
+extern bool teachers_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+
+//#ifndef FET_COMMAND_LINE
+//extern QMutex myMutex;
+//#else
+//QMutex myMutex;
+//#endif
+
+void writeDefaultGenerationParameters();
 
 QTranslator translator;
 
@@ -128,99 +163,211 @@ The import directory
 */
 QString IMPORT_DIRECTORY;
 
+Matrix3D<int> teachers_timetable_weekly;
+Matrix3D<int> students_timetable_weekly;
+Matrix3D<int> rooms_timetable_weekly;
+Matrix3D<QList<int>> virtual_rooms_timetable_weekly;
+Matrix3D<QList<int>> buildings_timetable_weekly;
+Matrix3D<QList<int>> teachers_free_periods_timetable_weekly;
+
+#ifndef FET_COMMAND_LINE
+QApplication* pqapplication=nullptr;
+
+FetMainForm* pFetMainForm=nullptr;
+#endif
+
+//extern int XX;
+//extern int YY;
+
+Generate* terminateGeneratePointer;
+
 #ifdef FET_COMMAND_LINE
 #include "export.h"
+
+extern bool EXPORT_CSV;
+extern bool EXPORT_ALLOW_OVERWRITE;
+extern bool EXPORT_FIRST_LINE_IS_HEADING;
+extern int EXPORT_QUOTES;
+
+extern const int EXPORT_DOUBLE_QUOTES;
+extern const int EXPORT_SINGLE_QUOTES;
+extern const int EXPORT_NO_QUOTES;
+
+extern int EXPORT_FIELD_SEPARATOR;
+
+extern const int EXPORT_COMMA;
+extern const int EXPORT_SEMICOLON;
+extern const int EXPORT_VERTICALBAR;
+
+//extern Solution best_solution;
+
+extern QString DIRECTORY_CSV;
 #endif
 
 //for command line version, if the user stops using a signal
 #ifdef FET_COMMAND_LINE
-
-Generate* terminateGeneratePointer = NULL;
-
-static void terminate(int param)
+void terminate(int param)
 {
 	Q_UNUSED(param);
 
-	assert(terminateGeneratePointer!=NULL);
+	assert(terminateGeneratePointer!=nullptr);
 	
-	terminateGeneratePointer->abort();
+	terminateGeneratePointer->abortOptimization=true;
 }
 
-static void usage(QTextStream* out, const QString& error)
+void usage(QTextStream* out, const QString& error)
 {
 	QString s="";
 	
-	s+=QString("Incorrect command-line parameters (%1).").arg(error);
+	if(!error.isEmpty()){
+		s+=QString("Incorrect command-line parameters (%1).").arg(error);
 	
-	s+="\n\n";
+		s+="\n\n";
+	}
 	
 	s+=QString(
-		"Command line usage: \"fet-cl --inputfile=x [--outputdir=d] [--timelimitseconds=y] [--htmllevel=z] [--language=t] "
-		"[--writetimetableconflicts=wt1] "
-		"[--writetimetablesstatistics=wt2] "
-		"[--writetimetablesxml=wt3] "
-		"[--writetimetablesdayshorizontal=wt4] "
-		"[--writetimetablesdaysvertical=wt5] "
-		"[--writetimetablestimehorizontal=wt6] "
-		"[--writetimetablestimevertical=wt7] "
-		"[--writetimetablessubgroups=wt8] "
-		"[--writetimetablesgroups=wt9] "
-		"[--writetimetablesyears=wt10] "
-		"[--writetimetablesteachers=wt11] "
-		"[--writetimetablesteachersfreeperiods=wt12] "
-		"[--writetimetablesrooms=wt13] "
-		"[--writetimetablessubjects=wt14] "
-		"[--writetimetablesactivitytags=wt15] "
-		"[--writetimetablesactivities=wt16] "
-		"[--printactivitytags=a] [--printnotavailable=u] [--printbreak=b] [--dividetimeaxisbydays=v] [--duplicateverticalheaders=e] "
-		"[--printsimultaneousactivities=w] [--randomseedx=rx --randomseedy=ry] [--warnifusingnotperfectconstraints=s] "
-		"[--warnifusingstudentsminhoursdailywithallowemptydays=p] [--warnifusinggroupactivitiesininitialorder=g] [--warnsubgroupswiththesameactivities=ssa]\n"
-		"[--printdetailedtimetables=pdt] [--printdetailedteachersfreeperiodstimetables=pdtfp] "
-		"[--exportcsv=ecsv] [--overwritecsv=ocsv] [--firstlineisheadingcsv=flhcsv] [--quotescsv=qcsv] [--fieldseparatorcsv=fscsv] "
-		"[--verbose=r]\",\n"
-		"where:\nx is the input file, for instance \"data.fet\"\n"
-		"d is the path to results directory, without trailing slash or backslash (default is current working path). "
+		"Usage: fet-cl --inputfile=FILE [options]\n"
+		"\t\tFILE is the input file, for instance \"data.fet\"\n"
+		"\n"
+		"Options:\n"
+		"\n"
+		"\t--outputdir=DIR\n"
+		"\t\tDIR is the path to results directory, without trailing slash or backslash (default is current working path). "
 		"Make sure you have write permissions there.\n"
-		"y is integer (seconds) (default 2000000000, which is practically infinite).\n"
-		"z is integer from 0 to 7 and represents the detail level for the generated HTML timetables "
+		"\n"
+		"\t--timelimitseconds=TLS\n"
+		"\t\tTLS is an integer representing the time limit, in seconds, after which the program will stop the generation "
+		"(default 2000000000, which is practically infinite).\n"
+		"\n"
+		"\t--htmllevel=LEVEL\n"
+		"\t\tLEVEL is an integer from 0 to 7 and represents the detail level for the generated HTML timetables "
 		"(default 2, larger values have more details/facilities and larger file sizes).\n"
-		"t is one of ar, ca, cs, da, de, el, en_GB, en_US, es, eu, fa, fr, gl, he, hu, id, it, ja, lt, mk, ms, nl, pl, pt_BR, ro, ru, si, sk, sq, sr, tr, "
-		"uk, uz, vi, zh_CN, zh_TW (default en_US).\n"
-		"wt1 to wt16 are either true or false and represent whether you want the corresponding timetables to be written on the disk (default true).\n"
-		"a is either true or false and represets if you want activity tags to be present in the final HTML timetables (default true).\n"
-		"u is either true or false and represents if you want -x- (for true) or --- (for false) in the generated timetables for the "
+		"\n"
+		"\t--language=LANG\n"
+		"\t\tLANG is one of: ar, bg, ca, cs, da, de, el, en_GB, en_US, es, eu, fa, fr, gl, he, hu, id, it, ja, lt, mk, ms, nl, pl, pt_BR, ro, ru, si, sk, sq, sr, "
+		"tr, uk, uz, vi, zh_CN, zh_TW (default en_US).\n"
+		"\n"
+		"\t--writetimetableconflicts=WT1\n"
+		"\t--writetimetablesstatistics=WT2\n"
+		"\t--writetimetablesxml=WT3\n"
+		"\t--writetimetablesdayshorizontal=WT4\n"
+		"\t--writetimetablesdaysvertical=WT5\n"
+		"\t--writetimetablestimehorizontal=WT6\n"
+		"\t--writetimetablestimevertical=WT7\n"
+		"\t--writetimetablessubgroups=WT8\n"
+		"\t--writetimetablesgroups=WT9\n"
+		"\t--writetimetablesyears=WT10\n"
+		"\t--writetimetablesteachers=WT11\n"
+		"\t--writetimetablesteachersfreeperiods=WT12\n"
+		"\t--writetimetablesbuildings=WT13\n"
+		"\t--writetimetablesrooms=WT14\n"
+		"\t--writetimetablessubjects=WT15\n"
+		"\t--writetimetablesactivitytags=WT16\n"
+		"\t--writetimetablesactivities=WT17\n"
+		"\t\tWT1 to WT17 are either true or false and represent whether you want the corresponding timetables to be written on the disk (default true).\n"
+		"\n"
+		
+		"\t--printsubjects=PS\n"
+		"\t\tPS is either true or false and represets if you want the subjects to be present in the final HTML timetables (default true).\n"
+		"\n"
+		"\t--printactivitytags=PAT\n"
+		"\t\tPAT is either true or false and represets if you want the activity tags to be present in the final HTML timetables (default true).\n"
+		"\n"
+		"\t--printteachers=PT\n"
+		"\t\tPT is either true or false and represets if you want the teachers to be present in the final HTML timetables (default true).\n"
+		"\n"
+		"\t--printstudents=PSt\n"
+		"\t\tPSt is either true or false and represets if you want the students to be present in the final HTML timetables (default true).\n"
+		"\n"
+		"\t--printrooms=PR\n"
+		"\t\tPR is either true or false and represets if you want the rooms to be present in the final HTML timetables (default true).\n"
+		
+		"\n"
+		"\t--printnotavailable=PNA\n"
+		"\t\tPNA is either true or false and represents if you want -x- (for true) or --- (for false) in the generated timetables for the "
 		"not available slots (default true).\n"
-		"b is either true or false and represents if you want -X- (for true) or --- (for false) in the generated timetables for the "
+		"\n"
+		"\t--printbreak=PB\n"
+		"\t\tPB is either true or false and represents if you want -X- (for true) or --- (for false) in the generated timetables for the "
 		"break slots (default true).\n"
-		"v is either true or false, represents if you want the HTML timetables with time-axis divided by days (default false).\n"
-		"e is either true or false, represents if you want the HTML timetables to duplicate vertical headers to the right of the tables, for easier reading (default false).\n"
-		"w is either true or false, represents if you want the HTML timetables to show related activities which have constraints with same starting time (default false).\n"
+		"\n"
+		"\t--sortsubgroups=SS\n"
+		"\t\tSS is either true or false and represents if you want the timetables of the subgroups to be sorted alphabetically by subgroup name "
+		"(default false).\n"
+		"\n"
+		"\t--dividetimeaxisbydays=DTAD\n"
+		"\t\tDTAD is either true or false, represents if you want the HTML timetables with time axis divided by days (default false).\n"
+		"\n"
+		"\t--duplicateverticalheaders=DVH\n"
+		"\t\tDVH is either true or false, represents if you want the HTML timetables to duplicate vertical headers to the right of the tables, for easier reading (default false).\n"
+		"\n"
+		"\t--printsimultaneousactivities=PSA\n"
+		"\t\tPSA is either true or false, represents if you want the HTML timetables to show related activities which have constraints with same starting time (default false). "
 		"(for instance, if A1 (T1, G1) and A2 (T2, G2) have constraint activities same starting time, then in T1's timetable will appear also A2, at the same slot "
 		"as A1).\n"
-		"rx is the random seed X component, minimum 1 to maximum 2147483646, ry is the random seed Y component, minimum 1 to maximum 2147483398"
-		" (you can get the same timetable if the input file is identical, if the FET version is the same and if the random seed X and Y components are the same).\n"
-		"s is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains not perfect constraints "
-		"(activity tag max hours daily or students max gaps per day) (default true).\n"
-		"p is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains nonstandard constraints "
+		"\n"
+		"\t--randomseeds10=s10 --randomseeds11=s11 --randomseeds12=s12 --randomseeds20=s20 --randomseeds21=s21 --randomseeds22=s22\n"
+		"\t\twhere you need to specify all the 6 random seed components, and s10, s11, and s12 are integers from minimum 0 to maximum 4294967086,"
+		" not all 3 zero, and s20, s21, and s22 are integers from minimum 0 to maximum 4294944442, not all 3 zero "
+		"(you can get the same timetable if the input file is identical, if the FET version is the same (or if the generation algorithm did not change),"
+		" and if all the 6 random seed components are respectively equal).\n"
+		"\n"
+		"\t--warnifusingnotperfectconstraints=WNP\n"
+		"\t\tWNP is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains not perfect constraints "
+		"(activity tag max / min hours daily or students max gaps per day / real day) (default true).\n"
+		"\n"
+		"\t--warnifusingstudentsminhoursdailywithallowemptydays=WSMHDAED\n"
+		"\t\tSMHDAEDP is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains nonstandard constraints "
 		"students min hours daily with allow empty days (default true).\n"
-		"g is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains nonstandard timetable "
+		"\n"
+		"\t--warnifusinggroupactivitiesininitialorder=WGA\n"
+		"\t\tWGA is either true or false, represents whether you want a message box to be shown, with a warning, if the input file contains nonstandard timetable "
 		"generation options to group activities in the initial order (default true).\n"
-		"ssa is either true or false, represents whether you want a message box to be show, with a warning, if your input file contains subgroups which have "
+		"\n"
+		"\t--warnsubgroupswiththesameactivities=WSSA\n"
+		"\t\tWSSA is either true or false, represents whether you want a message box to be show, with a warning, if your input file contains subgroups which have "
 		"the same activities (default true).\n"
-		"pdt is either true or false, represents whether you want to show the detailed (true) or less detailed (false) years and groups timetables (default true).\n"
-		"pdtfp is either true or false, represents whether you want to show the detailed (true) or less detailed (false) teachers free periods timetables (default true).\n"
-		"ecsv is either true or false, represents whether you want to export the CSV file and timetables (default false).\n"
-		"ocsv is either true or false, represents whether you want to overwrite old CSV files, if they exist (default false).\n"
-		"flhcsv is either true or false, represents whether you want the heading of the CSV files to be header (true) or data (false). The default value is true.\n"
-		"qcsv is one value from the set [doublequotes|singlequotes|none] (write a single value from these three exactly as it is written here). The default value is "
+		"\n"
+		"\t--printdetailedtimetables=PDT\n"
+		"\t\tPDT is either true or false, represents whether you want to show the detailed (true) or less detailed (false) years and groups timetables (default true).\n"
+		"\n"
+		"\t--printdetailedteachersfreeperiodstimetables=PDTFP\n"
+		"\t\tPDTFP is either true or false, represents whether you want to show the detailed (true) or less detailed (false) teachers free periods timetables (default true).\n"
+		"\n"
+		"\t--exportcsv=ECSV\n"
+		"\t\tECSV is either true or false, represents whether you want to export the CSV file and timetables (default false).\n"
+		"\n"
+		"\t--overwritecsv=OCSV\n"
+		"\t\tOCSV is either true or false, represents whether you want to overwrite old CSV files, if they exist (default false).\n"
+		"\n"
+		"\t--firstlineisheadingcsv=FLHCSV\n"
+		"\t\tFLHCSV is either true or false, represents whether you want the heading of the CSV files to be header (true) or data (false). The default value is true.\n"
+		"\n"
+		"\t--quotescsv=QCSV\n"
+		"\t\tQCSV is one value from the set [doublequotes|singlequotes|none] (write a single value from these three exactly as it is written here). The default value is "
 		"doublequotes.\n"
-		"fscsv is one value from the set [comma|semicolon|verticalbar] (write a single value from these three exactly as it is written here). The default value is "
+		"\n"
+		"\t--fieldseparatorcsv=FSCSV\n"
+		"\t\tFSCSV is one value from the set [comma|semicolon|verticalbar] (write a single value from these three exactly as it is written here). The default value is "
 		"comma.\n"
-		"r is either true or false, represents whether you want additional generation messages and other messages to be shown on the command line (default false).\n"
-		"Alternatively, you can run \"fet-cl --version [--outputdir=d]\" to get the current FET version, "
-		"where\nd is the path to results directory, without trailing slash or backslash (default is current working path). "
-		"Make sure you have write permissions there.\n"
-		"(If you specify the \"--version argument\", FET just prints version number on the command line prompt and in the output directory and exits.)\n"
+		"\n"
+		"\t--showvirtualrooms=SVR\n"
+		"\t\tSVR is either true or false, represents whether you want to show virtual rooms in the timetables (default false).\n"
+		"\n"
+		"\t--warnifusingactivitiesnotfixedtimefixedspacevirtualroomsrealrooms=WANFTFS\n"
+		"\t\tWANFTFS is either true or false, represents whether you want the program to issue a warning if you are using activites which are not fixed in time, "
+		"but are fixed in space in a virtual room, specifying also the real rooms (which is not recommended) (default true).\n"
+		"\n"
+		"\t--warnifusingmaxhoursdailywithlessthan100percentweight=WMHDWLT100PW\n"
+		"\t\tWMHDWLT100PW is either true or false, represents whether you want the program to issue a warning if you are using constraints of type teacher(s)/students (set) "
+		"max hours daily with a weight less than 100% (default true).\n"
+		"\n"
+		"\t--verbose=VBS\n"
+		"\t\tVBS is either true or false, represents whether you want additional generation messages and other messages to be shown on the command line (default false).\n"
+		"\n"
+		"Run \"fet-cl --help\" to get usage information.\n"
+		"\n"
+		"Run \"fet-cl --version\" to get version information.\n"
 		"\n"
 		"You can ask the FET command line process to stop the timetable generation, by sending it the SIGTERM (or SIGBREAK, on Windows) signal. "
 		"FET will then write the current timetable and the highest stage timetable and exit. "
@@ -228,41 +375,21 @@ static void usage(QTextStream* out, const QString& error)
 	);
 	
 	cout<<qPrintable(s)<<endl;
-	if(out!=NULL)
+	if(out!=nullptr)
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		(*out)<<qPrintable(s)<<Qt::endl;
+#else
 		(*out)<<qPrintable(s)<<endl;
+#endif
 }
-
-static void renderErrorList(const ErrorList& errors) {
-	for (const ErrorCode& erc : qAsConst(errors))
-		if (erc)
-			IrreconcilableCriticalMessage::critical((QWidget*)NULL, erc.getSeverityTitle(), erc.message);
-}
-
 #endif
 
 #ifndef FET_COMMAND_LINE
-static void readSimulationParameters()
+void FetSettings::readGenerationParameters(QApplication& qapplication)
 {
 	const QString predefDir=QDir::homePath()+FILE_SEP+"fet-results";
 
-	QSettings newSettings;
-
-	if(newSettings.contains("output-directory")){
-		OUTPUT_DIR=newSettings.value("output-directory").toString();
-		QDir dir;
-		if(!dir.exists(OUTPUT_DIR)){
-			bool t=dir.mkpath(OUTPUT_DIR);
-			if(!t){
-				QMessageBox::warning(NULL, FetTranslate::tr("FET warning"), FetTranslate::tr("Output directory %1 does not exist and cannot be"
-				 " created - output directory will be made the default value %2")
-				 .arg(QDir::toNativeSeparators(OUTPUT_DIR)).arg(QDir::toNativeSeparators(predefDir)));
-				OUTPUT_DIR=predefDir;
-			}
-		}
-	}
-	else{
-		OUTPUT_DIR=predefDir;
-	}
+	QSettings newSettings(COMPANY, PROGRAM);
 
 #ifndef USE_SYSTEM_LOCALE
 	FET_LANGUAGE=newSettings.value("language", "en_US").toString();
@@ -274,7 +401,7 @@ static void readSimulationParameters()
 		FET_LANGUAGE=QLocale::system().name();
 
 		bool ok=false;
-		for(const QString& s : qAsConst(languagesSet)){
+		for(const QString& s : std::as_const(languagesSet)){
 			if(FET_LANGUAGE.left(s.length())==s){
 				FET_LANGUAGE=s;
 				ok=true;
@@ -285,6 +412,46 @@ static void readSimulationParameters()
 			FET_LANGUAGE="en_US";
 	}
 #endif
+	
+	if(FET_LANGUAGE=="ar")
+		FET_LANGUAGE_WITH_LOCALE="ar_DZ";
+	else
+		FET_LANGUAGE_WITH_LOCALE=FET_LANGUAGE;
+	
+	setLanguage(qapplication, nullptr);
+	
+	QString s=newSettings.value("mode", "official").toString();
+	if(s==QString("official"))
+		gt.rules.mode=OFFICIAL;
+	else if(s==QString("mornings-afternoons"))
+		gt.rules.mode=MORNINGS_AFTERNOONS;
+	else if(s==QString("block-planning"))
+		gt.rules.mode=BLOCK_PLANNING;
+	else if(s==QString("terms"))
+		gt.rules.mode=TERMS;
+	else{
+		QMessageBox::warning(nullptr, FetTranslate::tr("FET warning"), FetTranslate::tr("Incorrect startup mode read from the settings - making"
+		 " it %1.").arg(FetTranslate::tr("Official")));
+		gt.rules.mode=OFFICIAL;
+		//assert(0);
+	}
+
+	if(newSettings.contains("output-directory")){
+		OUTPUT_DIR=newSettings.value("output-directory").toString();
+		QDir dir;
+		if(!dir.exists(OUTPUT_DIR)){
+			bool t=dir.mkpath(OUTPUT_DIR);
+			if(!t){
+				QMessageBox::warning(nullptr, FetTranslate::tr("FET warning"), FetTranslate::tr("Output directory %1 does not exist and cannot be"
+				 " created - output directory will be made the default value %2")
+				 .arg(QDir::toNativeSeparators(OUTPUT_DIR)).arg(QDir::toNativeSeparators(predefDir)));
+				OUTPUT_DIR=predefDir;
+			}
+		}
+	}
+	else{
+		OUTPUT_DIR=predefDir;
+	}
 	
 	WORKING_DIRECTORY=newSettings.value("working-directory", "examples").toString();
 	IMPORT_DIRECTORY=newSettings.value("import-directory", OUTPUT_DIR).toString();
@@ -307,7 +474,18 @@ static void readSimulationParameters()
 	QString ver=newSettings.value("version", "-1").toString();
 	
 	TIMETABLE_HTML_LEVEL=newSettings.value("html-level", "2").toInt();
+	if(TIMETABLE_HTML_LEVEL<0 || TIMETABLE_HTML_LEVEL>7){
+		QMessageBox::warning(nullptr, FetTranslate::tr("FET warning"), FetTranslate::tr("Incorrect HTML level read from the settings - making it %1.").arg(2));
+		TIMETABLE_HTML_LEVEL=2;
+	}
+	TIMETABLES_SUBGROUPS_SORTED=newSettings.value("timetables-subgroups-sorted", "false").toBool();
 	TIMETABLE_HTML_PRINT_ACTIVITY_TAGS=newSettings.value("print-activity-tags", "true").toBool();
+	
+	TIMETABLE_HTML_PRINT_SUBJECTS=newSettings.value("print-subjects", "true").toBool();
+	TIMETABLE_HTML_PRINT_TEACHERS=newSettings.value("print-teachers", "true").toBool();
+	TIMETABLE_HTML_PRINT_STUDENTS=newSettings.value("print-students", "true").toBool();
+	TIMETABLE_HTML_PRINT_ROOMS=newSettings.value("print-rooms", "true").toBool();
+	
 	PRINT_DETAILED_HTML_TIMETABLES=newSettings.value("print-detailed-timetables", "true").toBool();
 	PRINT_DETAILED_HTML_TEACHERS_FREE_PERIODS=newSettings.value("print-detailed-teachers-free-periods-timetables", "true").toBool();
 	PRINT_ACTIVITIES_WITH_SAME_STARTING_TIME=newSettings.value("print-activities-with-same-starting-time", "false").toBool();
@@ -335,6 +513,7 @@ static void readSimulationParameters()
 	WRITE_TIMETABLES_YEARS=newSettings.value("write-timetables-years", "true").toBool();
 	WRITE_TIMETABLES_TEACHERS=newSettings.value("write-timetables-teachers", "true").toBool();
 	WRITE_TIMETABLES_TEACHERS_FREE_PERIODS=newSettings.value("write-timetables-teachers-free-periods", "true").toBool();
+	WRITE_TIMETABLES_BUILDINGS=newSettings.value("write-timetables-buildings", "true").toBool();
 	WRITE_TIMETABLES_ROOMS=newSettings.value("write-timetables-rooms", "true").toBool();
 	WRITE_TIMETABLES_SUBJECTS=newSettings.value("write-timetables-subjects", "true").toBool();
 	WRITE_TIMETABLES_ACTIVITY_TAGS=newSettings.value("write-timetables-activity-tags", "true").toBool();
@@ -345,28 +524,617 @@ static void readSimulationParameters()
 	else
 		STUDENTS_COMBO_BOXES_STYLE=STUDENTS_COMBO_BOXES_STYLE_SIMPLE;
 
+/////////confirmations
+	CONFIRM_ACTIVITY_PLANNING=newSettings.value("confirm-activity-planning", "true").toBool();
+	CONFIRM_SPREAD_ACTIVITIES=newSettings.value("confirm-spread-activities", "true").toBool();
+	CONFIRM_REMOVE_REDUNDANT=newSettings.value("confirm-remove-redundant", "true").toBool();
+	CONFIRM_SAVE_TIMETABLE=newSettings.value("confirm-save-data-and-timetable", "true").toBool();
+	CONFIRM_ACTIVATE_DEACTIVATE_ACTIVITIES_CONSTRAINTS=newSettings.value("confirm-activate-deactivate-activities-constraints", "true").toBool();
+/////////
+
 	ENABLE_ACTIVITY_TAG_MAX_HOURS_DAILY=newSettings.value("enable-activity-tag-max-hours-daily", "false").toBool();
+	ENABLE_ACTIVITY_TAG_MIN_HOURS_DAILY=newSettings.value("enable-activity-tag-min-hours-daily", "false").toBool();
 	ENABLE_STUDENTS_MAX_GAPS_PER_DAY=newSettings.value("enable-students-max-gaps-per-day", "false").toBool();
+	ENABLE_MAX_GAPS_PER_REAL_DAY=newSettings.value("enable-max-gaps-per-real-day", "false").toBool();
 	SHOW_WARNING_FOR_NOT_PERFECT_CONSTRAINTS=newSettings.value("warn-if-using-not-perfect-constraints", "true").toBool();
 	SHOW_WARNING_FOR_SUBGROUPS_WITH_THE_SAME_ACTIVITIES=newSettings.value("warn-subgroups-with-the-same-activities", "true").toBool();
+	SHOW_WARNING_FOR_ACTIVITIES_FIXED_SPACE_VIRTUAL_REAL_ROOMS_BUT_NOT_FIXED_TIME=newSettings.value("warn-activities-not-fixed-time-fixed-space-virtual-real", "true").toBool();
+	SHOW_WARNING_FOR_MAX_HOURS_DAILY_WITH_UNDER_100_WEIGHT=newSettings.value("warn-max-hours-daily-with-under-100-weight", "true").toBool();
 	ENABLE_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=newSettings.value("enable-students-min-hours-daily-with-allow-empty-days", "false").toBool();
 	SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=newSettings.value("warn-if-using-students-min-hours-daily-with-allow-empty-days", "true").toBool();
-	
+
+	ENABLE_STUDENTS_MIN_HOURS_PER_MORNING_WITH_ALLOW_EMPTY_MORNINGS=newSettings.value("enable-students-min-hours-per-morning-with-allow-empty-mornings", "false").toBool();
+	SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_PER_MORNING_WITH_ALLOW_EMPTY_MORNINGS=newSettings.value("warn-if-using-students-min-hours-per-morning-with-allow-empty-mornings", "true").toBool();
+
+	ENABLE_STUDENTS_MIN_HOURS_PER_AFTERNOON_WITH_ALLOW_EMPTY_AFTERNOONS=newSettings.value("enable-students-min-hours-per-afternoon-with-allow-empty-afternoons", "false").toBool();
+	SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_PER_AFTERNOON_WITH_ALLOW_EMPTY_AFTERNOONS=newSettings.value("warn-if-using-students-min-hours-per-afternoon-with-allow-empty-afternoons", "true").toBool();
+
 	ENABLE_GROUP_ACTIVITIES_IN_INITIAL_ORDER=newSettings.value("enable-group-activities-in-initial-order", "false").toBool();
 	SHOW_WARNING_FOR_GROUP_ACTIVITIES_IN_INITIAL_ORDER=newSettings.value("warn-if-using-group-activities-in-initial-order", "true").toBool();
+
+	SHOW_VIRTUAL_ROOMS_IN_TIMETABLES=newSettings.value("show-virtual-rooms-in-timetables", "false").toBool();
+
+	//2024-06-12 begin
+	//
+	SETTINGS_TIMETABLES_SEPARATE_DAYS_NAME_LONG_NAME_BY_BREAK=newSettings.value("settings-timetables-separate-days-name-long-name-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_HOURS_NAME_LONG_NAME_BY_BREAK=newSettings.value("settings-timetables-separate-hours-name-long-name-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_SUBJECTS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-subjects-name-long-name-code-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_ACTIVITY_TAGS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-activity-tags-name-long-name-code-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_TEACHERS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-teachers-name-long-name-code-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_STUDENTS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-students-name-long-name-code-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_BUILDINGS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-buildings-name-long-name-code-by-break", "false").toBool();
+	SETTINGS_TIMETABLES_SEPARATE_ROOMS_NAME_LONG_NAME_CODE_BY_BREAK=newSettings.value("settings-timetables-separate-rooms-name-long-name-code-by-break", "false").toBool();
+
+	//only in days horizontal and days vertical.
+	SETTINGS_TIMETABLES_PRINT_SUBJECTS_COMMENTS=newSettings.value("settings-timetables-print-subjects-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_ACTIVITY_TAGS_COMMENTS=newSettings.value("settings-timetables-print-activity-tags-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_TEACHERS_COMMENTS=newSettings.value("settings-timetables-print-teachers-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_SUBGROUPS_COMMENTS=newSettings.value("settings-timetables-print-subgroups-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_GROUPS_COMMENTS=newSettings.value("settings-timetables-print-groups-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_YEARS_COMMENTS=newSettings.value("settings-timetables-print-years-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_BUILDINGS_COMMENTS=newSettings.value("settings-timetables-print-buildings-comments", "false").toBool();
+	SETTINGS_TIMETABLES_PRINT_ROOMS_COMMENTS=newSettings.value("settings-timetables-print-rooms-comments", "false").toBool();
+
+	/////subgroups days horizontal and days vertical.
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-subgroups-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-subgroups-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-subgroups-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-subgroups-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-subgroups-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////subgroups time horizontal and time vertical.
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-subgroups-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-subgroups-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-subgroups-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-subgroups-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-subgroups-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-subgroups-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////groups days horizontal and days vertical.
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-groups-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-groups-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-groups-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-groups-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-groups-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-groups-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////groups time horizontal and time vertical.
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-groups-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-groups-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-groups-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-groups-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-groups-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-groups-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////years days horizontal and days vertical.
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-years-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-years-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-years-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-years-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-years-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-years-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-years-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////years time horizontal and time vertical.
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-years-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-years-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-years-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-years-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-years-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-years-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-years-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////teachers days horizontal and days vertical.
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-teachers-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-teachers-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-teachers-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-teachers-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-teachers-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-teachers-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////teachers time horizontal and time vertical.
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-teachers-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-teachers-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-teachers-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-teachers-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-teachers-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-teachers-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////rooms days horizontal and days vertical.
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-rooms-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-rooms-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-rooms-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-rooms-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-rooms-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-rooms-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////rooms time horizontal and time vertical.
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-rooms-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-rooms-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-rooms-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-rooms-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-rooms-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-rooms-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////buildings days horizontal and days vertical.
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-buildings-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-buildings-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-buildings-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-buildings-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-buildings-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-buildings-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////buildings time horizontal and time vertical.
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-buildings-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-buildings-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-buildings-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-buildings-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-buildings-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-buildings-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////subjects days horizontal and days vertical.
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-subjects-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-subjects-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-subjects-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-subjects-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-subjects-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-subjects-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////subjects time horizontal and time vertical.
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-subjects-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-subjects-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-subjects-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-subjects-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-subjects-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-subjects-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////activity tags days horizontal and days vertical.
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-activity-tags-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-activity-tags-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-activity-tags-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-activity-tags-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-activity-tags-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////activity tags time horizontal and time vertical.
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-activity-tags-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-activity-tags-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-activity-tags-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-activity-tags-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-activity-tags-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-activity-tags-time-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////activities days horizontal and days vertical.
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-activities-days-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-activities-days-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-activities-days-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-activities-days-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-activities-days-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-activities-days-hv-print-rooms-codes", "false").toBool();
+	/////
+
+	/////activities time horizontal and time vertical.
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_DAYS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-days-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_DAYS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-days-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_HOURS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-hours-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_HOURS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-hours-long-names", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-subjects-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-subjects-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_CODES=newSettings.value("settings-timetables-activities-time-hv-print-subjects-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-activity-tags-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-activity-tags-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_CODES=newSettings.value("settings-timetables-activities-time-hv-print-activity-tags-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-teachers-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-teachers-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_CODES=newSettings.value("settings-timetables-activities-time-hv-print-teachers-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-students-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-students-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_CODES=newSettings.value("settings-timetables-activities-time-hv-print-students-codes", "false").toBool();
+
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-rooms-names", "true").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_LONG_NAMES=newSettings.value("settings-timetables-activities-time-hv-print-rooms-long-names", "false").toBool();
+	SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_CODES=newSettings.value("settings-timetables-activities-time-hv-print-rooms-codes", "false").toBool();
+	/////
+	//
+	//2024-06-12 end
 	
 	//main form
+	QRect rect=newSettings.value("FetMainForm/geometry", QRect(0,0,0,0)).toRect();
+	mainFormSettingsRect=rect;
+	//MAIN_FORM_SHORTCUTS_TAB_POSITION=newSettings.value("FetMainForm/shortcuts-tab-position", "0").toInt();
+	MAIN_FORM_SHORTCUTS_TAB_POSITION=0; //always restoring to the first page, as suggested by a user
+	
+	if(newSettings.contains("FetMainForm/show-shortcut-buttons")){
+		SHOW_SHORTCUTS_ON_MAIN_WINDOW=newSettings.value("FetMainForm/show-shortcut-buttons").toBool();
+	}
+	else if(newSettings.contains("FetMainForm/show-shortcuts")){ //obsolete style
+		SHOW_SHORTCUTS_ON_MAIN_WINDOW=newSettings.value("FetMainForm/show-shortcuts").toBool();
+		//newSettings.remove("FetMainForm/show-shortcuts");
+	}
+	else{
+		SHOW_SHORTCUTS_ON_MAIN_WINDOW=true;
+	}
 
-	SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES=newSettings.value("FetMainForm/show-tooltips-for-constraints-with-tables", "false").toBool();
+	if(newSettings.contains("show-tooltips-for-constraints-with-tables")){
+		SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES=newSettings.value("show-tooltips-for-constraints-with-tables").toBool();
+	}
+	else if(newSettings.contains("FetMainForm/show-tooltips-for-constraints-with-tables")){ //obsolete style
+		SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES=newSettings.value("FetMainForm/show-tooltips-for-constraints-with-tables").toBool();
+		//newSettings.remove("FetMainForm/show-tooltips-for-constraints-with-tables");
+	}
+	else{
+		SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES=false;
+	}
+	
+	BEEP_AT_END_OF_GENERATION=newSettings.value("beep-at-the-end-of-generation", "true").toBool();
+	ENABLE_COMMAND_AT_END_OF_GENERATION=newSettings.value("enable-command-at-the-end-of-generation", "false").toBool();
+	commandAtEndOfGeneration=newSettings.value("command-at-the-end-of-generation", "").toString();
+//	DETACHED_NOTIFICATION=newSettings.value("detached-notification", "false").toBool();
+//	terminateCommandAfterSeconds=newSettings.value("terminate-command-at-the-end-of-generation-after-seconds", "0").toInt();
+//	killCommandAfterSeconds=newSettings.value("kill-command-at-the-end-of-generation-after-seconds", "0").toInt();
 	
 	if(VERBOSE){
 		cout<<"Settings read"<<endl;
 	}
 }
 
-static void writeSimulationParameters()
+void FetSettings::writeGenerationParameters()
 {
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
+
+	if(gt.rules.mode==OFFICIAL)
+		settings.setValue("mode", "official");
+	else if(gt.rules.mode==MORNINGS_AFTERNOONS)
+		settings.setValue("mode", "mornings-afternoons");
+	else if(gt.rules.mode==BLOCK_PLANNING)
+		settings.setValue("mode", "block-planning");
+	else if(gt.rules.mode==TERMS)
+		settings.setValue("mode", "terms");
+	else
+		assert(0);
 
 	settings.setValue("output-directory", OUTPUT_DIR);
 	settings.setValue("language", FET_LANGUAGE);
@@ -376,6 +1144,13 @@ static void writeSimulationParameters()
 	settings.setValue("check-for-updates", checkForUpdates);
 	settings.setValue("html-level", TIMETABLE_HTML_LEVEL);
 	settings.setValue("print-activity-tags", TIMETABLE_HTML_PRINT_ACTIVITY_TAGS);
+	
+	settings.setValue("print-subjects", TIMETABLE_HTML_PRINT_SUBJECTS);
+	settings.setValue("print-teachers", TIMETABLE_HTML_PRINT_TEACHERS);
+	settings.setValue("print-students", TIMETABLE_HTML_PRINT_STUDENTS);
+	settings.setValue("print-rooms", TIMETABLE_HTML_PRINT_ROOMS);
+	
+	settings.setValue("timetables-subgroups-sorted", TIMETABLES_SUBGROUPS_SORTED);
 	settings.setValue("print-detailed-timetables", PRINT_DETAILED_HTML_TIMETABLES);
 	settings.setValue("print-detailed-teachers-free-periods-timetables", PRINT_DETAILED_HTML_TEACHERS_FREE_PERIODS);
 	settings.setValue("print-activities-with-same-starting-time", PRINT_ACTIVITIES_WITH_SAME_STARTING_TIME);
@@ -403,6 +1178,7 @@ static void writeSimulationParameters()
 	settings.setValue("write-timetables-years", WRITE_TIMETABLES_YEARS);
 	settings.setValue("write-timetables-teachers", WRITE_TIMETABLES_TEACHERS);
 	settings.setValue("write-timetables-teachers-free-periods", WRITE_TIMETABLES_TEACHERS_FREE_PERIODS);
+	settings.setValue("write-timetables-buildings", WRITE_TIMETABLES_BUILDINGS);
 	settings.setValue("write-timetables-rooms", WRITE_TIMETABLES_ROOMS);
 	settings.setValue("write-timetables-subjects", WRITE_TIMETABLES_SUBJECTS);
 	settings.setValue("write-timetables-activity-tags", WRITE_TIMETABLES_ACTIVITY_TAGS);
@@ -410,31 +1186,597 @@ static void writeSimulationParameters()
 	
 	settings.setValue("students-combo-boxes-style", STUDENTS_COMBO_BOXES_STYLE);
 
+///////////confirmations
+	settings.setValue("confirm-activity-planning", CONFIRM_ACTIVITY_PLANNING);
+	settings.setValue("confirm-spread-activities", CONFIRM_SPREAD_ACTIVITIES);
+	settings.setValue("confirm-remove-redundant", CONFIRM_REMOVE_REDUNDANT);
+	settings.setValue("confirm-save-data-and-timetable", CONFIRM_SAVE_TIMETABLE);
+	settings.setValue("confirm-activate-deactivate-activities-constraints", CONFIRM_ACTIVATE_DEACTIVATE_ACTIVITIES_CONSTRAINTS);
+///////////
+
 	settings.setValue("enable-activity-tag-max-hours-daily", ENABLE_ACTIVITY_TAG_MAX_HOURS_DAILY);
+	settings.setValue("enable-activity-tag-min-hours-daily", ENABLE_ACTIVITY_TAG_MIN_HOURS_DAILY);
 	settings.setValue("enable-students-max-gaps-per-day", ENABLE_STUDENTS_MAX_GAPS_PER_DAY);
+	settings.setValue("enable-max-gaps-per-real-day", ENABLE_MAX_GAPS_PER_REAL_DAY);
 	settings.setValue("warn-if-using-not-perfect-constraints", SHOW_WARNING_FOR_NOT_PERFECT_CONSTRAINTS);
 	settings.setValue("warn-subgroups-with-the-same-activities", SHOW_WARNING_FOR_SUBGROUPS_WITH_THE_SAME_ACTIVITIES);
+	settings.setValue("warn-activities-not-fixed-time-fixed-space-virtual-real", SHOW_WARNING_FOR_ACTIVITIES_FIXED_SPACE_VIRTUAL_REAL_ROOMS_BUT_NOT_FIXED_TIME);
+	settings.setValue("warn-max-hours-daily-with-under-100-weight", SHOW_WARNING_FOR_MAX_HOURS_DAILY_WITH_UNDER_100_WEIGHT);
 	settings.setValue("enable-students-min-hours-daily-with-allow-empty-days", ENABLE_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS);
 	settings.setValue("warn-if-using-students-min-hours-daily-with-allow-empty-days", SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS);
+
+	settings.setValue("enable-students-min-hours-per-morning-with-allow-empty-mornings", ENABLE_STUDENTS_MIN_HOURS_PER_MORNING_WITH_ALLOW_EMPTY_MORNINGS);
+	settings.setValue("warn-if-using-students-min-hours-per-morning-with-allow-empty-mornings", SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_PER_MORNING_WITH_ALLOW_EMPTY_MORNINGS);
+
+	settings.setValue("enable-students-min-hours-per-afternoon-with-allow-empty-afternoon", ENABLE_STUDENTS_MIN_HOURS_PER_AFTERNOON_WITH_ALLOW_EMPTY_AFTERNOONS);
+	settings.setValue("warn-if-using-students-min-hours-per-afternoon-with-allow-empty-afternoon", SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_PER_AFTERNOON_WITH_ALLOW_EMPTY_AFTERNOONS);
 
 	settings.setValue("enable-group-activities-in-initial-order", ENABLE_GROUP_ACTIVITIES_IN_INITIAL_ORDER);
 	settings.setValue("warn-if-using-group-activities-in-initial-order", SHOW_WARNING_FOR_GROUP_ACTIVITIES_IN_INITIAL_ORDER);
 
+	settings.setValue("show-virtual-rooms-in-timetables", SHOW_VIRTUAL_ROOMS_IN_TIMETABLES);
+
+	//2024-06-12 begin
+	//
+	settings.setValue("settings-timetables-separate-days-name-long-name-by-break", SETTINGS_TIMETABLES_SEPARATE_DAYS_NAME_LONG_NAME_BY_BREAK);
+	settings.setValue("settings-timetables-separate-hours-name-long-name-by-break", SETTINGS_TIMETABLES_SEPARATE_HOURS_NAME_LONG_NAME_BY_BREAK);
+	settings.setValue("settings-timetables-separate-subjects-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_SUBJECTS_NAME_LONG_NAME_CODE_BY_BREAK);
+	settings.setValue("settings-timetables-separate-activity-tags-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_ACTIVITY_TAGS_NAME_LONG_NAME_CODE_BY_BREAK);
+	settings.setValue("settings-timetables-separate-teachers-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_TEACHERS_NAME_LONG_NAME_CODE_BY_BREAK);
+	settings.setValue("settings-timetables-separate-students-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_STUDENTS_NAME_LONG_NAME_CODE_BY_BREAK);
+	settings.setValue("settings-timetables-separate-buildings-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_BUILDINGS_NAME_LONG_NAME_CODE_BY_BREAK);
+	settings.setValue("settings-timetables-separate-rooms-name-long-name-code-by-break", SETTINGS_TIMETABLES_SEPARATE_ROOMS_NAME_LONG_NAME_CODE_BY_BREAK);
+
+	//only in days horizontal and days vertical.
+	settings.setValue("settings-timetables-print-subjects-comments", SETTINGS_TIMETABLES_PRINT_SUBJECTS_COMMENTS);
+	settings.setValue("settings-timetables-print-activity-tags-comments", SETTINGS_TIMETABLES_PRINT_ACTIVITY_TAGS_COMMENTS);
+	settings.setValue("settings-timetables-print-teachers-comments", SETTINGS_TIMETABLES_PRINT_TEACHERS_COMMENTS);
+	settings.setValue("settings-timetables-print-subgroups-comments", SETTINGS_TIMETABLES_PRINT_SUBGROUPS_COMMENTS);
+	settings.setValue("settings-timetables-print-groups-comments", SETTINGS_TIMETABLES_PRINT_GROUPS_COMMENTS);
+	settings.setValue("settings-timetables-print-years-comments", SETTINGS_TIMETABLES_PRINT_YEARS_COMMENTS);
+	settings.setValue("settings-timetables-print-buildings-comments", SETTINGS_TIMETABLES_PRINT_BUILDINGS_COMMENTS);
+	settings.setValue("settings-timetables-print-rooms-comments", SETTINGS_TIMETABLES_PRINT_ROOMS_COMMENTS);
+
+	/////subgroups days horizontal and days vertical.
+	settings.setValue("settings-timetables-subgroups-days-hv-print-days-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-days-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-hours-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-subjects-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-teachers-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-students-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-students-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-students-codes", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-days-hv-print-rooms-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_SUBGROUPS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////subgroups time horizontal and time vertical.
+	settings.setValue("settings-timetables-subgroups-time-hv-print-days-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-days-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-hours-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-subjects-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-teachers-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-students-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-students-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-students-codes", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-subgroups-time-hv-print-rooms-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-subgroups-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_SUBGROUPS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////groups days horizontal and days vertical.
+	settings.setValue("settings-timetables-groups-days-hv-print-days-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-days-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-hours-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-subjects-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-teachers-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-students-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-students-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-students-codes", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-groups-days-hv-print-rooms-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_GROUPS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////groups time horizontal and time vertical.
+	settings.setValue("settings-timetables-groups-time-hv-print-days-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-days-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-hours-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-subjects-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-teachers-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-students-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-students-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-students-codes", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-groups-time-hv-print-rooms-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-groups-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_GROUPS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////years days horizontal and days vertical.
+	settings.setValue("settings-timetables-years-days-hv-print-days-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-days-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-hours-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-subjects-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-teachers-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-students-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-students-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-students-codes", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-years-days-hv-print-rooms-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_YEARS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////years time horizontal and time vertical.
+	settings.setValue("settings-timetables-years-time-hv-print-days-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-days-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-hours-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-subjects-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-teachers-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-students-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-students-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-students-codes", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-years-time-hv-print-rooms-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-years-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_YEARS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////teachers days horizontal and days vertical.
+	settings.setValue("settings-timetables-teachers-days-hv-print-days-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-days-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-hours-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-subjects-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-teachers-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-students-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-students-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-students-codes", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-teachers-days-hv-print-rooms-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_TEACHERS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////teachers time horizontal and time vertical.
+	settings.setValue("settings-timetables-teachers-time-hv-print-days-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-days-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-hours-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-subjects-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-teachers-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-students-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-students-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-students-codes", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-teachers-time-hv-print-rooms-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-teachers-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_TEACHERS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////rooms days horizontal and days vertical.
+	settings.setValue("settings-timetables-rooms-days-hv-print-days-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-days-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-hours-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-subjects-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-teachers-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-students-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-students-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-students-codes", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-rooms-days-hv-print-rooms-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_ROOMS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////rooms time horizontal and time vertical.
+	settings.setValue("settings-timetables-rooms-time-hv-print-days-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-days-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-hours-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-subjects-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-teachers-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-students-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-students-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-students-codes", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-rooms-time-hv-print-rooms-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-rooms-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_ROOMS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////buildings days horizontal and days vertical.
+	settings.setValue("settings-timetables-buildings-days-hv-print-days-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-days-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-hours-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-subjects-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-teachers-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-students-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-students-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-students-codes", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-buildings-days-hv-print-rooms-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_BUILDINGS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////buildings time horizontal and time vertical.
+	settings.setValue("settings-timetables-buildings-time-hv-print-days-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-days-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-hours-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-subjects-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-teachers-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-students-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-students-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-students-codes", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-buildings-time-hv-print-rooms-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-buildings-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_BUILDINGS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////subjects days horizontal and days vertical.
+	settings.setValue("settings-timetables-subjects-days-hv-print-days-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-days-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-hours-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-subjects-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-teachers-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-students-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-students-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-students-codes", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-subjects-days-hv-print-rooms-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_SUBJECTS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////subjects time horizontal and time vertical.
+	settings.setValue("settings-timetables-subjects-time-hv-print-days-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-days-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-hours-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-subjects-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-teachers-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-students-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-students-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-students-codes", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-subjects-time-hv-print-rooms-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-subjects-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_SUBJECTS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////activity tags days horizontal and days vertical.
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-days-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-days-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-hours-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-subjects-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-teachers-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-students-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-students-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-students-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-rooms-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////activity tags time horizontal and time vertical.
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-days-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-days-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-hours-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-subjects-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-teachers-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-students-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-students-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-students-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-rooms-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-activity-tags-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_ACTIVITY_TAGS_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////activities days horizontal and days vertical.
+	settings.setValue("settings-timetables-activities-days-hv-print-days-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-days-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-hours-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-hours-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-subjects-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-subjects-codes", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-teachers-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-teachers-codes", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-students-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-students-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-students-codes", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-activities-days-hv-print-rooms-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-days-hv-print-rooms-codes", SETTINGS_TIMETABLES_ACTIVITIES_DAYS_HV_PRINT_ROOMS_CODES);
+	/////
+
+	/////activities time horizontal and time vertical.
+	settings.setValue("settings-timetables-activities-time-hv-print-days-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_DAYS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-days-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_DAYS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-hours-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_HOURS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-hours-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_HOURS_LONG_NAMES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-subjects-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-subjects-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-subjects-codes", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_SUBJECTS_CODES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-activity-tags-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-activity-tags-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-activity-tags-codes", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ACTIVITY_TAGS_CODES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-teachers-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-teachers-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-teachers-codes", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_TEACHERS_CODES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-students-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-students-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-students-codes", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_STUDENTS_CODES);
+
+	settings.setValue("settings-timetables-activities-time-hv-print-rooms-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-rooms-long-names", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_LONG_NAMES);
+	settings.setValue("settings-timetables-activities-time-hv-print-rooms-codes", SETTINGS_TIMETABLES_ACTIVITIES_TIME_HV_PRINT_ROOMS_CODES);
+	/////
+	//2024-06-12 end
+
 	//main form
-	settings.setValue("FetMainForm/show-tooltips-for-constraints-with-tables", SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES);
+	settings.setValue("FetMainForm/geometry", mainFormSettingsRect);
+	//settings.setValue("FetMainForm/shortcuts-tab-position", MAIN_FORM_SHORTCUTS_TAB_POSITION);
+	//settings.setValue("FetMainForm/shortcuts-tab-position", 0); //always starting on the first page, as suggested by a user
+	settings.setValue("FetMainForm/show-shortcut-buttons", SHOW_SHORTCUTS_ON_MAIN_WINDOW);
+
+	settings.setValue("show-tooltips-for-constraints-with-tables", SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES);
+
+	settings.setValue("beep-at-the-end-of-generation", BEEP_AT_END_OF_GENERATION);
+	settings.setValue("enable-command-at-the-end-of-generation", ENABLE_COMMAND_AT_END_OF_GENERATION);
+	settings.setValue("command-at-the-end-of-generation", commandAtEndOfGeneration);
+//	settings.setValue("detached-notification", DETACHED_NOTIFICATION);
+//	settings.setValue("terminate-command-at-the-end-of-generation-after-seconds", terminateCommandAfterSeconds);
+//	settings.setValue("kill-command-at-the-end-of-generation-after-seconds", killCommandAfterSeconds);
+	
+	if(VERBOSE){
+		cout<<"Settings saved"<<endl;
+	}
+	
+	pFetMainForm=nullptr;
 }
 #endif
 
-static void initLanguagesSet()
+void initLanguagesSet()
 {
 	//This is one of the two places to insert a new language in the sources (the other one is in fetmainform.cpp).
 	languagesSet.clear();
+
+	languagesSet.insert("en_US");
+	languagesSet.insert("en_GB");
+
 	languagesSet.insert("ar");
 	languagesSet.insert("ca");
 	languagesSet.insert("de");
 	languagesSet.insert("el");
-	languagesSet.insert("en_GB");
-	languagesSet.insert("en_US");
 	languagesSet.insert("es");
 	languagesSet.insert("fr");
 	languagesSet.insert("hu");
@@ -465,50 +1807,38 @@ static void initLanguagesSet()
 	languagesSet.insert("eu");
 	languagesSet.insert("cs");
 	languagesSet.insert("ja");
+	languagesSet.insert("bg");
 }
 
-void setLanguage(QWidget* parent)
+#ifndef FET_COMMAND_LINE
+void setLanguage(QApplication& qapplication, QWidget* parent)
+#else
+void setLanguage(QCoreApplication& qapplication, QWidget* parent)
+#endif
 {
+	Q_UNUSED(qapplication); //silence wrong MSVC warning
+
 	static int cntTranslators=0;
 	
 	if(cntTranslators>0){
-		QCoreApplication::removeTranslator(&translator);
+		qapplication.removeTranslator(&translator);
 		cntTranslators=0;
 	}
 
 	//translator stuff
+	QDir d("/usr/share/fet/translations");
+	
+	bool translation_loaded=false;
 	
 	if(FET_LANGUAGE!="en_US" && languagesSet.contains(FET_LANGUAGE)){
-		QString lang_filename = "fet_"+FET_LANGUAGE;
-		QStringList lang_dirs;
-		lang_dirs << QDir::currentPath()
-			<< QCoreApplication::applicationDirPath()
-#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
-			<< QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
-#else
-			<< QStandardPaths::standardLocations(QStandardPaths::DataLocation);
-#endif
-
-		bool translation_loaded=false;
-		for (int i=0; !translation_loaded && i < lang_dirs.size(); i++) {
-			translation_loaded=translator.load(lang_filename, lang_dirs[i]);
-			if (!translation_loaded)
-				translation_loaded=translator.load(lang_filename, lang_dirs[i]+"/translations");
-		}
-
+		translation_loaded=translator.load("fet_"+FET_LANGUAGE, qapplication.applicationDirPath());
 		if(!translation_loaded){
-			QString message("Translation for specified language not loaded - maybe the translation file is missing - setting the language to en_US (US English)");
-			message += "\n\n";
-			message += QString("FET searched for the translation file '%1' in the following directory list, "
-					   "but could not find it:\n")
-					   .arg("fet_"+FET_LANGUAGE+".qm");
-			for (int i=0; !translation_loaded && i < lang_dirs.size(); i++) {
-				message += QDir::toNativeSeparators(lang_dirs[i]) + "\n";
-				message += QDir::toNativeSeparators(lang_dirs[i] + "/translations") + "\n";
+			translation_loaded=translator.load("fet_"+FET_LANGUAGE, qapplication.applicationDirPath()+"/translations");
+			if(!translation_loaded){
+				if(d.exists()){
+					translation_loaded=translator.load("fet_"+FET_LANGUAGE, "/usr/share/fet/translations");
+				}
 			}
-			FetMessage::warning(parent, QString("FET warning"), message);
-
-			FET_LANGUAGE="en_US";
 		}
 	}
 	else{
@@ -517,16 +1847,35 @@ void setLanguage(QWidget* parent)
 			 QString("Specified language is incorrect - making it en_US (US English)"));
 			FET_LANGUAGE="en_US";
 		}
+		
+		assert(FET_LANGUAGE=="en_US");
+		
+		translation_loaded=true;
 	}
 	
-	QLocale::setDefault(QLocale(FET_LANGUAGE));
-
-	if(FET_LANGUAGE=="ar" || FET_LANGUAGE=="he" || FET_LANGUAGE=="fa" || FET_LANGUAGE=="ur" /* and others? */){
+	if(!translation_loaded){
+		FetMessage::warning(parent, QString("FET warning"),
+		 QString("Translation for specified language not loaded - maybe the translation file is missing - setting the language to en_US (US English)")
+		 +"\n\n"+
+		 QString("FET searched for the translation file %1 in the directory %2, then in the directory %3 and "
+		 "then in the directory %4 (under systems that support such a directory), but could not find it.")
+		 .arg("fet_"+FET_LANGUAGE+".qm")
+		 .arg(QDir::toNativeSeparators(qapplication.applicationDirPath()))
+		 .arg(QDir::toNativeSeparators(qapplication.applicationDirPath()+"/translations"))
+		 .arg("/usr/share/fet/translations")
+		 );
+		FET_LANGUAGE="en_US";
+	}
+	
+	if(FET_LANGUAGE=="ar")
+		FET_LANGUAGE_WITH_LOCALE="ar_DZ";
+	else
+		FET_LANGUAGE_WITH_LOCALE=FET_LANGUAGE;
+	
+	if(FET_LANGUAGE=="ar" || FET_LANGUAGE=="he" || FET_LANGUAGE=="fa" || FET_LANGUAGE=="ur" /* and others? */)
 		LANGUAGE_STYLE_RIGHT_TO_LEFT=true;
-	}
-	else{
+	else
 		LANGUAGE_STYLE_RIGHT_TO_LEFT=false;
-	}
 	
 	if(FET_LANGUAGE=="zh_CN"){
 		LANGUAGE_FOR_HTML="zh-Hans";
@@ -534,9 +1883,6 @@ void setLanguage(QWidget* parent)
 	else if(FET_LANGUAGE=="zh_TW"){
 		LANGUAGE_FOR_HTML="zh-Hant";
 	}
-	/*else if(FET_LANGUAGE=="en_US"){
-		LANGUAGE_FOR_HTML=FET_LANGUAGE.left(2);
-	}*/
 	else{
 		LANGUAGE_FOR_HTML=FET_LANGUAGE;
 		LANGUAGE_FOR_HTML.replace(QString("_"), QString("-"));
@@ -544,49 +1890,85 @@ void setLanguage(QWidget* parent)
 	
 	assert(cntTranslators==0);
 	if(FET_LANGUAGE!="en_US"){
-		QCoreApplication::installTranslator(&translator);
+		qapplication.installTranslator(&translator);
 		cntTranslators=1;
 	}
 	
 #ifndef FET_COMMAND_LINE
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==true)
-		QGuiApplication::setLayoutDirection(Qt::RightToLeft);
+		qapplication.setLayoutDirection(Qt::RightToLeft);
+	else
+		qapplication.setLayoutDirection(Qt::LeftToRight);
 	
 	//retranslate
+	//QList<QWidget*> tlwl=qapplication.topLevelWidgets();
 	QWidgetList tlwl=QApplication::topLevelWidgets();
 
-	for(QWidget* wi : qAsConst(tlwl))
+	for(QWidget* wi : std::as_const(tlwl))
 		if(1){
 		//if(wi->isVisible()){
 			FetMainForm* mainform=qobject_cast<FetMainForm*>(wi);
-			if(mainform!=NULL){
+			if(mainform!=nullptr){
 				mainform->retranslateUi(mainform);
+				mainform->retranslateConstraints();
+				mainform->retranslateMode();
+				continue;
+			}
+
+			//help block-planning
+			HelpBlockPlanningForm* hbp=qobject_cast<HelpBlockPlanningForm*>(wi);
+			if(hbp!=nullptr){
+				hbp->retranslateUi(hbp);
+				continue;
+			}
+			//help terms
+			HelpTermsForm* ht=qobject_cast<HelpTermsForm*>(wi);
+			if(ht!=nullptr){
+				ht->retranslateUi(ht);
+				continue;
+			}
+			//help Morocco
+			HelpMoroccoForm* hm=qobject_cast<HelpMoroccoForm*>(wi);
+			if(hm!=nullptr){
+				hm->retranslateUi(hm);
+				continue;
+			}
+			//help Algeria
+			HelpAlgeriaForm* ha=qobject_cast<HelpAlgeriaForm*>(wi);
+			if(ha!=nullptr){
+				ha->retranslateUi(ha);
 				continue;
 			}
 
 			//help
 			HelpAboutForm* aboutf=qobject_cast<HelpAboutForm*>(wi);
-			if(aboutf!=NULL){
+			if(aboutf!=nullptr){
 				aboutf->retranslateUi(aboutf);
 				continue;
 			}
 
+			HelpAboutLibrariesForm* aboutlibsf=qobject_cast<HelpAboutLibrariesForm*>(wi);
+			if(aboutlibsf!=nullptr){
+				aboutlibsf->retranslateUi(aboutlibsf);
+				continue;
+			}
+
 			HelpFaqForm* faqf=qobject_cast<HelpFaqForm*>(wi);
-			if(faqf!=NULL){
+			if(faqf!=nullptr){
 				faqf->retranslateUi(faqf);
 				faqf->setText();
 				continue;
 			}
 
 			HelpTipsForm* tipsf=qobject_cast<HelpTipsForm*>(wi);
-			if(tipsf!=NULL){
+			if(tipsf!=nullptr){
 				tipsf->retranslateUi(tipsf);
 				tipsf->setText();
 				continue;
 			}
 
 			HelpInstructionsForm* instrf=qobject_cast<HelpInstructionsForm*>(wi);
-			if(instrf!=NULL){
+			if(instrf!=nullptr){
 				instrf->retranslateUi(instrf);
 				instrf->setText();
 				continue;
@@ -594,50 +1976,71 @@ void setLanguage(QWidget* parent)
 			//////
 			
 			//timetable
-			TimetableViewStudentsDaysHorizontalForm* vsdf=qobject_cast<TimetableViewStudentsDaysHorizontalForm*>(wi);
-			if(vsdf!=NULL){
-				vsdf->retranslateUi(vsdf);
-				vsdf->updateStudentsTimetableTable();
+			TimetableViewStudentsDaysHorizontalForm* vsdhf=qobject_cast<TimetableViewStudentsDaysHorizontalForm*>(wi);
+			if(vsdhf!=nullptr){
+				vsdhf->retranslateUi(vsdhf);
+				vsdhf->updateStudentsTimetableTable();
 				continue;
 			}
 
-			TimetableViewStudentsTimeHorizontalForm* vstf=qobject_cast<TimetableViewStudentsTimeHorizontalForm*>(wi);
-			if(vstf!=NULL){
-				vstf->retranslateUi(vstf);
-				vstf->updateStudentsTimetableTable();
+			TimetableViewStudentsDaysVerticalForm* vsdvf=qobject_cast<TimetableViewStudentsDaysVerticalForm*>(wi);
+			if(vsdvf!=nullptr){
+				vsdvf->retranslateUi(vsdvf);
+				vsdvf->updateStudentsTimetableTable();
 				continue;
 			}
 
-			TimetableViewTeachersDaysHorizontalForm* vtchdf=qobject_cast<TimetableViewTeachersDaysHorizontalForm*>(wi);
-			if(vtchdf!=NULL){
-				vtchdf->retranslateUi(vtchdf);
-				vtchdf->updateTeachersTimetableTable();
+			TimetableViewStudentsTimeHorizontalForm* vsthf=qobject_cast<TimetableViewStudentsTimeHorizontalForm*>(wi);
+			if(vsthf!=nullptr){
+				vsthf->retranslateUi(vsthf);
+				vsthf->updateStudentsTimetableTable();
 				continue;
 			}
 
-			TimetableViewTeachersTimeHorizontalForm* vtchtf=qobject_cast<TimetableViewTeachersTimeHorizontalForm*>(wi);
-			if(vtchtf!=NULL){
-				vtchtf->retranslateUi(vtchtf);
-				vtchtf->updateTeachersTimetableTable();
+			TimetableViewTeachersDaysHorizontalForm* vtchdhf=qobject_cast<TimetableViewTeachersDaysHorizontalForm*>(wi);
+			if(vtchdhf!=nullptr){
+				vtchdhf->retranslateUi(vtchdhf);
+				vtchdhf->updateTeachersTimetableTable();
 				continue;
 			}
 
-			TimetableViewRoomsDaysHorizontalForm* vrdf=qobject_cast<TimetableViewRoomsDaysHorizontalForm*>(wi);
-			if(vrdf!=NULL){
-				vrdf->retranslateUi(vrdf);
-				vrdf->updateRoomsTimetableTable();
+			TimetableViewTeachersDaysVerticalForm* vtchdvf=qobject_cast<TimetableViewTeachersDaysVerticalForm*>(wi);
+			if(vtchdvf!=nullptr){
+				vtchdvf->retranslateUi(vtchdvf);
+				vtchdvf->updateTeachersTimetableTable();
 				continue;
 			}
 
-			TimetableViewRoomsTimeHorizontalForm* vrtf=qobject_cast<TimetableViewRoomsTimeHorizontalForm*>(wi);
-			if(vrtf!=NULL){
-				vrtf->retranslateUi(vrtf);
-				vrtf->updateRoomsTimetableTable();
+			TimetableViewTeachersTimeHorizontalForm* vtchthf=qobject_cast<TimetableViewTeachersTimeHorizontalForm*>(wi);
+			if(vtchthf!=nullptr){
+				vtchthf->retranslateUi(vtchthf);
+				vtchthf->updateTeachersTimetableTable();
+				continue;
+			}
+
+			TimetableViewRoomsDaysHorizontalForm* vrdhf=qobject_cast<TimetableViewRoomsDaysHorizontalForm*>(wi);
+			if(vrdhf!=nullptr){
+				vrdhf->retranslateUi(vrdhf);
+				vrdhf->updateRoomsTimetableTable();
+				continue;
+			}
+
+			TimetableViewRoomsDaysVerticalForm* vrdvf=qobject_cast<TimetableViewRoomsDaysVerticalForm*>(wi);
+			if(vrdvf!=nullptr){
+				vrdvf->retranslateUi(vrdvf);
+				vrdvf->updateRoomsTimetableTable();
+				continue;
+			}
+
+			TimetableViewRoomsTimeHorizontalForm* vrthf=qobject_cast<TimetableViewRoomsTimeHorizontalForm*>(wi);
+			if(vrthf!=nullptr){
+				vrthf->retranslateUi(vrthf);
+				vrthf->updateRoomsTimetableTable();
 				continue;
 			}
 
 			TimetableShowConflictsForm* scf=qobject_cast<TimetableShowConflictsForm*>(wi);
-			if(scf!=NULL){
+			if(scf!=nullptr){
 				scf->retranslateUi(scf);
 				continue;
 			}
@@ -671,7 +2074,7 @@ void SomeQtTranslations()
 	QString s9=QCoreApplication::translate("QDialogButtonBox", "Help");
 	Q_UNUSED(s9);
 
-	//It seems that Qt 5 uses other context
+	//It seems that Qt 5 uses another context:
 	QString s10=QCoreApplication::translate("QPlatformTheme", "&OK", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
 	Q_UNUSED(s10);
 	QString s11=QCoreApplication::translate("QPlatformTheme", "OK");
@@ -694,11 +2097,48 @@ void SomeQtTranslations()
 	QString s18=QCoreApplication::translate("QPlatformTheme", "Help");
 	Q_UNUSED(s18);
 
+	//It also seems that Qt might use this context:
+	//(examining the Qt sources shows that only the fields "&OK" and "&Cancel" might be needed, but it does not hurt to add all the possible fields.)
 	QString s19=QCoreApplication::translate("QGnomeTheme", "&OK", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
 	Q_UNUSED(s19);
-	QString s20=QCoreApplication::translate("QGnomeTheme", "&Cancel", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
+	QString s20=QCoreApplication::translate("QGnomeTheme", "OK");
 	Q_UNUSED(s20);
 	
+	QString s21=QCoreApplication::translate("QGnomeTheme", "&Cancel", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
+	Q_UNUSED(s21);
+	QString s22=QCoreApplication::translate("QGnomeTheme", "Cancel");
+	Q_UNUSED(s22);
+	
+	QString s23=QCoreApplication::translate("QGnomeTheme", "&Yes", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
+	Q_UNUSED(s23);
+	QString s24=QCoreApplication::translate("QGnomeTheme", "Yes to &All", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different. Please keep the translation short.");
+	Q_UNUSED(s24);
+	QString s25=QCoreApplication::translate("QGnomeTheme", "&No", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different");
+	Q_UNUSED(s25);
+	QString s26=QCoreApplication::translate("QGnomeTheme", "N&o to All", "Accelerator key (letter after ampersand) for &OK, &Cancel, &Yes, Yes to &All, &No, N&o to All, must be different. Please keep the translation short.");
+	Q_UNUSED(s26);
+
+	QString s27=QCoreApplication::translate("QGnomeTheme", "Help");
+	Q_UNUSED(s27);
+	
+	QString s28=QCoreApplication::translate("QFontDialog", "Select Font");
+	Q_UNUSED(s28);
+	QString s29=QCoreApplication::translate("QFontDialog", "&Font", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s29);
+	QString s30=QCoreApplication::translate("QFontDialog", "Font st&yle", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s30);
+	QString s31=QCoreApplication::translate("QFontDialog", "&Size", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s31);
+	QString s32=QCoreApplication::translate("QFontDialog", "Effects");
+	Q_UNUSED(s32);
+	QString s33=QCoreApplication::translate("QFontDialog", "Stri&keout", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s33);
+	QString s34=QCoreApplication::translate("QFontDialog", "&Underline", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s34);
+	QString s35=QCoreApplication::translate("QFontDialog", "Sample");
+	Q_UNUSED(s35);
+	QString s36=QCoreApplication::translate("QFontDialog", "Wr&iting System", "Accelerator key (letter after ampersand) for &Font, Font st&yle, &Size, Stri&keout, &Underline, Wr&iting System, must be different");
+	Q_UNUSED(s36);
 }
 
 /**
@@ -707,40 +2147,40 @@ FET starts here
 int main(int argc, char **argv)
 {
 #ifndef FET_COMMAND_LINE
-	QApplication app(argc, argv);
+	QApplication qapplication(argc, argv);
 #else
-	QCoreApplication app(argc, argv);
+	QCoreApplication qCoreApplication(argc, argv);
 #endif
-	Q_UNUSED(app);
-
-	const QString PROGRAM("fettimetabling");
-	const QString COMPANY("fet");
-	QCoreApplication::setApplicationName(PROGRAM);
-	QCoreApplication::setOrganizationName(COMPANY);
-	QCoreApplication::setApplicationVersion(FET_VERSION);
 
 	initLanguagesSet();
 
 	VERBOSE=false;
 
-	CachedSchedule::invalidate();
+	terminateGeneratePointer=nullptr;
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
 
 #ifndef FET_COMMAND_LINE
-	QObject::connect(QGuiApplication::instance(), SIGNAL(lastWindowClosed()), QGuiApplication::instance(), SLOT(quit()));
+	QObject::connect(&qapplication, &QApplication::lastWindowClosed, &qapplication, &QApplication::quit);
 #endif
 
-	RandomKnuth::init();
+	//srand(unsigned(time(nullptr))); //useless, I use randomKnuth(), but just in case I use somewhere rand() by mistake...
+
+	//initRandomKnuth();
+	gen.rng.initializeMRG32k3a();
 
 	OUTPUT_DIR=QDir::homePath()+FILE_SEP+"fet-results";
 	
 	QStringList _args=QCoreApplication::arguments();
 
 #ifndef FET_COMMAND_LINE
-	if(_args.count()==1){
-		readSimulationParameters();
-	
+	if(_args.count()<=2){
+		fetSettings.readGenerationParameters(qapplication);
+		
 		QDir dir;
-	
+		
 		bool t=true;
 
 		//make sure that the output directory exists
@@ -748,16 +2188,20 @@ int main(int argc, char **argv)
 			t=dir.mkpath(OUTPUT_DIR);
 
 		if(!t){
-			QMessageBox::critical(NULL, FetTranslate::tr("FET critical"), FetTranslate::tr("Cannot create or use %1 directory (where the results should be stored) - you can continue operation, but you might not be able to work with FET."
+			QMessageBox::critical(nullptr, FetTranslate::tr("FET critical"), FetTranslate::tr("Cannot create or use %1 directory (where the results should be stored) - you can continue operation, but you might not be able to work with FET."
 			 " Maybe you can try to change the output directory from the 'Settings' menu. If this is a bug - please report it.").arg(QDir::toNativeSeparators(OUTPUT_DIR)));
 		}
 		
 		QString testFileName=OUTPUT_DIR+FILE_SEP+"test_write_permissions_1.tmp";
 		QFile test(testFileName);
 		bool existedBefore=test.exists();
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		bool t_t=test.open(QIODeviceBase::ReadWrite);
+#else
 		bool t_t=test.open(QIODevice::ReadWrite);
+#endif
 		if(!t_t){
-			QMessageBox::critical(NULL, FetTranslate::tr("FET critical"), FetTranslate::tr("You don't have write permissions in the output directory "
+			QMessageBox::critical(nullptr, FetTranslate::tr("FET critical"), FetTranslate::tr("You don't have write permissions in the output directory "
 			 "(FET cannot open or create file %1) - you might not be able to work correctly with FET. Maybe you can try to change the output directory from the 'Settings' menu."
 			 " If this is a bug - please report it.").arg(testFileName));
 		}
@@ -767,34 +2211,61 @@ int main(int argc, char **argv)
 				test.remove();
 		}
 
-		setLanguage(NULL);
-
+		QCoreApplication::setApplicationName(FetTranslate::tr("FET"));
+		
+		pqapplication=&qapplication;
 		FetMainForm fetMainForm;
+		pFetMainForm=&fetMainForm;
 		fetMainForm.show();
-
-		int tmp2=QCoreApplication::exec();
-	
-		writeSimulationParameters();
-		fetMainForm.saveSettings();
-	
-		if(VERBOSE){
-			cout<<"Settings saved"<<endl;
+		
+		QObject::connect(&qapplication, &QApplication::aboutToQuit, &fetSettings, &FetSettings::writeGenerationParameters);
+		
+		if(_args.count()==2){ //Trying to open a fet file given as argument.
+			QString fileName=QDir::fromNativeSeparators(_args.at(1));
+			QFileInfo fileinfo(fileName);
+			QString completeFileName=fileinfo.canonicalFilePath();
+			if(completeFileName.isEmpty())
+				QMessageBox::warning(&fetMainForm, FetTranslate::tr("FET warning"), FetTranslate::tr("Could not open file '%1' - not existing")
+				 .arg(_args.at(1)));
+			else
+				fetMainForm.openFile(completeFileName);
 		}
-	
+
+		int tmp2=qapplication.exec();
+		
 		return tmp2;
 	}
 	else{
-		QMessageBox::warning(NULL, FetTranslate::tr("FET warning"), FetTranslate::tr("To start FET in interface mode, please do"
-		 " not give any command-line parameters to the FET executable"));
+		fetSettings.readGenerationParameters(qapplication); //Used only to load the language and correctly translate the strings below.
+		
+		QMessageBox::warning(nullptr, FetTranslate::tr("FET warning"), FetTranslate::tr("To start FET in the interface mode, please either do not give any"
+		 " command-line parameters, or give a single command-line parameter, which is the name of the fet data file to be loaded on startup."));
 		
 		return 1;
 	}
 #else
 	/////////////////////////////////////////////////
 	//begin command line
+	
 	if(_args.count()>1){
-		int randomSeedX=-1;
-		int randomSeedY=-1;
+		bool showHelp=false;
+	
+		qint64 randomSeedS10=-1;
+		qint64 randomSeedS11=-1;
+		qint64 randomSeedS12=-1;
+
+		qint64 randomSeedS20=-1;
+		qint64 randomSeedS21=-1;
+		qint64 randomSeedS22=-1;
+
+		bool randomSeedS10Specified=false;
+		bool randomSeedS11Specified=false;
+		bool randomSeedS12Specified=false;
+
+		bool randomSeedS20Specified=false;
+		bool randomSeedS21Specified=false;
+		bool randomSeedS22Specified=false;
+
 		bool randomSeedXSpecified=false;
 		bool randomSeedYSpecified=false;
 	
@@ -810,11 +2281,19 @@ int main(int argc, char **argv)
 		
 		TIMETABLE_HTML_PRINT_ACTIVITY_TAGS=true;
 
+		TIMETABLE_HTML_PRINT_SUBJECTS=true;
+		TIMETABLE_HTML_PRINT_TEACHERS=true;
+		TIMETABLE_HTML_PRINT_STUDENTS=true;
+		TIMETABLE_HTML_PRINT_ROOMS=true;
+
 		PRINT_DETAILED_HTML_TIMETABLES=true;
 
 		PRINT_DETAILED_HTML_TEACHERS_FREE_PERIODS=true;
 
 		FET_LANGUAGE="en_US";
+		FET_LANGUAGE_WITH_LOCALE=FET_LANGUAGE;
+		
+		TIMETABLES_SUBGROUPS_SORTED=false;
 		
 		PRINT_NOT_AVAILABLE_TIME_SLOTS=true;
 		
@@ -834,6 +2313,7 @@ int main(int argc, char **argv)
 		WRITE_TIMETABLES_YEARS=true;
 		WRITE_TIMETABLES_TEACHERS=true;
 		WRITE_TIMETABLES_TEACHERS_FREE_PERIODS=true;
+		WRITE_TIMETABLES_BUILDINGS=true;
 		WRITE_TIMETABLES_ROOMS=true;
 		WRITE_TIMETABLES_SUBJECTS=true;
 		WRITE_TIMETABLES_ACTIVITY_TAGS=true;
@@ -851,12 +2331,21 @@ int main(int argc, char **argv)
 		
 		SHOW_WARNING_FOR_SUBGROUPS_WITH_THE_SAME_ACTIVITIES=true;
 		
-		SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=true;
+		SHOW_WARNING_FOR_ACTIVITIES_FIXED_SPACE_VIRTUAL_REAL_ROOMS_BUT_NOT_FIXED_TIME=true;
+
+		SHOW_WARNING_FOR_MAX_HOURS_DAILY_WITH_UNDER_100_WEIGHT=true;
 		
+		SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=true;
+
 		SHOW_WARNING_FOR_GROUP_ACTIVITIES_IN_INITIAL_ORDER=true;
 		
-		bool EXPORT_CSV=false;
-		Export csv_export(gt);
+		SHOW_VIRTUAL_ROOMS_IN_TIMETABLES=false;
+		
+		EXPORT_CSV=false;
+		EXPORT_ALLOW_OVERWRITE=false;
+		EXPORT_FIRST_LINE_IS_HEADING=true;
+		EXPORT_QUOTES=EXPORT_DOUBLE_QUOTES;
+		EXPORT_FIELD_SEPARATOR=EXPORT_COMMA;
 
 		bool showVersion=false;
 		
@@ -875,6 +2364,24 @@ int main(int argc, char **argv)
 				if(s.right(5)=="false")
 					TIMETABLE_HTML_PRINT_ACTIVITY_TAGS=false;
 			}
+			
+			else if(s.left(16)=="--printsubjects="){
+				if(s.right(5)=="false")
+					TIMETABLE_HTML_PRINT_SUBJECTS=false;
+			}
+			else if(s.left(17)=="--printsteachers="){
+				if(s.right(5)=="false")
+					TIMETABLE_HTML_PRINT_TEACHERS=false;
+			}
+			else if(s.left(16)=="--printstudents="){
+				if(s.right(5)=="false")
+					TIMETABLE_HTML_PRINT_STUDENTS=false;
+			}
+			else if(s.left(13)=="--printrooms="){
+				if(s.right(5)=="false")
+					TIMETABLE_HTML_PRINT_ROOMS=false;
+			}
+			
 			else if(s.left(26)=="--printdetailedtimetables="){
 				if(s.right(5)=="false")
 					PRINT_DETAILED_HTML_TIMETABLES=false;
@@ -883,8 +2390,14 @@ int main(int argc, char **argv)
 				if(s.right(5)=="false")
 					PRINT_DETAILED_HTML_TEACHERS_FREE_PERIODS=false;
 			}
-			else if(s.left(11)=="--language=")
+			else if(s.left(11)=="--language="){
 				FET_LANGUAGE=s.right(s.length()-11);
+
+				if(FET_LANGUAGE=="ar")
+					FET_LANGUAGE_WITH_LOCALE="ar_DZ";
+				else
+					FET_LANGUAGE_WITH_LOCALE=FET_LANGUAGE;
+			}
 			else if(s.left(20)=="--printnotavailable="){
 				if(s.right(5)=="false")
 					PRINT_NOT_AVAILABLE_TIME_SLOTS=false;
@@ -892,6 +2405,10 @@ int main(int argc, char **argv)
 			else if(s.left(13)=="--printbreak="){
 				if(s.right(5)=="false")
 					PRINT_BREAK_TIME_SLOTS=false;
+			}
+			else if(s.left(16)=="--sortsubgroups="){
+				if(s.right(4)=="true")
+					TIMETABLES_SUBGROUPS_SORTED=true;
 			}
 			else if(s.left(23)=="--dividetimeaxisbydays="){
 				if(s.right(4)=="true")
@@ -908,14 +2425,61 @@ int main(int argc, char **argv)
 				if(s.right(4)=="true")
 					PRINT_ACTIVITIES_WITH_SAME_STARTING_TIME=true;
 			}
+			//keep this to deny beginning the generation for FET-5.44.0 or later, because it is an obsolete option and we cannot bypass it
 			else if(s.left(14)=="--randomseedx="){
 				randomSeedXSpecified=true;
-				randomSeedX=s.right(s.length()-14).toInt();
+				//randomSeedX=s.right(s.length()-14).toInt();
 			}
+			//keep this to deny beginning the generation for FET-5.44.0 or later, because it is an obsolete option and we cannot bypass it
 			else if(s.left(14)=="--randomseedy="){
 				randomSeedYSpecified=true;
-				randomSeedY=s.right(s.length()-14).toInt();
+				//randomSeedY=s.right(s.length()-14).toInt();
 			}
+
+			else if(s.left(16)=="--randomseeds10="){
+				randomSeedS10Specified=true;
+				bool ok;
+				randomSeedS10=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS10=-1;
+			}
+			else if(s.left(16)=="--randomseeds11="){
+				randomSeedS11Specified=true;
+				bool ok;
+				randomSeedS11=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS11=-1;
+			}
+			else if(s.left(16)=="--randomseeds12="){
+				randomSeedS12Specified=true;
+				bool ok;
+				randomSeedS12=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS12=-1;
+			}
+
+			else if(s.left(16)=="--randomseeds20="){
+				randomSeedS20Specified=true;
+				bool ok;
+				randomSeedS20=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS20=-1;
+			}
+			else if(s.left(16)=="--randomseeds21="){
+				randomSeedS21Specified=true;
+				bool ok;
+				randomSeedS21=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS21=-1;
+			}
+			else if(s.left(16)=="--randomseeds22="){
+				randomSeedS22Specified=true;
+				bool ok;
+				randomSeedS22=s.right(s.length()-16).toLongLong(&ok);
+				if(!ok)
+					randomSeedS22=-1;
+			}
+
 			else if(s.left(35)=="--warnifusingnotperfectconstraints="){
 				if(s.right(5)=="false")
 					SHOW_WARNING_FOR_NOT_PERFECT_CONSTRAINTS=false;
@@ -924,17 +2488,32 @@ int main(int argc, char **argv)
 				if(s.right(5)=="false")
 					SHOW_WARNING_FOR_SUBGROUPS_WITH_THE_SAME_ACTIVITIES=false;
 			}
+			else if(s.left(67)=="--warnifusingactivitiesnotfixedtimefixedspacevirtualroomsrealrooms="){
+				if(s.right(5)=="false")
+					SHOW_WARNING_FOR_ACTIVITIES_FIXED_SPACE_VIRTUAL_REAL_ROOMS_BUT_NOT_FIXED_TIME=false;
+			}
+			else if(s.left(55)=="--warnifusingmaxhoursdailywithlessthan100percentweight="){
+				if(s.right(5)=="false")
+					SHOW_WARNING_FOR_MAX_HOURS_DAILY_WITH_UNDER_100_WEIGHT=false;
+			}
 			else if(s.left(43)=="--warnifusinggroupactivitiesininitialorder="){
 				if(s.right(5)=="false")
 					SHOW_WARNING_FOR_GROUP_ACTIVITIES_IN_INITIAL_ORDER=false;
 			}
 			else if(s.left(53)=="--warnifusingstudentsminhoursdailywithallowemptydays="){
-				if(s.right(5)=="false")
-					SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=false;
+				if(s.right(4)=="true")
+					SHOW_WARNING_FOR_STUDENTS_MIN_HOURS_DAILY_WITH_ALLOW_EMPTY_DAYS=true;
+			}
+			else if(s.left(19)=="--showvirtualrooms="){
+				if(s.right(4)=="true")
+					SHOW_VIRTUAL_ROOMS_IN_TIMETABLES=true;
 			}
 			else if(s.left(10)=="--verbose="){
 				if(s.right(4)=="true")
 					VERBOSE=true;
+			}
+			else if(s=="--help"){
+				showHelp=true;
 			}
 			else if(s=="--version"){
 				showVersion=true;
@@ -990,6 +2569,10 @@ int main(int argc, char **argv)
 				if(s.right(5)=="false")
 					WRITE_TIMETABLES_TEACHERS_FREE_PERIODS=false;
 			}
+			else if(s.left(27)=="--writetimetablesbuildings="){
+				if(s.right(5)=="false")
+					WRITE_TIMETABLES_BUILDINGS=false;
+			}
 			else if(s.left(23)=="--writetimetablesrooms="){
 				if(s.right(5)=="false")
 					WRITE_TIMETABLES_ROOMS=false;
@@ -1013,27 +2596,68 @@ int main(int argc, char **argv)
 			}
 			else if(s.left(15)=="--overwritecsv="){
 				if(s.right(4)=="true")
-					csv_export.setOverwrite(Export::OVERWRITE_ALL);
+					EXPORT_ALLOW_OVERWRITE=true;
 			}
 			else if(s.left(24)=="--firstlineisheadingcsv="){
 				if(s.right(5)=="false")
-					csv_export.setHeader(false);
+					EXPORT_FIRST_LINE_IS_HEADING=false;
 			}
 			else if(s.left(12)=="--quotescsv="){
 				if(s.right(12)=="singlequotes")
-					csv_export.setTextQuote("'");
+					EXPORT_QUOTES=EXPORT_SINGLE_QUOTES;
 				else if(s.right(4)=="none")
-					csv_export.setTextQuote("");
+					EXPORT_QUOTES=EXPORT_NO_QUOTES;
 			}
 			else if(s.left(20)=="--fieldseparatorcsv="){
 				if(s.right(9)=="semicolon")
-					csv_export.setFieldSeparator(";");
+					EXPORT_FIELD_SEPARATOR=EXPORT_SEMICOLON;
 				else if(s.right(11)=="verticalbar")
-					csv_export.setFieldSeparator("|");
+					EXPORT_FIELD_SEPARATOR=EXPORT_VERTICALBAR;
 			}
 			///
 			else
 				unrecognizedOptions.append(s);
+		}
+		
+		if(filename==""){
+			if(unrecognizedOptions.count()>0){
+				for(const QString& s : std::as_const(unrecognizedOptions)){
+					cout<<"Unrecognized option: "<<qPrintable(s)<<endl;
+				}
+				cout<<endl;
+			}
+
+			if(showHelp){
+				usage(nullptr, QString(""));
+				return 0;
+			}
+			else if(showVersion){
+				cout<<"FET version "<<qPrintable(FET_VERSION)<<endl;
+				cout<<"Free timetabling software, licensed under the GNU Affero General Public License version 3 or later"<<endl;
+				cout<<"Copyright (C) 2002-2024 Liviu Lalescu, Volker Dirr"<<endl;
+				cout<<"Homepage: https://lalescu.ro/liviu/fet/"<<endl;
+				cout<<"This program uses Qt version "<<qVersion()<<", Copyright (C) The Qt Company Ltd and other contributors."<<endl;
+				cout<<"Depending on the platform and compiler, this program may use libraries from:"<<endl;
+				cout<<"  gcc, Copyright (C) Free Software Foundation, Inc."<<endl;
+				cout<<"  MinGW-w64, Copyright (c) by the mingw-w64 project"<<endl;
+				cout<<"  Clang"<<endl;
+				return 0;
+			}
+			else{
+				usage(nullptr, QString("Input file not specified"));
+				return 1;
+			}
+		}
+		else if(!QFile::exists(filename)){
+			if(unrecognizedOptions.count()>0){
+				for(const QString& s : std::as_const(unrecognizedOptions)){
+					cout<<"Unrecognized option: "<<qPrintable(s)<<endl;
+				}
+				cout<<endl;
+			}
+
+			cout<<"Error: the specified input file "<<qPrintable(filename)<<" is not existing"<<endl;
+			return 1;
 		}
 		
 		INPUT_FILENAME_XML=filename;
@@ -1041,9 +2665,8 @@ int main(int argc, char **argv)
 		QString initialDir=outputDirectory;
 		if(initialDir!="")
 			initialDir.append(FILE_SEP);
-			
+		
 		QString csvOutputDirectory=outputDirectory;
-		csvOutputDirectory.append(FILE_SEP + "csv");
 		//cout<<"csvOutputDirectory="<<qPrintable(csvOutputDirectory)<<endl;
 		
 		if(outputDirectory!="")
@@ -1076,81 +2699,104 @@ int main(int argc, char **argv)
 		
 		////////
 		QFile logFile(logsDir+"result.txt");
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		bool tttt=logFile.open(QIODeviceBase::WriteOnly);
+#else
 		bool tttt=logFile.open(QIODevice::WriteOnly);
+#endif
 		if(!tttt){
-			cerr<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"result.txt)."
+			cout<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"result.txt)."
 			 " If this is a bug - please report it."<<endl;
 			return 1;
 		}
 		QTextStream out(&logFile);
 		///////
 		
-		setLanguage(NULL);
-		
-		if(showVersion){
-			out<<"This file contains the result (log) of last operation"<<endl<<endl;
-		
-			QDate dat=QDate::currentDate();
-			QTime tim=QTime::currentTime();
-			QLocale loc;
-			QString sTime=loc.toString(dat, QLocale::ShortFormat)+" "+loc.toString(tim, QLocale::ShortFormat);
-			out<<"FET command line request for version started on "<<qPrintable(sTime)<<endl<<endl;
-	
-			//QString qv=qVersion();
-			out<<"FET version "<<qPrintable(FET_VERSION)<<endl;
-			out<<"Free timetabling software, licensed under the GNU Affero General Public License version 3 or later"<<endl;
-			out<<"Copyright (C) 2002-2019 Liviu Lalescu, Volker Dirr"<<endl;
-			out<<"Homepage: https://lalescu.ro/liviu/fet/"<<endl;
-			//out<<" (Using Qt version "<<qPrintable(qv)<<")"<<endl;
-			cout<<"FET version "<<qPrintable(FET_VERSION)<<endl;
-			cout<<"Free timetabling software, licensed under the GNU Affero General Public License version 3 or later"<<endl;
-			cout<<"Copyright (C) 2002-2019 Liviu Lalescu, Volker Dirr"<<endl;
-			cout<<"Homepage: https://lalescu.ro/liviu/fet/"<<endl;
-			//cout<<" (Using Qt version "<<qPrintable(qv)<<")"<<endl;
-
-			if(unrecognizedOptions.count()>0){
-				out<<endl;
-				cout<<endl;
-				for(const QString& s : qAsConst(unrecognizedOptions)){
-					cout<<"Unrecognized option: "<<qPrintable(s)<<endl;
-					out<<"Unrecognized option: "<<qPrintable(s)<<endl;
-				}
+		if(unrecognizedOptions.count()>0){
+			for(const QString& s : std::as_const(unrecognizedOptions)){
+				cout<<"Unrecognized option: "<<qPrintable(s)<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				out<<"Unrecognized option: "<<qPrintable(s)<<Qt::endl;
+#else
+				out<<"Unrecognized option: "<<qPrintable(s)<<endl;
+#endif
 			}
-
-			logFile.close();
-			return 0;
+			cout<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<Qt::endl;
+#else
+			out<<endl;
+#endif
 		}
 		
+		//Cleanup the previous unsuccessful generation, if any. No need to remove the other files, they are overwritten.
+		QFile oldDifficultActivitiesFile(logsDir+"difficult_activities.txt");
+		if(oldDifficultActivitiesFile.exists()){
+			bool t=oldDifficultActivitiesFile.remove();
+			if(!t){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				out<<"Cannot remove the old existing file "<<qPrintable(logsDir)<<"difficult_activities.txt"<<Qt::endl;
+#else
+				out<<"Cannot remove the old existing file "<<qPrintable(logsDir)<<"difficult_activities.txt"<<endl;
+#endif
+				cout<<"Cannot remove the old existing file "<<qPrintable(logsDir)<<"difficult_activities.txt"<<endl;
+			}
+		}
+		
+		setLanguage(qCoreApplication, nullptr);
+		
+		QCoreApplication::setApplicationName(FetTranslate::tr("FET-CL"));
+		
 		QFile maxPlacedActivityFile(logsDir+"max_placed_activities.txt");
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		maxPlacedActivityFile.open(QIODeviceBase::WriteOnly);
+#else
 		maxPlacedActivityFile.open(QIODevice::WriteOnly);
+#endif
 		QTextStream maxPlacedActivityStream(&maxPlacedActivityFile);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		maxPlacedActivityStream.setEncoding(QStringConverter::Utf8);
+#else
 		maxPlacedActivityStream.setCodec("UTF-8");
+#endif
 		maxPlacedActivityStream.setGenerateByteOrderMark(true);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		maxPlacedActivityStream<<FetTranslate::tr("This is the list of max placed activities, chronologically. If FET could reach maximum n-th activity, look at the n+1-st activity"
+			" in the initial order of the activities")<<Qt::endl<<Qt::endl;
+#else
 		maxPlacedActivityStream<<FetTranslate::tr("This is the list of max placed activities, chronologically. If FET could reach maximum n-th activity, look at the n+1-st activity"
 			" in the initial order of the activities")<<endl<<endl;
-				
+#endif
+		
 		QFile initialOrderFile(logsDir+"initial_order.txt");
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		initialOrderFile.open(QIODeviceBase::WriteOnly);
+#else
 		initialOrderFile.open(QIODevice::WriteOnly);
+#endif
 		QTextStream initialOrderStream(&initialOrderFile);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		initialOrderStream.setEncoding(QStringConverter::Utf8);
+#else
 		initialOrderStream.setCodec("UTF-8");
+#endif
 		initialOrderStream.setGenerateByteOrderMark(true);
-						
+		
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		out<<"This file contains the result (log) of last operation"<<Qt::endl<<Qt::endl;
+#else
 		out<<"This file contains the result (log) of last operation"<<endl<<endl;
+#endif
 		
 		QDate dat=QDate::currentDate();
 		QTime tim=QTime::currentTime();
-		QLocale loc;
+		QLocale loc(FET_LANGUAGE);
 		QString sTime=loc.toString(dat, QLocale::ShortFormat)+" "+loc.toString(tim, QLocale::ShortFormat);
-		out<<"FET command line simulation started on "<<qPrintable(sTime)<<endl<<endl;
-		
-		if(unrecognizedOptions.count()>0){
-			for(const QString& s : qAsConst(unrecognizedOptions)){
-				cout<<"Unrecognized option: "<<qPrintable(s)<<endl;
-				out<<"Unrecognized option: "<<qPrintable(s)<<endl;
-			}
-			cout<<endl;
-			out<<endl;
-		}
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		out<<"FET command line generation started on "<<qPrintable(sTime)<<Qt::endl<<Qt::endl;
+#else
+		out<<"FET command line generation started on "<<qPrintable(sTime)<<endl<<endl;
+#endif
 		
 		if(outputDirectory!="")
 			if(!dir.exists(outputDirectory))
@@ -1161,12 +2807,21 @@ int main(int argc, char **argv)
 			
 		QFile test(outputDirectory+"test_write_permissions_2.tmp");
 		bool existedBefore=test.exists();
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+		bool t_t=test.open(QIODeviceBase::ReadWrite);
+#else
 		bool t_t=test.open(QIODevice::ReadWrite);
+#endif
 		if(!t_t){
-			cerr<<"fet: critical error - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(outputDirectory)<<"test_write_permissions_2.tmp)."
+			cout<<"fet: critical error - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(outputDirectory)<<"test_write_permissions_2.tmp)."
 			 " If this is a bug - please report it."<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"fet: critical error - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(outputDirectory)<<"test_write_permissions_2.tmp)."
+			 " If this is a bug - please report it."<<Qt::endl;
+#else
 			out<<"fet: critical error - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(outputDirectory)<<"test_write_permissions_2.tmp)."
 			 " If this is a bug - please report it."<<endl;
+#endif
 			return 1;
 		}
 		else{
@@ -1175,43 +2830,139 @@ int main(int argc, char **argv)
 				test.remove();
 		}
 
-		if(filename==""){
-			usage(&out, QString("Input file not specified"));
-			logFile.close();
-			return 1;
-		}
+//		if(filename==""){
+//			usage(/*&out*/nullptr, QString("Input file not specified"));
+//			logFile.close();
+//			return 1;
+//		}
 		if(secondsLimit==0){
-			usage(&out, QString("Time limit is 0 seconds"));
+			usage(nullptr, QString("Time limit is 0 seconds"));
 			logFile.close();
 			return 1;
 		}
-		if(TIMETABLE_HTML_LEVEL>7 || TIMETABLE_HTML_LEVEL<0){
-			usage(&out, QString("Html level must be 0, 1, 2, 3, 4, 5, 6, or 7"));
+		if(TIMETABLE_HTML_LEVEL<0 || TIMETABLE_HTML_LEVEL>7){
+			usage(nullptr, QString("The HTML level must be 0, 1, 2, 3, 4, 5, 6, or 7"));
 			logFile.close();
 			return 1;
 		}
-		if(randomSeedXSpecified != randomSeedYSpecified){
+		if(randomSeedXSpecified || randomSeedYSpecified){
+			usage(nullptr, QString("Starting with FET version 5.44.0 the random number generator was changed to a better one. Please see usage for instructions"
+			 " on how to specify the random number generator seed at the start of the program (or do not specify a random seed at all)."
+			 " The program will now abort the generation"));
+			logFile.close();
+			return 1;
+		}
+		if(randomSeedS10Specified && randomSeedS11Specified && randomSeedS12Specified
+		 && randomSeedS20Specified && randomSeedS21Specified && randomSeedS22Specified){
+			if(randomSeedS10<0 || randomSeedS10>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s10 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+			if(randomSeedS11<0 || randomSeedS11>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s11 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+			if(randomSeedS12<0 || randomSeedS12>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s12 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+
+			if(randomSeedS20<0 || randomSeedS20>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s20 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+			if(randomSeedS21<0 || randomSeedS21>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s21 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+			if(randomSeedS22<0 || randomSeedS22>=gen.rng.m1){
+				usage(nullptr, QString("The random seed s22 component must be an integer number at least %1 and at most %2").arg(0).arg(gen.rng.m1-1));
+				logFile.close();
+				return 1;
+			}
+			
+			if(randomSeedS10==0 && randomSeedS11==0 && randomSeedS12==0){
+				usage(nullptr, QString("The random seed numbers for component 1: s10, s11, and s12, must not all be zero"));
+				logFile.close();
+				return 1;
+			}
+
+			if(randomSeedS20==0 && randomSeedS21==0 && randomSeedS22==0){
+				usage(nullptr, QString("The random seeds numbers for component 2: s20, s21, and s22, must not all be zero"));
+				logFile.close();
+				return 1;
+			}
+
+			gen.rng.initializeMRG32k3a(randomSeedS10, randomSeedS11, randomSeedS12,
+			 randomSeedS20, randomSeedS21, randomSeedS22);
+		}
+		else if(randomSeedS10Specified || randomSeedS11Specified || randomSeedS12Specified
+		 || randomSeedS20Specified || randomSeedS21Specified || randomSeedS22Specified){
+			QStringList specified, notSpecified;
+
+			if(randomSeedS10Specified)
+				specified.append("s10");
+			else
+				notSpecified.append("s10");
+				
+			if(randomSeedS11Specified)
+				specified.append("s11");
+			else
+				notSpecified.append("s11");
+				
+			if(randomSeedS12Specified)
+				specified.append("s12");
+			else
+				notSpecified.append("s12");
+
+			if(randomSeedS20Specified)
+				specified.append("s20");
+			else
+				notSpecified.append("s20");
+				
+			if(randomSeedS21Specified)
+				specified.append("s21");
+			else
+				notSpecified.append("s21");
+				
+			if(randomSeedS22Specified)
+				specified.append("s22");
+			else
+				notSpecified.append("s22");
+				
+			usage(nullptr, QString("If you want to specify the random seed, you need to specify all the 6 components. You specified %1, but you did not"
+			 " specify %2.").arg(specified.join(", ")).arg(notSpecified.join(", ")));
+			logFile.close();
+			return 1;
+		}
+		
+		/*if(randomSeedXSpecified != randomSeedYSpecified){
 			if(randomSeedXSpecified){
-				usage(&out, QString("If you want to specify the random seed, you need to specify both the X and the Y components, not only the X component"));
+				usage(nullptr, QString("If you want to specify the random seed, you need to specify both the X and the Y components, not only the X component"));
 			}
 			else{
 				assert(randomSeedYSpecified);
-				usage(&out, QString("If you want to specify the random seed, you need to specify both the X and the Y components, not only the Y component"));
+				usage(nullptr, QString("If you want to specify the random seed, you need to specify both the X and the Y components, not only the Y component"));
 			}
 			logFile.close();
 			return 1;
 		}
 		assert(randomSeedXSpecified==randomSeedYSpecified);
 		if(randomSeedXSpecified){
-			if(randomSeedX<=0 || randomSeedX>=RandomKnuth::getMM()){
-				usage(&out, QString("Random seed X component must be at least 1 and at most %1").arg(RandomKnuth::getMM()-1));
+			if(randomSeedX<=0 || randomSeedX>=MM){
+				usage(nullptr, QString("Random seed X component must be at least 1 and at most %1").arg(MM-1));
 				logFile.close();
 				return 1;
 			}
 		}
 		if(randomSeedYSpecified){
-			if(randomSeedY<=0 || randomSeedY>=RandomKnuth::getMMM()){
-				usage(&out, QString("Random seed Y component must be at least 1 and at most %1").arg(RandomKnuth::getMMM()-1));
+			if(randomSeedY<=0 || randomSeedY>=MMM){
+				usage(nullptr, QString("Random seed Y component must be at least 1 and at most %1").arg(MMM-1));
 				logFile.close();
 				return 1;
 			}
@@ -1219,107 +2970,122 @@ int main(int argc, char **argv)
 		
 		if(randomSeedXSpecified){
 			assert(randomSeedYSpecified);
-			if(randomSeedX>0 && randomSeedX<RandomKnuth::getMM() && randomSeedY>0 && randomSeedY<RandomKnuth::getMMM()){
-				RandomKnuth::XX=randomSeedX;
-				RandomKnuth::YY=randomSeedY;
+			if(randomSeedX>0 && randomSeedX<MM && randomSeedY>0 && randomSeedY<MMM){
+				XX=randomSeedX;
+				YY=randomSeedY;
 			}
-		}
+		}*/
 		
 		if(TIMETABLE_HTML_LEVEL>7 || TIMETABLE_HTML_LEVEL<0)
 			TIMETABLE_HTML_LEVEL=2;
 	
-		ErrorList errors=gt.rules.read(filename, initialDir);
-		renderErrorList(errors);
-		if(errors.hasFatal()){
-			cerr<<"fet: cannot read input file (not existing or in use) - aborting"<<endl;
-			out<<"Cannot read input file (not existing or in use) - aborting"<<endl;
-			logFile.close();
-			return 1;
-		}
-		errors.clear();
-		
-		cout << QCoreApplication::translate("Rules", "Computing internal structure", "Title of a progress dialog").toStdString() << endl;
-		out << "Computing internal structure" << endl;
-#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
-		QCoreApplication::connect(&gt.rules, &Rules::internalStructureComputationStepChanged, [&out](RulesComputationStep step) {
-			const char * stepText = "";
-			switch (step) {
-			case RulesComputationStep::ACTIVITIES:
-				stepText = "Processing internally the activities ... please wait";
-				break;
-			case RulesComputationStep::TIME_CONSTRAINTS:
-				stepText = "Processing internally the time constraints ... please wait";
-				break;
-			case RulesComputationStep::SPACE_CONSTRAINTS:
-				stepText = "Processing internally the space constraints ... please wait";
-				break;
-			}
-			out << stepText << endl;
-			cout << QCoreApplication::translate("Rules", stepText).toStdString() << endl;
-		});
+		bool t=gt.rules.read(nullptr, filename, true, initialDir);
+		if(!t){
+			cout<<"fet-cl: cannot read input file (not existing, in use, or incorrect file) - aborting"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Cannot read input file (not existing, in use, or incorrect file) - aborting"<<Qt::endl;
+#else
+			out<<"Cannot read input file (not existing, in use, or incorrect file) - aborting"<<endl;
 #endif
-		errors = gt.rules.computeInternalStructure();
-		renderErrorList(errors);
-		if (errors.hasError()){
-			cerr<<"Cannot compute internal structure - aborting"<<endl;
-			out<<"Cannot compute internal structure - aborting"<<endl;
 			logFile.close();
 			return 1;
 		}
-		errors.clear();
+		
+		//2019-09-21
+		int count=0;
+		for(int i=0; i<gt.rules.activitiesList.size(); i++){
+			Activity* act=gt.rules.activitiesList[i];
+			if(act->active)
+				count++;
+		}
+		if(count<1){
+			cout<<"Please input at least one active activity before generating"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Please input at least one active activity before generating"<<Qt::endl;
+#else
+			out<<"Please input at least one active activity before generating"<<endl;
+#endif
+			logFile.close();
+			return 1;
+		}
+		
+		t=gt.rules.computeInternalStructure(nullptr);
+		if(!t){
+			cout<<"Cannot compute internal structure - aborting"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Cannot compute internal structure - aborting"<<Qt::endl;
+#else
+			out<<"Cannot compute internal structure - aborting"<<endl;
+#endif
+			logFile.close();
+			return 1;
+		}
 	
-		Generate gen(gt);
-
 		terminateGeneratePointer=&gen;
 		signal(SIGTERM, terminate);
 #ifdef SIGBREAK
 		signal(SIGBREAK, terminate);
 #endif
 	
-		bool ok=gen.precompute(NULL, &initialOrderStream);
+		gen.abortOptimization=false;
+		bool ok=gen.precompute(nullptr, &initialOrderStream);
 		
 		initialOrderFile.close();
 		
 		if(!ok){
-			cerr<<"Cannot precompute - data is wrong - aborting"<<endl;
+			cout<<"Cannot precompute - data is wrong - aborting"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Cannot precompute - data is wrong - aborting"<<Qt::endl;
+#else
 			out<<"Cannot precompute - data is wrong - aborting"<<endl;
+#endif
 			logFile.close();
 			return 1;
 		}
+	
+		bool impossible, timeExceeded;
 		
 		cout<<"Starting timetable generation..."<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		out<<"Starting timetable generation..."<<Qt::endl;
+#else
 		out<<"Starting timetable generation..."<<endl;
+#endif
 		if(VERBOSE){
 			cout<<"secondsLimit=="<<secondsLimit<<endl;
 		}
 		//out<<"secondsLimit=="<<secondsLimit<<endl;
-				
-		ErrorCode erc = TimetableExport::writeRandomSeedCommandLine(outputDirectory, true); //true represents 'before' state
-		if (erc) {
-			IrreconcilableCriticalMessage::critical(NULL, erc.getSeverityTitle(), erc.message);
-		}
+		
+		TimetableExport::writeRandomSeedCommandLine(nullptr, gen.rng, outputDirectory, true); //true represents 'before' state
 
-		Generate::Status status = gen.generate(secondsLimit, false, &maxPlacedActivityStream); //false means no thread
+		gen.generate(secondsLimit, impossible, timeExceeded, false, &maxPlacedActivityStream); //false means no thread
 		
 		maxPlacedActivityFile.close();
 	
-		if(status == Generate::IMPOSSIBLE){
-			cerr<<"Impossible"<<endl;
+		if(impossible){
+			cout<<"Impossible"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Impossible"<<Qt::endl;
+#else
 			out<<"Impossible"<<endl;
+#endif
 			
 			//2016-11-17 - suggested by thanhnambkhn, FET will write the impossible activity and the current and highest-stage timetables
 			//(which should be identical)
 
-			Solution& cc=gen.getSolution();
+			Solution& cc=gen.c;
 
 			//needed to find the conflicts strings
-			QString tmp;
+			FakeString tmp;
 			cc.fitness(gt.rules, &tmp);
 
-			CachedSchedule::update(cc);
+			/*TimetableExport::getStudentsTimetable(cc);
+			TimetableExport::getTeachersTimetable(cc);
+			TimetableExport::getRoomsTimetable(cc);*/
+			TimetableExport::getStudentsTeachersRoomsBuildingsTimetable(cc);
 
 			QString toc=outputDirectory;
-			if(toc!="" && toc.count()>=1 && toc.endsWith(FILE_SEP)){
+			if(toc!="" && toc.length()>=1 && toc.endsWith(FILE_SEP)){
 				toc.chop(1);
 				toc+=QString("-current"+FILE_SEP);
 			}
@@ -1331,17 +3097,15 @@ int main(int argc, char **argv)
 				if(!dir.exists(toc))
 					dir.mkpath(toc);
 
-			ErrorList errors = TimetableExport::writeSimulationResultsCommandLine(toc);
-			renderErrorList(errors);
+			TimetableExport::writeGenerationResultsCommandLine(nullptr, toc);
 			
 			QString s;
 
 			s+=TimetableExport::tr("Please check the constraints related to the "
 			 "activity below, which might be impossible to schedule:");
 			s+="\n\n";
-			const std::vector<int>& difficultActivities = gen.getDifficultActivities();
-			for(std::vector<int>::size_type i=0; i<difficultActivities.size(); i++){
-				int ai=difficultActivities[i];
+			for(int i=0; i<gen.nDifficultActivities; i++){
+				int ai=gen.difficultActivities[i];
 
 				s+=TimetableExport::tr("No: %1").arg(i+1);
 
@@ -1355,30 +3119,45 @@ int main(int argc, char **argv)
 			}
 
 			QFile difficultActivitiesFile(logsDir+"difficult_activities.txt");
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+			bool t=difficultActivitiesFile.open(QIODeviceBase::WriteOnly);
+#else
 			bool t=difficultActivitiesFile.open(QIODevice::WriteOnly);
+#endif
 			if(!t){
-				cerr<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"difficult_activities.txt)."
+				cout<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"difficult_activities.txt)."
 				 " If this is a bug - please report it."<<endl;
 				return 1;
 			}
 			QTextStream difficultActivitiesOut(&difficultActivitiesFile);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+			difficultActivitiesOut.setEncoding(QStringConverter::Utf8);
+#else
 			difficultActivitiesOut.setCodec("UTF-8");
+#endif
 			difficultActivitiesOut.setGenerateByteOrderMark(true);
 			
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			difficultActivitiesOut<<s<<Qt::endl;
+#else
 			difficultActivitiesOut<<s<<endl;
+#endif
 			
 			//2011-11-11 (2)
 			//write highest stage timetable
-			Solution& ch=gen.getHighestStageSolution();
+			Solution& ch=gen.highestStageSolution;
 
 			//needed to find the conflicts strings
-			QString tmp2;
+			FakeString tmp2;
 			ch.fitness(gt.rules, &tmp2);
 
-			CachedSchedule::update(ch);
+			/*TimetableExport::getStudentsTimetable(ch);
+			TimetableExport::getTeachersTimetable(ch);
+			TimetableExport::getRoomsTimetable(ch);*/
+			TimetableExport::getStudentsTeachersRoomsBuildingsTimetable(ch);
 
 			QString toh=outputDirectory;
-			if(toh!="" && toh.count()>=1 && toh.endsWith(FILE_SEP)){
+			if(toh!="" && toh.length()>=1 && toh.endsWith(FILE_SEP)){
 				toh.chop(1);
 				toh+=QString("-highest"+FILE_SEP);
 			}
@@ -1390,42 +3169,50 @@ int main(int argc, char **argv)
 				if(!dir.exists(toh))
 					dir.mkpath(toh);
 
-			errors = TimetableExport::writeSimulationResultsCommandLine(toh);
-			renderErrorList(errors);
+			TimetableExport::writeGenerationResultsCommandLine(nullptr, toh);
 
-			if (EXPORT_CSV) {
-				QString oldDir=csv_export.getDirectoryCSV();
-				csv_export.setDirectoryCSV(csvOutputDirectory);
-				csv_export.exportCSV(&gen.getHighestStageSolution(), &gen.getSolution());
-				csv_export.setDirectoryCSV(oldDir);
-			}
+			QString oldDir=OUTPUT_DIR;
+			OUTPUT_DIR=csvOutputDirectory;
+			Export::exportCSV(&gen.highestStageSolution, &gen.c);
+			OUTPUT_DIR=oldDir;
 		}
-		//2012-01-24 - suggestion and code by Ian Holden (ian@ianholden.com), to write best and current timetable on time exceeded
-		//previously, FET saved best and current timetable only on receiving SIGTERM
+		//2012-01-24 - suggestion and code by Ian Holden (ian AT ianholden.com), to write best and current timetable on time exceeded
+		//previously, FET saved best and current timetable only on receiving SIGTERM (or SIGBREAK, on Windows)
 		//by Ian Holden (begin)
-		else if(status == Generate::TIMEOUT || status == Generate::ABORTED){
-			if(status == Generate::TIMEOUT){
-				cerr<<"Time exceeded"<<endl;
+		else if(timeExceeded || gen.abortOptimization){
+			if(timeExceeded){
+				cout<<"Time exceeded"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				out<<"Time exceeded"<<Qt::endl;
+#else
 				out<<"Time exceeded"<<endl;
+#endif
 			}
-			else if(status == Generate::ABORTED){
-				cout<<"Simulation stopped"<<endl;
-				out<<"Simulation stopped"<<endl;
+			else if(gen.abortOptimization){
+				cout<<"Generation interrupted"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				out<<"Generation interrupted"<<Qt::endl;
+#else
+				out<<"Generation interrupted"<<endl;
+#endif
 			}
 			//by Ian Holden (end)
 			
 			//2011-11-11 (1)
 			//write current stage timetable
-			Solution& cc=gen.getSolution();
+			Solution& cc=gen.c;
 
 			//needed to find the conflicts strings
-			QString tmp;
+			FakeString tmp;
 			cc.fitness(gt.rules, &tmp);
 
-			CachedSchedule::update(cc);
+			/*TimetableExport::getStudentsTimetable(cc);
+			TimetableExport::getTeachersTimetable(cc);
+			TimetableExport::getRoomsTimetable(cc);*/
+			TimetableExport::getStudentsTeachersRoomsBuildingsTimetable(cc);
 
 			QString toc=outputDirectory;
-			if(toc!="" && toc.count()>=1 && toc.endsWith(FILE_SEP)){
+			if(toc!="" && toc.length()>=1 && toc.endsWith(FILE_SEP)){
 				toc.chop(1);
 				toc+=QString("-current"+FILE_SEP);
 			}
@@ -1437,19 +3224,18 @@ int main(int argc, char **argv)
 				if(!dir.exists(toc))
 					dir.mkpath(toc);
 
-			ErrorList errors = TimetableExport::writeSimulationResultsCommandLine(toc);
-			renderErrorList(errors);
+			TimetableExport::writeGenerationResultsCommandLine(nullptr, toc);
 			
 			QString s;
-			const int maxActivitiesPlaced = gen.getMaxActivitiesPlaced();
-			if(maxActivitiesPlaced>=0 && maxActivitiesPlaced<gt.rules.nInternalActivities 
-			 && initialOrderOfActivitiesIndices[maxActivitiesPlaced]>=0 && initialOrderOfActivitiesIndices[maxActivitiesPlaced]<gt.rules.nInternalActivities){
+
+			if(gen.maxActivitiesPlaced>=0 && gen.maxActivitiesPlaced<gt.rules.nInternalActivities
+			 && initialOrderOfActivitiesIndices[gen.maxActivitiesPlaced]>=0 && initialOrderOfActivitiesIndices[gen.maxActivitiesPlaced]<gt.rules.nInternalActivities){
 				s=FetTranslate::tr("FET managed to schedule correctly the first %1 most difficult activities."
-				 " You can see initial order of placing the activities in the corresponding output file. The activity which might cause problems"
-				 " might be the next activity in the initial order of evaluation. This activity is listed below:").arg(maxActivitiesPlaced);
+				 " You can see the initial order of placing the activities in the corresponding output file. The activity which might cause problems"
+				 " might be the next activity in the initial order of evaluation. This activity is listed below:").arg(gen.maxActivitiesPlaced);
 				s+=QString("\n\n");
 			
-				int ai=initialOrderOfActivitiesIndices[maxActivitiesPlaced];
+				int ai=initialOrderOfActivitiesIndices[gen.maxActivitiesPlaced];
 
 				s+=FetTranslate::tr("Id: %1 (%2)", "%1 is id of activity, %2 is detailed description of activity")
 				 .arg(gt.rules.internalActivitiesList[ai].id)
@@ -1464,9 +3250,8 @@ int main(int argc, char **argv)
 			 "in order from the first one to the last (the last one FET failed to schedule "
 			 "and the last ones are most likely impossible):");
 			s+="\n\n";
-			const std::vector<int>& difficultActivities = gen.getDifficultActivities();
-			for(std::vector<int>::size_type i=0; i<difficultActivities.size(); i++){
-				int ai=difficultActivities[i];
+			for(int i=0; i<gen.nDifficultActivities; i++){
+				int ai=gen.difficultActivities[i];
 
 				s+=FetTranslate::tr("No: %1").arg(i+1);
 		
@@ -1480,30 +3265,45 @@ int main(int argc, char **argv)
 			}
 			
 			QFile difficultActivitiesFile(logsDir+"difficult_activities.txt");
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+			bool t=difficultActivitiesFile.open(QIODeviceBase::WriteOnly);
+#else
 			bool t=difficultActivitiesFile.open(QIODevice::WriteOnly);
+#endif
 			if(!t){
-				cerr<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"difficult_activities.txt)."
+				cout<<"FET critical - you don't have write permissions in the output directory - (FET cannot open or create file "<<qPrintable(logsDir)<<"difficult_activities.txt)."
 				 " If this is a bug - please report it."<<endl;
 				return 1;
 			}
 			QTextStream difficultActivitiesOut(&difficultActivitiesFile);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+			difficultActivitiesOut.setEncoding(QStringConverter::Utf8);
+#else
 			difficultActivitiesOut.setCodec("UTF-8");
+#endif
 			difficultActivitiesOut.setGenerateByteOrderMark(true);
 			
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			difficultActivitiesOut<<s<<Qt::endl;
+#else
 			difficultActivitiesOut<<s<<endl;
+#endif
 			
 			//2011-11-11 (2)
 			//write highest stage timetable
-			Solution& ch=gen.getHighestStageSolution();
+			Solution& ch=gen.highestStageSolution;
 
 			//needed to find the conflicts strings
-			QString tmp2;
+			FakeString tmp2;
 			ch.fitness(gt.rules, &tmp2);
 
-			CachedSchedule::update(ch);
+			/*TimetableExport::getStudentsTimetable(ch);
+			TimetableExport::getTeachersTimetable(ch);
+			TimetableExport::getRoomsTimetable(ch);*/
+			TimetableExport::getStudentsTeachersRoomsBuildingsTimetable(ch);
 
 			QString toh=outputDirectory;
-			if(toh!="" && toh.count()>=1 && toh.endsWith(FILE_SEP)){
+			if(toh!="" && toh.length()>=1 && toh.endsWith(FILE_SEP)){
 				toh.chop(1);
 				toh+=QString("-highest"+FILE_SEP);
 			}
@@ -1515,49 +3315,47 @@ int main(int argc, char **argv)
 				if(!dir.exists(toh))
 					dir.mkpath(toh);
 
-			errors = TimetableExport::writeSimulationResultsCommandLine(toh);
-			renderErrorList(errors);
+			TimetableExport::writeGenerationResultsCommandLine(nullptr, toh);
 
-			if (EXPORT_CSV) {
-				QString oldDir=csv_export.getDirectoryCSV();
-				csv_export.setDirectoryCSV(csvOutputDirectory);
-				csv_export.exportCSV(&gen.getHighestStageSolution(), &gen.getSolution());
-				csv_export.setDirectoryCSV(oldDir);
-			}
+			QString oldDir=OUTPUT_DIR;
+			OUTPUT_DIR=csvOutputDirectory;
+			Export::exportCSV(&gen.highestStageSolution, &gen.c);
+			OUTPUT_DIR=oldDir;
 		}
 		else{
-			cout<<"Simulation successful"<<endl;
-			out<<"Simulation successful"<<endl;
+			cout<<"Generation successful"<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+			out<<"Generation successful"<<Qt::endl;
+#else
+			out<<"Generation successful"<<endl;
+#endif
 		
-			ErrorCode erc = TimetableExport::writeRandomSeedCommandLine(outputDirectory, false); //false represents 'before' state
-			if (erc) {
-				IrreconcilableCriticalMessage::critical(NULL, erc.getSeverityTitle(), erc.message);
-			}
+			TimetableExport::writeRandomSeedCommandLine(nullptr, gen.rng, outputDirectory, false); //false represents 'before' state
 
-			Solution& c=gen.getSolution();
+			Solution& c=gen.c;
 
 			//needed to find the conflicts strings
-			QString tmp;
+			FakeString tmp;
 			c.fitness(gt.rules, &tmp);
 			
-			CachedSchedule::update(c);
+			/*TimetableExport::getStudentsTimetable(c);
+			TimetableExport::getTeachersTimetable(c);
+			TimetableExport::getRoomsTimetable(c);*/
+			TimetableExport::getStudentsTeachersRoomsBuildingsTimetable(c);
 
-			ErrorList errors = TimetableExport::writeSimulationResultsCommandLine(outputDirectory);
-			renderErrorList(errors);
+			TimetableExport::writeGenerationResultsCommandLine(nullptr, outputDirectory);
 			
-			if (EXPORT_CSV) {
-				QString oldDir=csv_export.getDirectoryCSV();
-				csv_export.setDirectoryCSV(csvOutputDirectory);
-				csv_export.exportCSV(&c);
-				csv_export.setDirectoryCSV(oldDir);
-			}
+			QString oldDir=OUTPUT_DIR;
+			OUTPUT_DIR=csvOutputDirectory;
+			Export::exportCSV(&c);
+			OUTPUT_DIR=oldDir;
 		}
 	
 		logFile.close();
 		return 0;
 	}
 	else{
-		usage(NULL, QString("No arguments given"));
+		usage(nullptr, QString("No arguments given"));
 		return 1;
 	}
 	//end command line

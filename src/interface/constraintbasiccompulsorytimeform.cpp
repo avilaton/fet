@@ -2,8 +2,8 @@
                           constraintbasiccompulsorytimeform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,21 +15,39 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintbasiccompulsorytimeform.h"
 #include "addconstraintbasiccompulsorytimeform.h"
 #include "modifyconstraintbasiccompulsorytimeform.h"
 
-#include <QMessageBox>
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-#include "centerwidgetonscreen.h"
-
-ConstraintBasicCompulsoryTimeForm::ConstraintBasicCompulsoryTimeForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintBasicCompulsoryTimeForm::ConstraintBasicCompulsoryTimeForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintBasicCompulsoryTimeForm_template", "Constraints basic compulsory time"));
+	setupUi(this);
 
+	currentConstraintTextEdit->setReadOnly(true);
+	
+	modifyConstraintPushButton->setDefault(true);
+
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintBasicCompulsoryTimeForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintBasicCompulsoryTimeForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintBasicCompulsoryTimeForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintBasicCompulsoryTimeForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintBasicCompulsoryTimeForm::modifyConstraint);
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintBasicCompulsoryTimeForm::modifyConstraint);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-	filterChanged();
+	
+	this->filterChanged();
 }
 
 ConstraintBasicCompulsoryTimeForm::~ConstraintBasicCompulsoryTimeForm()
@@ -37,7 +55,7 @@ ConstraintBasicCompulsoryTimeForm::~ConstraintBasicCompulsoryTimeForm()
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintBasicCompulsoryTimeForm::filterOk(const TimeConstraint* ctr) const
+bool ConstraintBasicCompulsoryTimeForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type==CONSTRAINT_BASIC_COMPULSORY_TIME)
 		return true;
@@ -45,26 +63,133 @@ bool ConstraintBasicCompulsoryTimeForm::filterOk(const TimeConstraint* ctr) cons
 		return false;
 }
 
-QDialog * ConstraintBasicCompulsoryTimeForm::createAddDialog()
+void ConstraintBasicCompulsoryTimeForm::filterChanged()
 {
-	return new AddConstraintBasicCompulsoryTimeForm(this);
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(ctr->getDescription(gt.rules));
+		}
+	}
+
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		this->constraintChanged(-1);
 }
 
-QDialog * ConstraintBasicCompulsoryTimeForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintBasicCompulsoryTimeForm::constraintChanged(int index)
 {
-	return new ModifyConstraintBasicCompulsoryTimeForm(this, (ConstraintBasicCompulsoryTime*)ctr);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+		return;
+	}
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	currentConstraintTextEdit->setPlainText(ctr->getDetailedDescription(gt.rules));
 }
 
-bool ConstraintBasicCompulsoryTimeForm::beforeRemoveConstraint()
+void ConstraintBasicCompulsoryTimeForm::addConstraint()
 {
-	QString s=tr("Do you really want to remove the basic compulsory time constraint?");
-	s+=" ";
-	s+=tr("You cannot generate a timetable without this constraint.");
+	AddConstraintBasicCompulsoryTimeForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintBasicCompulsoryTimeForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintBasicCompulsoryTimeForm form(this, (ConstraintBasicCompulsoryTime*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintBasicCompulsoryTimeForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
 	s+="\n\n";
-	s+=tr("Note: you can add again a constraint of this type from the menu Data -> Time constraints -> "
-		"Miscellaneous -> Basic compulsory time constraints.");
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
 
-	QMessageBox::StandardButton wr=QMessageBox::warning(this, tr("FET warning"), s,
-														QMessageBox::Yes|QMessageBox::No, QMessageBox::No);
-	return wr == QMessageBox::Yes;
+	QString oc;
+
+	int lres=LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 );
+		
+	if(lres==0){
+		//The user clicked the OK button or pressed Enter
+		
+		assert(ctr->type==CONSTRAINT_BASIC_COMPULSORY_TIME);
+		
+		QString s=tr("Do you really want to remove the basic compulsory time constraint?");
+		s+=" ";
+		s+=tr("You cannot generate a timetable without this constraint.");
+		s+="\n\n";
+		s+=tr("Note: you can add again a constraint of this type from the menu Data -> Time constraints -> "
+			"Miscellaneous -> Basic compulsory time constraints.");
+			
+		QMessageBox::StandardButton wr=QMessageBox::warning(this, tr("FET warning"), s,
+			QMessageBox::Yes|QMessageBox::No, QMessageBox::No);
+			
+		if(wr==QMessageBox::Yes){
+			oc=ctr->getDetailedDescription(gt.rules);
+
+			gt.rules.removeTimeConstraint(ctr);
+
+			gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+
+			visibleConstraintsList.removeAt(i);
+			constraintsListWidget->setCurrentRow(-1);
+			item=constraintsListWidget->takeItem(i);
+			delete item;
+		}
+	}
+	//else if(lres==1){
+		//The user clicked the Cancel button or pressed Escape
+	//}
+	
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
 }

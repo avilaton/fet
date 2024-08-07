@@ -2,8 +2,8 @@
                           addgroupactivitiesininitialorderitemform.h  -  description
                              -------------------
     begin                : 2014
-    copyright            : (C) 2014 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2014 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -31,8 +31,6 @@ class AddGroupActivitiesInInitialOrderItemForm : public QDialog, Ui::AddGroupAct
 public:
 	AddGroupActivitiesInInitialOrderItemForm(QWidget* parent);
 	~AddGroupActivitiesInInitialOrderItemForm();
-
-	void updateActivitiesListWidget();
 
 	bool filterOk(Activity* a);
 

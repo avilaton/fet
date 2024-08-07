@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,13 +20,21 @@
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QString>
 #include <QList>
+#include <QStringList>
 
 class Building;
 class Rules;
 
 typedef QList<Building*> BuildingsList;
+
+class QDataStream;
+
+QDataStream& operator<<(QDataStream& stream, const Building& bd);
+QDataStream& operator>>(QDataStream& stream, Building& bd);
 
 /**
 This class represents a building
@@ -38,6 +46,8 @@ class Building{
 
 public:
 	QString name;
+	QString longName;
+	QString code;
 	
 	QString comments;
 
@@ -46,12 +56,12 @@ public:
 	
 	void computeInternalStructure(Rules& r);
 	
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
-bool buildingsAscending(const Building* b1, const Building* b2);
+int buildingsAscending(const Building* b1, const Building* b2);
 
 #endif

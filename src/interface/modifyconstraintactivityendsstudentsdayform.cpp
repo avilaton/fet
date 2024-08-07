@@ -2,8 +2,8 @@
                           modifyconstraintactivityendsstudentsdayform.cpp  -  description
                              -------------------
     begin                : Sept 14, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,13 +16,9 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintactivityendsstudentsdayform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintActivityEndsStudentsDayForm::ModifyConstraintActivityEndsStudentsDayForm(QWidget* parent, ConstraintActivityEndsStudentsDay* ctr): QDialog(parent)
 {
@@ -30,12 +26,8 @@ ModifyConstraintActivityEndsStudentsDayForm::ModifyConstraintActivityEndsStudent
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityEndsStudentsDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityEndsStudentsDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -79,10 +71,15 @@ ModifyConstraintActivityEndsStudentsDayForm::ModifyConstraintActivityEndsStudent
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 	
-	updateActivitiesComboBox();
+	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityEndsStudentsDayForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityEndsStudentsDayForm::filterChanged);
 }
 
 ModifyConstraintActivityEndsStudentsDayForm::~ModifyConstraintActivityEndsStudentsDayForm()
@@ -95,13 +92,13 @@ bool ModifyConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -115,13 +112,13 @@ bool ModifyConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -133,19 +130,14 @@ bool ModifyConstraintActivityEndsStudentsDayForm::filterOk(Activity* act)
 	return ok;
 }
 
-void ModifyConstraintActivityEndsStudentsDayForm::filterChanged()
-{
-	this->updateActivitiesComboBox();
-}
-
-void ModifyConstraintActivityEndsStudentsDayForm::updateActivitiesComboBox(){
+void ModifyConstraintActivityEndsStudentsDayForm::filterChanged(){
 	activitiesComboBox->clear();
 	activitiesList.clear();
 	int i=0, j=-1;
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* act=gt.rules.activitiesList[k];
 		if(filterOk(act)){
-			activitiesComboBox->addItem(act->getDescription());
+			activitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->activitiesList.append(act->id);
 			if(act->id==this->_ctr->activityId)
 				j=i;
@@ -167,11 +159,11 @@ void ModifyConstraintActivityEndsStudentsDayForm::ok()
 			tr("Invalid weight (percentage)"));
 		return;
 	}
-	if(weight!=100.0){
+	/*if(weight!=100.0){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid weight (percentage) - it must be 100%"));
 		return;
-	}
+	}*/
 
 	int tmp2=activitiesComboBox->currentIndex();
 	assert(tmp2<gt.rules.activitiesList.size());
@@ -181,13 +173,24 @@ void ModifyConstraintActivityEndsStudentsDayForm::ok()
 			tr("Invalid activity"));
 		return;
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	int id=activitiesList.at(tmp2);
 	
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->activityId=id;
 	
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+
+	this->close();
+}
+
+void ModifyConstraintActivityEndsStudentsDayForm::cancel()
+{
 	this->close();
 }

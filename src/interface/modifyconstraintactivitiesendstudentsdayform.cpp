@@ -2,8 +2,8 @@
                           modifyconstraintactivitiesendstudentsdayform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,9 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintactivitiesendstudentsdayform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintActivitiesEndStudentsDayForm::ModifyConstraintActivitiesEndStudentsDayForm(QWidget* parent, ConstraintActivitiesEndStudentsDay* ctr): QDialog(parent)
 {
@@ -31,8 +26,8 @@ ModifyConstraintActivitiesEndStudentsDayForm::ModifyConstraintActivitiesEndStude
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesEndStudentsDayForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesEndStudentsDayForm::ok);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -49,7 +44,7 @@ ModifyConstraintActivitiesEndStudentsDayForm::ModifyConstraintActivitiesEndStude
 	this->_ctr=ctr;
 
 	updateTeachersComboBox();
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 	updateSubjectsComboBox();
 	updateActivityTagsComboBox();
 
@@ -62,46 +57,72 @@ ModifyConstraintActivitiesEndStudentsDayForm::~ModifyConstraintActivitiesEndStud
 }
 
 void ModifyConstraintActivitiesEndStudentsDayForm::updateTeachersComboBox(){
+	int i=0, j=-1;
 	teachersComboBox->clear();
 	teachersComboBox->addItem("");
-	for(int i=0; i<gt.rules.teachersList.size(); i++){
-		Teacher* t=gt.rules.teachersList[i];
+	if(this->_ctr->teacherName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.teachersList.size(); k++){
+		Teacher* t=gt.rules.teachersList[k];
 		teachersComboBox->addItem(t->name);
+		if(t->name==this->_ctr->teacherName)
+			j=i;
+		i++;
 	}
-	teachersComboBox->setCurrentText(this->_ctr->teacherName);
+	assert(j>=0);
+	teachersComboBox->setCurrentIndex(j);
 }
 
-void ModifyConstraintActivitiesEndStudentsDayForm::updateStudentsComboBox(){
-	int j = StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName, true);
-	if (j < 0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+void ModifyConstraintActivitiesEndStudentsDayForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName, true);
+	if(j<0)
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesEndStudentsDayForm::updateSubjectsComboBox(){
+	int i=0, j=-1;
 	subjectsComboBox->clear();
 	subjectsComboBox->addItem("");
-	for(int i=0; i<gt.rules.subjectsList.size(); i++){
-		Subject* s=gt.rules.subjectsList[i];
+	if(this->_ctr->subjectName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.subjectsList.size(); k++){
+		Subject* s=gt.rules.subjectsList[k];
 		subjectsComboBox->addItem(s->name);
+		if(s->name==this->_ctr->subjectName)
+			j=i;
+		i++;
 	}
-	subjectsComboBox->setCurrentText(this->_ctr->subjectName);
+	assert(j>=0);
+	subjectsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesEndStudentsDayForm::updateActivityTagsComboBox(){
+	int i=0, j=-1;
 	activityTagsComboBox->clear();
 	activityTagsComboBox->addItem("");
-	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* s=gt.rules.activityTagsList[i];
+	if(this->_ctr->activityTagName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.activityTagsList.size(); k++){
+		ActivityTag* s=gt.rules.activityTagsList[k];
 		activityTagsComboBox->addItem(s->name);
+		if(s->name==this->_ctr->activityTagName)
+			j=i;
+		i++;
 	}
-	activityTagsComboBox->setCurrentText(this->_ctr->activityTagName);
+	assert(j>=0);
+	activityTagsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesEndStudentsDayForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -113,11 +134,11 @@ void ModifyConstraintActivitiesEndStudentsDayForm::ok()
 			tr("Invalid weight (percentage)"));
 		return;
 	}
-	if(weight!=100.0){
+	/*if(weight!=100.0){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid weight (percentage) - it must be 100%"));
 		return;
-	}
+	}*/
 
 	QString teacher=teachersComboBox->currentText();
 	if(teacher!="")
@@ -125,7 +146,7 @@ void ModifyConstraintActivitiesEndStudentsDayForm::ok()
 
 	QString students=studentsComboBox->currentText();
 	if(students!="")
-		assert(gt.rules.searchStudentsSet(students)!=NULL);
+		assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QString subject=subjectsComboBox->currentText();
 	if(subject!="")
@@ -134,15 +155,25 @@ void ModifyConstraintActivitiesEndStudentsDayForm::ok()
 	QString activityTag=activityTagsComboBox->currentText();
 	if(activityTag!="")
 		assert(gt.rules.searchActivityTag(activityTag)>=0);
-		
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->teacherName=teacher;
 	this->_ctr->studentsName=students;
 	this->_ctr->subjectName=subject;
 	this->_ctr->activityTagName=activityTag;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintActivitiesEndStudentsDayForm::cancel()
+{
 	this->close();
 }

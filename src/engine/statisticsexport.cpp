@@ -5,8 +5,8 @@ File statisticsexport.cpp
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                       statisticsexport.cpp  -  description
                              -------------------
@@ -25,16 +25,17 @@ File statisticsexport.cpp
 // Code contributed by Volker Dirr ( https://www.timetabling.de/ )
 // Many thanks to Liviu Lalescu. He told me some speed optimizations.
 
-#include "timetableexport.h"
+#include "timetable_defs.h"
 #include "statisticsexport.h"
 
 // BE CAREFUL: DON'T USE INTERNAL VARIABLES HERE, because maybe computeInternalStructure() is not done!
 
 #include <QString>
 #include <QStringList>
-#include <QHash>
 #include <QMultiHash>
 #include <QMap>
+#include <QSet>
+#include <QList>
 
 #include <QMessageBox>
 
@@ -45,11 +46,18 @@ File statisticsexport.cpp
 #include <QDir>
 
 #include <QFile>
+#include <QFileDevice>
 #include <QTextStream>
 
+//#include <QApplication>
 #include <QProgressDialog>
+//extern QApplication* pqapplication;
+
+#include <QtGlobal>
 
 extern Timetable gt;
+
+//extern bool generation_running;	//needed?
 
 //TODO: use the external string!!!
 //extern const QString STRING_EMPTY_SLOT;
@@ -64,6 +72,7 @@ const char SUBJECTS_STUDENTS_STATISTICS[]="subjects_students.html";
 const char STYLESHEET_STATISTICS[]="stylesheet.css";
 const char INDEX_STATISTICS[]="index.html";
 
+QString DIRECTORY_STATISTICS;
 QString PREFIX_STATISTICS;
 
 class StringListPair{
@@ -72,24 +81,12 @@ public:
 	QStringList list2;
 };
 
-static bool operator <(const StringListPair& pair1, const StringListPair& pair2)
+bool operator <(const StringListPair& pair1, const StringListPair& pair2)
 {
-//	return (pair1.list1.join("")+pair1.list2.join("")) < (pair2.list1.join("")+pair2.list2.join(""));
-	//As recommended by rodolforg
+	//return (pair1.list1.join("")+pair1.list2.join("")) < (pair2.list1.join("")+pair2.list2.join(""));
+	
+	//by Rodolfo Ribeiro Gomes
 	return (pair1.list1.join("")+pair1.list2.join("")).localeAwareCompare(pair2.list1.join("")+pair2.list2.join(""))<0;
-}
-
-static QString getBasename(){
-	QFileInfo input(INPUT_FILENAME_XML);
-	if (input.suffix() == "fet")
-		return input.baseName();
-	return input.fileName();
-}
-
-static QString getBasenameOrDefault(){
-	if (INPUT_FILENAME_XML.isEmpty())
-		return "unnamed";
-	return getBasename();
 }
 
 StatisticsExport::StatisticsExport()
@@ -100,7 +97,7 @@ StatisticsExport::~StatisticsExport()
 {
 }
 
-bool StatisticsExport::exportStatistics(QWidget* parent){
+void StatisticsExport::exportStatistics(QWidget* parent){
 	assert(gt.rules.initialized);
 	assert(TIMETABLE_HTML_LEVEL>=0);
 	assert(TIMETABLE_HTML_LEVEL<=7);
@@ -109,10 +106,26 @@ bool StatisticsExport::exportStatistics(QWidget* parent){
 	computeHashForIDsStatistics(&statisticValues);
 	getNamesAndHours(&statisticValues);
 
-	QString DIRECTORY_STATISTICS=getStatisticsDirectory();
+	DIRECTORY_STATISTICS=OUTPUT_DIR+FILE_SEP+"statistics";
+	
+	if(INPUT_FILENAME_XML=="")
+		DIRECTORY_STATISTICS.append(FILE_SEP+"unnamed");
+	else{
+		DIRECTORY_STATISTICS.append(FILE_SEP+INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1));
+
+		if(DIRECTORY_STATISTICS.right(4)==".fet")
+			DIRECTORY_STATISTICS=DIRECTORY_STATISTICS.left(DIRECTORY_STATISTICS.length()-4);
+		//else if(INPUT_FILENAME_XML!="")
+		//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+	}
 	
 	PREFIX_STATISTICS=DIRECTORY_STATISTICS+FILE_SEP;
 	
+	int ok=QMessageBox::question(parent, tr("FET Question"),
+		 StatisticsExport::tr("Do you want to export detailed statistics files into directory %1 as HTML files?").arg(QDir::toNativeSeparators(DIRECTORY_STATISTICS)), QMessageBox::Yes | QMessageBox::No);
+	if(ok==QMessageBox::No)
+		return;
+
 	/* need if i use iTeachersList. Currently unneeded. please remove commented asserts in other functions if this is needed again!
 	bool tmp=gt.rules.computeInternalStructure();
 	if(!tmp){
@@ -130,10 +143,10 @@ bool StatisticsExport::exportStatistics(QWidget* parent){
 
 	QDate dat=QDate::currentDate();
 	QTime tim=QTime::currentTime();
-	QLocale loc;
+	QLocale loc(FET_LANGUAGE_WITH_LOCALE);
 	QString sTime=loc.toString(dat, QLocale::ShortFormat)+" "+loc.toString(tim, QLocale::ShortFormat);
 
-	bool ok=exportStatisticsStylesheetCss(parent, sTime, statisticValues);
+	ok=exportStatisticsStylesheetCss(parent, sTime, statisticValues);
 	if(ok)
 		ok=exportStatisticsIndex(parent, sTime);
 	if(ok)
@@ -149,11 +162,17 @@ bool StatisticsExport::exportStatistics(QWidget* parent){
 	if(ok)
 		ok=exportStatisticsStudentsSubjects(parent, sTime, statisticValues, TIMETABLE_HTML_LEVEL);
 
-	return ok;
+	if(ok){
+		QMessageBox::information(parent, tr("FET Information"),
+		 StatisticsExport::tr("Statistics files were exported to directory %1 as HTML files.").arg(QDir::toNativeSeparators(DIRECTORY_STATISTICS)));
+	} else {
+		QMessageBox::warning(parent, tr("FET warning"),
+		 StatisticsExport::tr("Statistics export incomplete")+"\n");
+	}
 }
 
 void StatisticsExport::computeHashForIDsStatistics(FetStatistics *statisticValues){		// by Volker Dirr
-	//TODO if we use a relational data base this is unneded, because we can use the primary key id of the database 
+	//TODO if we use a relational data base this is unneded, because we can use the primary key id of the database
 	//This is very similar to timetable compute hash. so always check it if you change something here!
 
 	assert((*statisticValues).hashStudentIDsStatistics.isEmpty());
@@ -221,17 +240,17 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 	assert((*statisticValues).teachersActivities.isEmpty());
 	
 	QSet<QString> allStudentsNamesSet;
-	for(StudentsYear* sty : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* sty : std::as_const(gt.rules.yearsList)){
 		if(!allStudentsNamesSet.contains(sty->name)){
 			(*statisticValues).allStudentsNames<<sty->name;
 			allStudentsNamesSet.insert(sty->name);
 		}
-		for(StudentsGroup* stg : qAsConst(sty->groupsList)){
+		for(StudentsGroup* stg : std::as_const(sty->groupsList)){
 			if(!allStudentsNamesSet.contains(stg->name)){
 				(*statisticValues).allStudentsNames<<stg->name;
 				allStudentsNamesSet.insert(stg->name);
 			}
-			for(StudentsSubgroup* sts : qAsConst(stg->subgroupsList)){
+			for(StudentsSubgroup* sts : std::as_const(stg->subgroupsList)){
 				if(!allStudentsNamesSet.contains(sts->name)){
 					(*statisticValues).allStudentsNames<<sts->name;
 					allStudentsNamesSet.insert(sts->name);
@@ -240,11 +259,11 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 		}
 	}
 
-	for(Teacher* t : qAsConst(gt.rules.teachersList)){
+	for(Teacher* t : std::as_const(gt.rules.teachersList)){
 		(*statisticValues).allTeachersNames<<t->name;
 	}
 	
-	for(Subject* s : qAsConst(gt.rules.subjectsList)){
+	for(Subject* s : std::as_const(gt.rules.subjectsList)){
 		(*statisticValues).allSubjectsNames<<s->name;
 	}
 
@@ -262,24 +281,24 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 				(*statisticValues).subjectsActivities.insert(act->subjectName, ai);
 				int tmp=(*statisticValues).subjectsTotalNumberOfHours.value(act->subjectName)+act->duration;
 				(*statisticValues).subjectsTotalNumberOfHours.insert(act->subjectName, tmp);						// (1) so teamlearning-teaching is not counted twice!
-				for(const QString& t : qAsConst(act->teachersNames)){
+				for(const QString& t : std::as_const(act->teachersNames)){
 					(*statisticValues).teachersActivities.insert(t, ai);
 					tmp=(*statisticValues).teachersTotalNumberOfHours.value(t)+act->duration;
 					(*statisticValues).teachersTotalNumberOfHours.insert(t, tmp);							// (3)
 					//subjectstTotalNumberOfHours2[act->subjectIndex]+=duration;				// (1) so teamteaching is counted twice!
 				}
-				for(const QString& st : qAsConst(act->studentsNames)){
+				for(const QString& st : std::as_const(act->studentsNames)){
 					(*statisticValues).studentsActivities.insert(st, ai);
 					tmp=(*statisticValues).studentsTotalNumberOfHours.value(st)+act->duration;
 					(*statisticValues).studentsTotalNumberOfHours.insert(st, tmp);							// (2)
 					//subjectstTotalNumberOfHours3[act->subjectIndex]+=duration;				// (1) so teamlearning is counted twice!
 				}
-				for(const QString& t : qAsConst(act->teachersNames)){
+				for(const QString& t : std::as_const(act->teachersNames)){
 					tmp=(*statisticValues).teachersTotalNumberOfHours2.value(t);
 					tmp += act->duration * act->studentsNames.count();
 					(*statisticValues).teachersTotalNumberOfHours2.insert(t, tmp);						// (3)
 				}
-				for(const QString& st : qAsConst(act->studentsNames)){
+				for(const QString& st : std::as_const(act->studentsNames)){
 					tmp=(*statisticValues).studentsTotalNumberOfHours2.value(st);
 					tmp += act->duration * act->teachersNames.count();
 					(*statisticValues).studentsTotalNumberOfHours2.insert(st, tmp);					// (2)
@@ -292,7 +311,7 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 	//progress.setValue(gt.rules.activitiesList.count());
 	QStringList tmp;
 	tmp.clear();
-	for(const QString& students : qAsConst((*statisticValues).allStudentsNames)){
+	for(const QString& students : std::as_const((*statisticValues).allStudentsNames)){
 		if((*statisticValues).studentsTotalNumberOfHours.value(students)==0 && (*statisticValues).studentsTotalNumberOfHours2.value(students)==0){
 			(*statisticValues).studentsTotalNumberOfHours.remove(students);
 			(*statisticValues).studentsTotalNumberOfHours2.remove(students);
@@ -301,7 +320,7 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 	}
 	(*statisticValues).allStudentsNames=tmp;
 	tmp.clear();
-	for(const QString& teachers : qAsConst((*statisticValues).allTeachersNames)){
+	for(const QString& teachers : std::as_const((*statisticValues).allTeachersNames)){
 		if((*statisticValues).teachersTotalNumberOfHours.value(teachers)==0 && (*statisticValues).teachersTotalNumberOfHours2.value(teachers)==0){
 				(*statisticValues).teachersTotalNumberOfHours.remove(teachers);
 				(*statisticValues).teachersTotalNumberOfHours2.remove(teachers);
@@ -310,7 +329,7 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 	}
 	(*statisticValues).allTeachersNames=tmp;
 	tmp.clear();
-	for(const QString& subjects : qAsConst((*statisticValues).allSubjectsNames)){
+	for(const QString& subjects : std::as_const((*statisticValues).allSubjectsNames)){
 		if((*statisticValues).subjectsTotalNumberOfHours.value(subjects)==0 && (*statisticValues).subjectsTotalNumberOfHours4.value(subjects)==0){
 			(*statisticValues).subjectsTotalNumberOfHours.remove(subjects);
 			(*statisticValues).subjectsTotalNumberOfHours4.remove(subjects);
@@ -321,7 +340,7 @@ void StatisticsExport::getNamesAndHours(FetStatistics *statisticValues){
 	tmp.clear();
 }
 
-bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, QString saveTime, FetStatistics statisticValues){
+bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -339,19 +358,27 @@ bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, QString sa
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+STYLESHEET_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	//get used students	//similar to timetableexport.cpp, so maybe use a function?
 	QSet<QString> usedStudents;
 	for(int i=0; i<gt.rules.activitiesList.size(); i++){
-		for(const QString& st : qAsConst(gt.rules.activitiesList[i]->studentsNames)){
+		for(const QString& st : std::as_const(gt.rules.activitiesList[i]->studentsNames)){
 			if(gt.rules.activitiesList[i]->active){
 				if(!usedStudents.contains(st))
 					usedStudents<<st;
@@ -364,13 +391,14 @@ bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, QString sa
 	QString tt=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);
 	if(INPUT_FILENAME_XML=="")
 		tt=tr("unnamed");
-	tos<<"/* "<<StatisticsExport::tr("CSS Stylesheet of %1", "%1 is the file name").arg(tt);
+	tos<<"/* "<<StatisticsExport::tr("CSS Style sheet of %1", "%1 is the file name").arg(tt);
 	tos<<"\n";
-	tos<<"   "<<StatisticsExport::tr("Stylesheet generated with FET %1 on %2", "%1 is FET version, %2 is date and time").arg(FET_VERSION).arg(saveTime)<<" */\n\n";
+	tos<<"   "<<StatisticsExport::tr("Style sheet generated with FET %1 on %2", "%1 is FET version, %2 is date and time").arg(FET_VERSION).arg(saveTime)<<" */\n\n";
 
 	tos<<"/* "<<StatisticsExport::tr("To hide an element just write the following phrase into the element: %1 (without quotes).",
 		"%1 is a short phrase beginning and ending with quotes, and we want the user to be able to add it, but without quotes").arg("\"display:none;\"")<<" */\n\n";
 	tos<<"table {\n  text-align: center;\n}\n\n";
+	tos<<"table.detailed {\n  margin-left:auto; margin-right:auto;\n  text-align: center;\n  border: 0px;\n  border-spacing: 0;\n  border-collapse: collapse;\n}\n\n";
 	tos<<"caption {\n\n}\n\n";
 	tos<<"thead {\n\n}\n\n";
 
@@ -425,7 +453,7 @@ bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, QString sa
 		tos<<"span.subject {\n\n}\n\n";
 		if(TIMETABLE_HTML_PRINT_ACTIVITY_TAGS){
 			bool havePrintableActivityTag=false;
-			for(ActivityTag* at : qAsConst(gt.rules.activityTagsList)){
+			for(ActivityTag* at : std::as_const(gt.rules.activityTagsList)){
 				if(at->printable){
 					havePrintableActivityTag=true;
 					break;
@@ -444,22 +472,26 @@ bool StatisticsExport::exportStatisticsStylesheetCss(QWidget* parent, QString sa
 		tos<<"tr.duration {\n\n}\n\n";
 		//tos<<"tr.line0 {\n  font-size: smaller;\n}\n\n";
 		tos<<"tr.line1 {\n\n}\n\n";
-		tos<<"tr.line2 {\n  font-size: smaller;\n  color: gray;\n}\n\n";
+		if(TIMETABLE_HTML_LEVEL!=7)
+			tos<<"tr.line2 {\n  font-size: smaller;\n  color: gray;\n}\n\n";
+		else
+			tos<<"tr.line2 {\n  font-size: smaller;\n}\n\n";
 		//tos<<"tr.line3, div.line3 {\n  font-size: smaller;\n  color: silver;\n}\n\n";
 	}
 	
 	tos<<"/* "<<StatisticsExport::tr("End of file.")<<" */\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-bool StatisticsExport::exportStatisticsIndex(QWidget* parent, QString saveTime){
+bool StatisticsExport::exportStatisticsIndex(QWidget* parent, const QString& saveTime){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 	
@@ -476,24 +508,32 @@ bool StatisticsExport::exportStatisticsIndex(QWidget* parent, QString saveTime){
 	
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+INDEX_STATISTICS;
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 
 	if(TIMETABLE_HTML_LEVEL>=1){
@@ -525,13 +565,13 @@ bool StatisticsExport::exportStatisticsIndex(QWidget* parent, QString saveTime){
 
 	tos<<"  <body>\n";
 
-	tos<<"    <table>\n      <tr align=\"left\" valign=\"top\">\n        <th>"+tr("Institution name")+":</th>\n        <td>"+protect2(gt.rules.getInstitutionName())+"</td>\n      </tr>\n    </table>\n";
-	tos<<"    <table>\n      <tr align=\"left\" valign=\"top\">\n        <th>"+tr("Comments")+":</th>\n        <td>"+protect2(gt.rules.getComments()).replace(QString("\n"), QString("<br />\n"))+"</td>\n      </tr>\n    </table>\n";
+	tos<<"    <table>\n      <tr align=\"left\" valign=\"top\">\n        <th>"+tr("Institution name")+":</th>\n        <td>"+protect2(gt.rules.institutionName)+"</td>\n      </tr>\n    </table>\n";
+	tos<<"    <table>\n      <tr align=\"left\" valign=\"top\">\n        <th>"+tr("Comments")+":</th>\n        <td>"+protect2(gt.rules.comments).replace(QString("\n"), QString("<br />\n"))+"</td>\n      </tr>\n    </table>\n";
 	tos<<"    <p>\n";
 	tos<<"    </p>\n";
 
 	tos<<"    <table border=\"1\">\n";
-	tos<<"      <caption>"<<protect2(gt.rules.getInstitutionName())<<"</caption>\n";
+	tos<<"      <caption>"<<protect2(gt.rules.institutionName)<<"</caption>\n";
 	tos<<"      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\"3\">"+tr("Statistics")+"</th></tr>\n";
 	tos<<"        <tr>\n          <!-- span -->\n";
 	tos<<"          <th>"+tr("Teachers")+"</th><th>"+tr("Students")+"</th><th>"+tr("Subjects")+"</th>\n";
@@ -563,16 +603,17 @@ bool StatisticsExport::exportStatisticsIndex(QWidget* parent, QString saveTime){
 	tos<<"    </table>\n";
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-bool StatisticsExport::exportStatisticsTeachersSubjects(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsTeachersSubjects(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -589,24 +630,32 @@ bool StatisticsExport::exportStatisticsTeachersSubjects(QWidget* parent, QString
 
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+TEACHERS_SUBJECTS_STATISTICS;
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -640,16 +689,17 @@ bool StatisticsExport::exportStatisticsTeachersSubjects(QWidget* parent, QString
 	tos<<exportStatisticsTeachersSubjectsHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allTeachersNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int teacher=0; teacher<statisticValues.allTeachersNames.count() && colspan<maxNames; teacher++){
 		if(!(*excludedNames).contains(teacher)){
@@ -658,7 +708,7 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Teachers - Subjects Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -689,7 +739,7 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& subjects : qAsConst(statisticValues.allSubjectsNames)){
+	for(const QString& subjects : std::as_const(statisticValues.allSubjectsNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -704,9 +754,9 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 		tmpSubjects.clear();
 		tmpTeachers.clear();
 		tmpSubjects=statisticValues.subjectsActivities.values(subjects);
-		for(int aidx : qAsConst(tmpSubjects)){
+		for(int aidx : std::as_const(tmpSubjects)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
-			for(const QString& teacher : qAsConst(act->teachersNames)){
+			for(const QString& teacher : std::as_const(act->teachersNames)){
 				tmpTeachers.insert(teacher, aidx);
 			}
 		}
@@ -734,14 +784,14 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 1
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=act->studentsNames;
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -763,44 +813,46 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"studentsset line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						
-						StringListPair slp=it2.key();
-						QStringList studentsNames=slp.list1;
-						QStringList activityTagsNames=slp.list2;
+						const StringListPair& slp=it.key();
+						const QStringList& studentsNames=slp.list1;
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpSt=QString("");
 						if(studentsNames.size()>0||activityTagsNames.size()>0){
-							for(QStringList::Iterator st=studentsNames.begin(); st!=studentsNames.end(); st++){
+							for(QStringList::const_iterator st=studentsNames.constBegin(); st!=studentsNames.constEnd(); st++){
 								switch(htmlLevel){
 									case 4 : tmpSt+="<span class=\"ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"\">"+protect2(*st)+"</span>"; break;
 									case 5 : ;
 									case 6 : tmpSt+="<span class=\"ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"\" onmouseover=\"highlight('ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"')\">"+protect2(*st)+"</span>"; break;
 									default: tmpSt+=protect2(*st); break;
 									}
-								if(st!=studentsNames.end()-1)
+								if(st!=studentsNames.constEnd()-1)
 									tmpSt+=", ";
 							}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -827,7 +879,9 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 
 						tmp+=tmpSt;
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -869,7 +923,7 @@ QString StatisticsExport::exportStatisticsTeachersSubjectsHtml(QWidget* parent, 
 	return tmp;
 }
 
-bool StatisticsExport::exportStatisticsSubjectsTeachers(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsSubjectsTeachers(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -887,24 +941,32 @@ bool StatisticsExport::exportStatisticsSubjectsTeachers(QWidget* parent, QString
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+SUBJECTS_TEACHERS_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -938,16 +1000,17 @@ bool StatisticsExport::exportStatisticsSubjectsTeachers(QWidget* parent, QString
 	tos<<StatisticsExport::exportStatisticsSubjectsTeachersHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allSubjectsNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int subject=0; subject<statisticValues.allSubjectsNames.count() && colspan<maxNames; subject++){
 		if(!(*excludedNames).contains(subject)){
@@ -956,7 +1019,7 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Subjects - Teachers Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -987,7 +1050,7 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& teachers : qAsConst(statisticValues.allTeachersNames)){
+	for(const QString& teachers : std::as_const(statisticValues.allTeachersNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -1002,7 +1065,7 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 		tmpTeachers.clear();
 		tmpSubjects.clear();
 		tmpTeachers=statisticValues.teachersActivities.values(teachers);
-		for(int aidx : qAsConst(tmpTeachers)){
+		for(int aidx : std::as_const(tmpTeachers)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
 			tmpSubjects.insert(act->subjectName, aidx);
 		}
@@ -1030,14 +1093,14 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 2
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=act->studentsNames;
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -1059,44 +1122,46 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+					
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"studentsset line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+					
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						
-						StringListPair slp=it2.key();
-						QStringList studentsNames=slp.list1;
-						QStringList activityTagsNames=slp.list2;
+						const StringListPair& slp=it.key();
+						const QStringList& studentsNames=slp.list1;
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpSt=QString("");
 						if(studentsNames.size()>0||activityTagsNames.size()>0){
-							for(QStringList::Iterator st=studentsNames.begin(); st!=studentsNames.end(); st++){
+							for(QStringList::const_iterator st=studentsNames.constBegin(); st!=studentsNames.constEnd(); st++){
 								switch(htmlLevel){
 									case 4 : tmpSt+="<span class=\"ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"\">"+protect2(*st)+"</span>"; break;
 									case 5 : ;
 									case 6 : tmpSt+="<span class=\"ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"\" onmouseover=\"highlight('ss_"+statisticValues.hashStudentIDsStatistics.value(*st)+"')\">"+protect2(*st)+"</span>"; break;
 									default: tmpSt+=protect2(*st); break;
 									}
-								if(st!=studentsNames.end()-1)
+								if(st!=studentsNames.constEnd()-1)
 									tmpSt+=", ";
 							}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -1123,7 +1188,9 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 						tmp+=tmpSt;
 						
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -1165,7 +1232,7 @@ QString StatisticsExport::exportStatisticsSubjectsTeachersHtml(QWidget* parent, 
 	return tmp;
 }
 
-bool StatisticsExport::exportStatisticsTeachersStudents(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsTeachersStudents(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -1183,24 +1250,32 @@ bool StatisticsExport::exportStatisticsTeachersStudents(QWidget* parent, QString
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+TEACHERS_STUDENTS_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -1234,16 +1309,17 @@ bool StatisticsExport::exportStatisticsTeachersStudents(QWidget* parent, QString
 	tos<<StatisticsExport::exportStatisticsTeachersStudentsHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allTeachersNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int teacher=0; teacher<statisticValues.allTeachersNames.count() && colspan<maxNames; teacher++){
 		if(!(*excludedNames).contains(teacher)){
@@ -1252,7 +1328,7 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Teachers - Students Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -1283,7 +1359,7 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& students : qAsConst(statisticValues.allStudentsNames)){
+	for(const QString& students : std::as_const(statisticValues.allStudentsNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -1298,9 +1374,9 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 		tmpStudents.clear();
 		tmpTeachers.clear();
 		tmpStudents=statisticValues.studentsActivities.values(students);
-		for(int aidx : qAsConst(tmpStudents)){
+		for(int aidx : std::as_const(tmpStudents)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
-			for(const QString& teacher : qAsConst(act->teachersNames)){
+			for(const QString& teacher : std::as_const(act->teachersNames)){
 				tmpTeachers.insert(teacher, aidx);
 			}
 		}
@@ -1328,14 +1404,14 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 3
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=QStringList(act->subjectName);
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -1357,31 +1433,33 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+					
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"subject line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 
-						StringListPair slp=it2.key();
+						const StringListPair& slp=it.key();
 						assert(slp.list1.count()==1);
-						QString subjectName=slp.list1.at(0);
-						QStringList activityTagsNames=slp.list2;
+						const QString& subjectName=slp.list1.at(0);
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpS=QString("");
 						if(!subjectName.isEmpty()||activityTagsNames.size()>0){
 							if(!subjectName.isEmpty())
@@ -1393,7 +1471,7 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 									default: tmpS+=protect2(subjectName); break;
 								}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -1420,7 +1498,9 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 
 						tmp+=tmpS;
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -1462,7 +1542,7 @@ QString StatisticsExport::exportStatisticsTeachersStudentsHtml(QWidget* parent, 
 	return tmp;
 }
 
-bool StatisticsExport::exportStatisticsStudentsTeachers(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsStudentsTeachers(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -1480,24 +1560,32 @@ bool StatisticsExport::exportStatisticsStudentsTeachers(QWidget* parent, QString
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+STUDENTS_TEACHERS_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -1531,16 +1619,17 @@ bool StatisticsExport::exportStatisticsStudentsTeachers(QWidget* parent, QString
 	tos<<StatisticsExport::exportStatisticsStudentsTeachersHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allStudentsNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int students=0; students<statisticValues.allStudentsNames.count() && colspan<maxNames; students++){
 		if(!(*excludedNames).contains(students)){
@@ -1549,7 +1638,7 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Students - Teachers Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -1580,7 +1669,7 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& teachers : qAsConst(statisticValues.allTeachersNames)){
+	for(const QString& teachers : std::as_const(statisticValues.allTeachersNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -1595,9 +1684,9 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 		tmpTeachers.clear();
 		tmpStudents.clear();
 		tmpTeachers=statisticValues.teachersActivities.values(teachers);
-		for(int aidx : qAsConst(tmpTeachers)){
+		for(int aidx : std::as_const(tmpTeachers)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
-			for(const QString& students : qAsConst(act->studentsNames)){
+			for(const QString& students : std::as_const(act->studentsNames)){
 				tmpStudents.insert(students, aidx);
 			}
 		}
@@ -1625,14 +1714,14 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 4
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=QStringList(act->subjectName);
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -1654,31 +1743,33 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+					
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"subject line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+					
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 							
-						StringListPair slp=it2.key();
+						const StringListPair& slp=it.key();
 						assert(slp.list1.count()==1);
-						QString subjectName=slp.list1.at(0);
-						QStringList activityTagsNames=slp.list2;
+						const QString& subjectName=slp.list1.at(0);
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpS=QString("");
 						if(!subjectName.isEmpty()||activityTagsNames.size()>0){
 							if(!subjectName.isEmpty())
@@ -1690,7 +1781,7 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 									default: tmpS+=protect2(subjectName); break;
 								}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -1717,7 +1808,9 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 						tmp+=tmpS;
 						
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -1759,7 +1852,7 @@ QString StatisticsExport::exportStatisticsStudentsTeachersHtml(QWidget* parent, 
 	return tmp;
 }
 
-bool StatisticsExport::exportStatisticsSubjectsStudents(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsSubjectsStudents(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -1777,24 +1870,32 @@ bool StatisticsExport::exportStatisticsSubjectsStudents(QWidget* parent, QString
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+SUBJECTS_STUDENTS_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -1828,16 +1929,17 @@ bool StatisticsExport::exportStatisticsSubjectsStudents(QWidget* parent, QString
 	tos<<StatisticsExport::exportStatisticsSubjectsStudentsHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allSubjectsNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int subject=0; subject<statisticValues.allSubjectsNames.count() && colspan<maxNames; subject++){
 		if(!(*excludedNames).contains(subject)){
@@ -1846,7 +1948,7 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Subjects - Students Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -1877,7 +1979,7 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& students : qAsConst(statisticValues.allStudentsNames)){
+	for(const QString& students : std::as_const(statisticValues.allStudentsNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -1892,7 +1994,7 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 		tmpStudents.clear();
 		tmpSubjects.clear();
 		tmpStudents=statisticValues.studentsActivities.values(students);
-		for(int aidx : qAsConst(tmpStudents)){
+		for(int aidx : std::as_const(tmpStudents)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
 			tmpSubjects.insert(act->subjectName, aidx);
 		}
@@ -1920,14 +2022,14 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 5
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=act->teachersNames;
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -1949,45 +2051,47 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"teacher line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+					
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 
-						StringListPair slp=it2.key();
-						QStringList teachersNames=slp.list1;
-						QStringList activityTagsNames=slp.list2;
+						const StringListPair& slp=it.key();
+						const QStringList& teachersNames=slp.list1;
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpT=QString("");
 
 						if(teachersNames.size()>0||activityTagsNames.size()>0){
-							for(QStringList::Iterator it=teachersNames.begin(); it!=teachersNames.end(); it++){
+							for(QStringList::const_iterator it=teachersNames.constBegin(); it!=teachersNames.constEnd(); it++){
 								switch(htmlLevel){
 									case 4 : tmpT+="<span class=\"t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"\">"+protect2(*it)+"</span>"; break;
 									case 5 : ;
 									case 6 : tmpT+="<span class=\"t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"\" onmouseover=\"highlight('t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"')\">"+protect2(*it)+"</span>"; break;
 									default: tmpT+=protect2(*it); break;
 								}
-								if(it!=teachersNames.end()-1)
+								if(it!=teachersNames.constEnd()-1)
 									tmpT+=", ";
 							}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -2014,7 +2118,9 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 						tmp+=tmpT;
 						
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -2056,7 +2162,7 @@ QString StatisticsExport::exportStatisticsSubjectsStudentsHtml(QWidget* parent, 
 	return tmp;
 }
 
-bool StatisticsExport::exportStatisticsStudentsSubjects(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel){
+bool StatisticsExport::exportStatisticsStudentsSubjects(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel){
 	assert(gt.rules.initialized); // && gt.rules.internalStructureComputed);
 	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
 
@@ -2074,23 +2180,31 @@ bool StatisticsExport::exportStatisticsStudentsSubjects(QWidget* parent, QString
 	QString htmlfilename=PREFIX_STATISTICS+s2+bar+STUDENTS_SUBJECTS_STATISTICS;
 
 	QFile file(htmlfilename);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!file.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!file.open(QIODevice::WriteOnly)){
+#endif
 		QMessageBox::critical(parent, tr("FET critical"),
 		 StatisticsExport::tr("Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(htmlfilename));
 		return false;
 	}
 	QTextStream tos(&file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tos.setEncoding(QStringConverter::Utf8);
+#else
 	tos.setCodec("UTF-8");
+#endif
 	tos.setGenerateByteOrderMark(true);
 	tos<<"<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tos<<"  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tos<<"  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\">\n";
 	else
-		tos<<"<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
+		tos<<"<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""<<LANGUAGE_FOR_HTML<<"\" xml:lang=\""<<LANGUAGE_FOR_HTML<<"\" dir=\"rtl\">\n";
 	tos<<"  <head>\n";
-	tos<<"    <title>"<<protect2(gt.rules.getInstitutionName())<<"</title>\n";
+	tos<<"    <title>"<<protect2(gt.rules.institutionName)<<"</title>\n";
 	tos<<"    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	if(htmlLevel>=1){
 		QString bar;
@@ -2124,16 +2238,17 @@ bool StatisticsExport::exportStatisticsStudentsSubjects(QWidget* parent, QString
 	tos<<StatisticsExport::exportStatisticsStudentsSubjectsHtml(parent, saveTime, statisticValues, htmlLevel, TIMETABLE_HTML_PRINT_ACTIVITY_TAGS, statisticValues.allStudentsNames.count(), &tmpSet);
 	tos<<"  </body>\n</html>\n";
 
-	if(file.error()>0){
+	if(file.error()!=QFileDevice::NoError){
 		QMessageBox::critical(parent, tr("FET critical"),
-		 StatisticsExport::tr("Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(htmlfilename).arg(file.error()));
+		 StatisticsExport::tr("Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(htmlfilename).arg(file.errorString()));
 		return false;
 	}
 	file.close();
 	return true;
 }
 
-QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames){
+QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames){
 	int colspan=0;
 	for(int students=0; students<statisticValues.allStudentsNames.count() && colspan<maxNames; students++){
 		if(!(*excludedNames).contains(students)){
@@ -2142,7 +2257,7 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 	}
 	QString tmp;
 	tmp+="    <table border=\"1\">\n";	
-	tmp+="      <caption>"+protect2(gt.rules.getInstitutionName())+"</caption>\n";
+	tmp+="      <caption>"+protect2(gt.rules.institutionName)+"</caption>\n";
 	tmp+="      <thead>\n        <tr><td rowspan=\"2\"></td><th colspan=\""+QString::number(colspan+1)+"\">"+tr("Students - Subjects Matrix")+"</th></tr>\n";
 	tmp+="        <tr>\n          <!-- span -->\n";
 	int currentCount=0;
@@ -2173,7 +2288,7 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 	
 	int ttt=0;
 	
-	for(const QString& subjects : qAsConst(statisticValues.allSubjectsNames)){
+	for(const QString& subjects : std::as_const(statisticValues.allSubjectsNames)){
 		progress.setValue(ttt);
 		//pqapplication->processEvents();
 		if(progress.wasCanceled()){
@@ -2188,9 +2303,9 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 		tmpSubjects.clear();
 		tmpStudents.clear();
 		tmpSubjects=statisticValues.subjectsActivities.values(subjects);
-		for(int aidx : qAsConst(tmpSubjects)){
+		for(int aidx : std::as_const(tmpSubjects)){
 			Activity* act=gt.rules.activitiesList.at(aidx);
-			for(const QString& students : qAsConst(act->studentsNames)){
+			for(const QString& students : std::as_const(act->studentsNames)){
 				tmpStudents.insert(students, aidx);
 			}
 		}
@@ -2218,14 +2333,14 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 				} else {
 					//optimized by Liviu Lalescu - 6
 					QMap<StringListPair, int> durationMap;
-					for(int tmpAct : qAsConst(tmpActivities)){
+					for(int tmpAct : std::as_const(tmpActivities)){
 						Activity* act=gt.rules.activitiesList.at(tmpAct);
 						StringListPair slp;
 						slp.list1=act->teachersNames;
 
 						slp.list2.clear();
 						if(printActivityTags){
-							for(const QString& at : qAsConst(act->activityTagsNames)){
+							for(const QString& at : std::as_const(act->activityTagsNames)){
 								int id=statisticValues.hashActivityTagIDsStatistics.value(at, "0").toInt()-1;
 								assert(id>=0);
 								assert(id<gt.rules.activityTagsList.count());
@@ -2247,45 +2362,47 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"duration line1\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it(durationMap);
-					while(it.hasNext()){
-						it.next();
+
+					QMap<StringListPair, int>::const_iterator it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 						tmp+=QString::number(it.value())+"</td>";
+						it++;
 					}
+
 					tmp+="</tr>";
 					if(htmlLevel>=3)
 						tmp+="<tr class=\"teacher line2\">";
 					else	tmp+="<tr>";
-					QMapIterator<StringListPair, int> it2(durationMap);	//do it with the same iterator
-					while(it2.hasNext()){
-						it2.next();
+
+					it=durationMap.constBegin();
+					while(it!=durationMap.constEnd()){
 						if(htmlLevel>=1)
 							tmp+="<td class=\"detailed\">";
 						else
 							tmp+="<td>";
 
-						StringListPair slp=it2.key();
-						QStringList teachersNames=slp.list1;
-						QStringList activityTagsNames=slp.list2;
+						const StringListPair& slp=it.key();
+						const QStringList& teachersNames=slp.list1;
+						const QStringList& activityTagsNames=slp.list2;
 						QString tmpT=QString("");
 
 						if(teachersNames.size()>0||activityTagsNames.size()>0){
-							for(QStringList::Iterator it=teachersNames.begin(); it!=teachersNames.end(); it++){
+							for(QStringList::const_iterator it=teachersNames.constBegin(); it!=teachersNames.constEnd(); it++){
 								switch(htmlLevel){
 									case 4 : tmpT+="<span class=\"t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"\">"+protect2(*it)+"</span>"; break;
 									case 5 : ;
 									case 6 : tmpT+="<span class=\"t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"\" onmouseover=\"highlight('t_"+statisticValues.hashTeacherIDsStatistics.value(*it)+"')\">"+protect2(*it)+"</span>"; break;
 									default: tmpT+=protect2(*it); break;
 								}
-								if(it!=teachersNames.end()-1)
+								if(it!=teachersNames.constEnd()-1)
 									tmpT+=", ";
 							}
 							if(printActivityTags){
-								for(QStringList::Iterator atn=activityTagsNames.begin(); atn!=activityTagsNames.end(); atn++){
+								for(QStringList::const_iterator atn=activityTagsNames.constBegin(); atn!=activityTagsNames.constEnd(); atn++){
 									assert(statisticValues.hashActivityTagIDsStatistics.contains(*atn));
 									int id=statisticValues.hashActivityTagIDsStatistics.value(*atn, "0").toInt()-1;
 									assert(id>=0);
@@ -2312,7 +2429,9 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 						tmp+=tmpT;
 						
 						tmp+="</td>";
+						it++;
 					}
+					
 					tmp+="</tr>";
 					tmp+="</table></td>\n";
 				}
@@ -2352,9 +2471,4 @@ QString StatisticsExport::exportStatisticsStudentsSubjectsHtml(QWidget* parent, 
 	tmp+="      </tbody>\n";
 	tmp+="    </table>\n";
 	return tmp;
-}
-
-QString StatisticsExport::getStatisticsDirectory()
-{
-	return OUTPUT_DIR+FILE_SEP+"statistics"+FILE_SEP+getBasenameOrDefault();
 }

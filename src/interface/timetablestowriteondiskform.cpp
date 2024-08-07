@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2016 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,11 +15,9 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "timetableexport.h"
+#include "timetable_defs.h"
 
 #include "timetablestowriteondiskform.h"
-
-#include "centerwidgetonscreen.h"
 
 TimetablesToWriteOnDiskForm::TimetablesToWriteOnDiskForm(QWidget* parent): QDialog(parent)
 {
@@ -30,8 +28,8 @@ TimetablesToWriteOnDiskForm::TimetablesToWriteOnDiskForm(QWidget* parent): QDial
 	
 	okPushButton->setDefault(true);
 	
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(wasAccepted()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(wasCanceled()));
+	connect(okPushButton, &QPushButton::clicked, this, &TimetablesToWriteOnDiskForm::wasAccepted);
+	connect(cancelPushButton, &QPushButton::clicked, this, &TimetablesToWriteOnDiskForm::wasCanceled);
 	
 	softConflictsCheckBox->setChecked(WRITE_TIMETABLE_CONFLICTS);
 
@@ -47,6 +45,7 @@ TimetablesToWriteOnDiskForm::TimetablesToWriteOnDiskForm(QWidget* parent): QDial
 	yearsCheckBox->setChecked(WRITE_TIMETABLES_YEARS);
 	teachersCheckBox->setChecked(WRITE_TIMETABLES_TEACHERS);
 	teachersFreePeriodsCheckBox->setChecked(WRITE_TIMETABLES_TEACHERS_FREE_PERIODS);
+	buildingsCheckBox->setChecked(WRITE_TIMETABLES_BUILDINGS);
 	roomsCheckBox->setChecked(WRITE_TIMETABLES_ROOMS);
 	subjectsCheckBox->setChecked(WRITE_TIMETABLES_SUBJECTS);
 	activityTagsCheckBox->setChecked(WRITE_TIMETABLES_ACTIVITY_TAGS);
@@ -74,6 +73,7 @@ void TimetablesToWriteOnDiskForm::wasAccepted()
 	WRITE_TIMETABLES_YEARS=yearsCheckBox->isChecked();
 	WRITE_TIMETABLES_TEACHERS=teachersCheckBox->isChecked();
 	WRITE_TIMETABLES_TEACHERS_FREE_PERIODS=teachersFreePeriodsCheckBox->isChecked();
+	WRITE_TIMETABLES_BUILDINGS=buildingsCheckBox->isChecked();
 	WRITE_TIMETABLES_ROOMS=roomsCheckBox->isChecked();
 	WRITE_TIMETABLES_SUBJECTS=subjectsCheckBox->isChecked();
 	WRITE_TIMETABLES_ACTIVITY_TAGS=activityTagsCheckBox->isChecked();

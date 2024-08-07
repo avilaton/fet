@@ -2,8 +2,8 @@
                           addbuildingform.h  -  description
                              -------------------
     begin                : Feb 11, 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,9 +20,13 @@
 
 #include "ui_addbuildingform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class AddBuildingForm : public QDialog, Ui::AddBuildingForm_template {
 	Q_OBJECT
-public: 
+public:
 	AddBuildingForm(QWidget* parent);
 	~AddBuildingForm();
 

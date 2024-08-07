@@ -1,8 +1,8 @@
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                       sparseitemmodel.cpp  -  description
                              -------------------
@@ -17,6 +17,8 @@
  *   License, or (at your option) any later version.                       *
  *                                                                         *
  ***************************************************************************/
+
+#include <Qt>
 
 #include "timetable_defs.h"
 
@@ -49,7 +51,7 @@ QModelIndex SparseItemModel::parent ( const QModelIndex & index ) const
 int SparseItemModel::rowCount ( const QModelIndex & parent ) const
 {
 	if(parent!=QModelIndex())
-		return 0; //qt doc says that
+		return 0; //Qt documentation says that
 
 	return n_rows;
 }
@@ -57,7 +59,7 @@ int SparseItemModel::rowCount ( const QModelIndex & parent ) const
 int SparseItemModel::columnCount ( const QModelIndex & parent ) const
 {
 	if(parent!=QModelIndex())
-		return 0; //qt doc says that
+		return 0; //Qt documentation says that
 
 	return n_columns;
 }

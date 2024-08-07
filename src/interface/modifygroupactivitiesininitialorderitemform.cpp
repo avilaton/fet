@@ -2,8 +2,8 @@
                           modifygroupactivitiesininitialorderitemform.cpp  -  description
                              -------------------
     begin                : 2014
-    copyright            : (C) 2014 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2014 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifygroupactivitiesininitialorderitemform.h"
-#include "spaceconstraint.h"
 
 #include <QList>
 
@@ -27,29 +25,22 @@
 #include <QAbstractItemView>
 #include <QScrollBar>
 
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
-
 ModifyGroupActivitiesInInitialOrderItemForm::ModifyGroupActivitiesInInitialOrderItemForm(QWidget* parent, GroupActivitiesInInitialOrderItem* item): QDialog(parent)
 {
 	setupUi(this);
 
 	okPushButton->setDefault(true);
 	
-	activitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+	allActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(activitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivity()));
-	connect(addAllActivitiesPushButton, SIGNAL(clicked()), this, SLOT(addAllActivities()));
-	connect(selectedActivitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivity()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::ok);
+	connect(allActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::addActivity);
+	connect(addAllActivitiesPushButton, &QPushButton::clicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::addAllActivities);
+	connect(selectedActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::removeActivity);
 
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(clearPushButton, &QPushButton::clicked, this, &ModifyGroupActivitiesInInitialOrderItemForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -70,14 +61,9 @@ ModifyGroupActivitiesInInitialOrderItemForm::ModifyGroupActivitiesInInitialOrder
 	for(int i=0; i<item->ids.count(); i++){
 		int actId=item->ids[i];
 		this->selectedActivitiesList.append(actId);
-		Activity* act=NULL;
-		for(int k=0; k<gt.rules.activitiesList.size(); k++){
-			act=gt.rules.activitiesList[k];
-			if(act->id==actId)
-				break;
-		}
-		assert(act);
-		this->selectedActivitiesListWidget->addItem(act->getDescription());
+		Activity *act=gt.rules.activitiesPointerHash.value(actId, nullptr);
+		assert(act!=nullptr);
+		this->selectedActivitiesListWidget->addItem(act->getDescription(gt.rules));
 	}
 	
 	////////////////
@@ -102,10 +88,15 @@ ModifyGroupActivitiesInInitialOrderItemForm::ModifyGroupActivitiesInInitialOrder
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 
 	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyGroupActivitiesInInitialOrderItemForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyGroupActivitiesInInitialOrderItemForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyGroupActivitiesInInitialOrderItemForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyGroupActivitiesInInitialOrderItemForm::filterChanged);
 }
 
 ModifyGroupActivitiesInInitialOrderItemForm::~ModifyGroupActivitiesInInitialOrderItemForm()
@@ -115,19 +106,19 @@ ModifyGroupActivitiesInInitialOrderItemForm::~ModifyGroupActivitiesInInitialOrde
 
 void ModifyGroupActivitiesInInitialOrderItemForm::filterChanged()
 {
-	activitiesListWidget->clear();
+	allActivitiesListWidget->clear();
 	this->activitiesList.clear();
 
 	for(int i=0; i<gt.rules.activitiesList.size(); i++){
 		Activity* ac=gt.rules.activitiesList[i];
 		if(filterOk(ac)){
-			activitiesListWidget->addItem(ac->getDescription());
+			allActivitiesListWidget->addItem(ac->getDescription(gt.rules));
 			this->activitiesList.append(ac->id);
 		}
 	}
 	
-	int q=activitiesListWidget->verticalScrollBar()->minimum();
-	activitiesListWidget->verticalScrollBar()->setValue(q);
+	int q=allActivitiesListWidget->verticalScrollBar()->minimum();
+	allActivitiesListWidget->verticalScrollBar()->setValue(q);
 }
 
 bool ModifyGroupActivitiesInInitialOrderItemForm::filterOk(Activity* act)
@@ -135,13 +126,13 @@ bool ModifyGroupActivitiesInInitialOrderItemForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -155,13 +146,13 @@ bool ModifyGroupActivitiesInInitialOrderItemForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -185,54 +176,60 @@ void ModifyGroupActivitiesInInitialOrderItemForm::ok()
 			tr("Only one selected activity"));
 		return;
 	}
+	
+	QString od=_item->getDetailedDescription(gt.rules);
 
 	QList<int> ids=selectedActivitiesList;
 	
 	_item->ids=ids;
+	_item->recomputeActivitiesSet();
+
+	QString nd=_item->getDetailedDescription(gt.rules);
+	
+	gt.rules.addUndoPoint(tr("Modified the 'group activities in the initial order' item from\n\n%1\ninto\n\n%2").arg(od).arg(nd));
 	
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyGroupActivitiesInInitialOrderItemForm::cancel()
+{
 	this->close();
 }
 
 void ModifyGroupActivitiesInInitialOrderItemForm::addActivity()
 {
-	if(activitiesListWidget->currentRow()<0)
+	if(allActivitiesListWidget->currentRow()<0)
 		return;
-	int tmp=activitiesListWidget->currentRow();
+	int tmp=allActivitiesListWidget->currentRow();
 	int _id=this->activitiesList.at(tmp);
 	
-	QString actName=activitiesListWidget->currentItem()->text();
+	QString actName=allActivitiesListWidget->currentItem()->text();
 	assert(actName!="");
-	int i;
+	
 	//duplicate?
-	for(i=0; i<selectedActivitiesListWidget->count(); i++)
-		if(actName==selectedActivitiesListWidget->item(i)->text())
-			break;
-	if(i<selectedActivitiesListWidget->count())
+	if(this->selectedActivitiesList.contains(_id))
 		return;
+	
 	selectedActivitiesListWidget->addItem(actName);
 	selectedActivitiesListWidget->setCurrentRow(selectedActivitiesListWidget->count()-1);
-	
+
 	this->selectedActivitiesList.append(_id);
 }
 
 void ModifyGroupActivitiesInInitialOrderItemForm::addAllActivities()
 {
-	for(int tmp=0; tmp<activitiesListWidget->count(); tmp++){
+	for(int tmp=0; tmp<allActivitiesListWidget->count(); tmp++){
 		int _id=this->activitiesList.at(tmp);
 	
-		QString actName=activitiesListWidget->item(tmp)->text();
+		QString actName=allActivitiesListWidget->item(tmp)->text();
 		assert(actName!="");
-		int i;
-		//duplicate?
-		for(i=0; i<selectedActivitiesList.count(); i++)
-			if(selectedActivitiesList.at(i)==_id)
-				break;
-		if(i<selectedActivitiesList.count())
+		
+		if(this->selectedActivitiesList.contains(_id))
 			continue;
-			
+		
 		selectedActivitiesListWidget->addItem(actName);
 		this->selectedActivitiesList.append(_id);
 	}

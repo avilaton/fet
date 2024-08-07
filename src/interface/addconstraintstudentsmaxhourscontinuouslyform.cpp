@@ -2,8 +2,8 @@
                           addconstraintstudentsmaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsmaxhourscontinuouslyform.h"
 #include "timeconstraint.h"
@@ -29,8 +28,8 @@ AddConstraintStudentsMaxHoursContinuouslyForm::AddConstraintStudentsMaxHoursCont
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxHoursContinuouslyForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxHoursContinuouslyForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -45,13 +44,9 @@ AddConstraintStudentsMaxHoursContinuouslyForm::~AddConstraintStudentsMaxHoursCon
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsMaxHoursContinuouslyForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMaxHoursContinuouslyForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -67,9 +62,12 @@ void AddConstraintStudentsMaxHoursContinuouslyForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsMaxHoursContinuously(weight, maxHours);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

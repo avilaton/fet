@@ -2,8 +2,8 @@
                           addstudentsyearform.cpp  -  description
                              -------------------
     begin                : Sat Jan 24 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,10 +17,6 @@
 
 #include "addstudentsyearform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
 
 AddStudentsYearForm::AddStudentsYearForm(QWidget* parent): QDialog(parent)
@@ -29,8 +25,8 @@ AddStudentsYearForm::AddStudentsYearForm(QWidget* parent): QDialog(parent)
 	
 	addStudentsYearPushButton->setDefault(true);
 
-	connect(addStudentsYearPushButton, SIGNAL(clicked()), this, SLOT(addStudentsYear()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addStudentsYearPushButton, &QPushButton::clicked, this, &AddStudentsYearForm::addStudentsYear);
+	connect(closePushButton, &QPushButton::clicked, this, &AddStudentsYearForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -56,7 +52,7 @@ void AddStudentsYearForm::addStudentsYear()
 	}
 
 	StudentsSet* ss=gt.rules.searchStudentsSet(nameLineEdit->text());
-	if(ss!=NULL){
+	if(ss!=nullptr){
 		if(ss->type==STUDENTS_SUBGROUP){
 			QMessageBox::information( this, tr("Year insertion dialog"),
 				tr("This name is taken for a subgroup - please consider another name"));
@@ -110,6 +106,8 @@ void AddStudentsYearForm::addStudentsYear()
 			" from this year."
 			*/
 			));
+			
+		gt.rules.addUndoPoint(tr("Added the year %1.").arg(sy->name));
 	}
 
 	nameLineEdit->selectAll();

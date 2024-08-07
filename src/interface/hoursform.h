@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,6 +20,8 @@
 
 #include "ui_hoursform_template.h"
 
+#include <QStringList>
+
 class HoursForm : public QDialog, Ui::HoursForm_template
 {
 	Q_OBJECT
@@ -27,10 +29,23 @@ public:
 	HoursForm(QWidget* parent);
 
 	~HoursForm();
+	
+	QStringList realNamesForHours;
+	QStringList realLongNamesForHours;
+	QStringList realNamesForRealHours;
+	QStringList realLongNamesForRealHours;
 
 public slots:
-	void hoursChanged();
+	void numberOfHoursChanged();
+	void insertHour();
+	void modifyHour();
+	void removeHour();
+	
+	void numberOfRealHoursChanged();
+	void modifyRealHour();
+	
 	void ok();
+	void cancel();
 };
 
 #endif

@@ -2,8 +2,8 @@
                           constraintteacherhomeroomsform.h  -  description
                              -------------------
     begin                : 8 April 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,17 +18,28 @@
 #ifndef CONSTRAINTTEACHERHOMEROOMSFORM_H
 #define CONSTRAINTTEACHERHOMEROOMSFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintteacherhomeroomsform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTeacherHomeRoomsForm : public SpaceConstraintBaseDialog  {
+class ConstraintTeacherHomeRoomsForm : public QDialog, Ui::ConstraintTeacherHomeRoomsForm_template  {
 	Q_OBJECT
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintTeacherHomeRoomsForm(QWidget* parent);
 	~ConstraintTeacherHomeRoomsForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
+	bool filterOk(SpaceConstraint* ctr);
+	
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void removeConstraint();
+	void modifyConstraint();
+	
+	void filterChanged();
 };
+
 #endif

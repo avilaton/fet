@@ -5,8 +5,8 @@ Versions 1.0 - 1.17 - Liviu Lalescu
 - Version 1 and above - added text menu.
 - Version 1.5 and above - added Qt GUI.
 - Version 1.8 and above - removed the text menu :-)
-- Version 1.12 - used valgrind to track down an annoying crashing bug. Thanks!
-	This was not the only time I used valgrind to hunt for bugs
+- Version 1.12 - used Valgrind to track down an annoying crashing bug. Thanks!
+	This was not the only time I used Valgrind to hunt for bugs
 -------------------------------------------------------------------------------
 Versions 2.0 - 2.6 - Liviu Lalescu
 - Version 2.0 and above - better Qt GUI.
@@ -20,7 +20,7 @@ Versions 2.0 - 2.6 - Liviu Lalescu
 Versions 2.7.0 - 2.7.8 - Liviu Lalescu
 - Version 2.7.0 - added CHRActivitiesNotSameDay;
 	- added split activities (for high-schools);
-	- changed numbering of the versions (Carsten's suggestion).
+	- changed numbering of the versions (Carsten Niehaus's suggestion).
 - Version 2.7.1 - added CHRTeachersNoMoreThanXHoursContinuously.
 - Version 2.7.2 - implemented menu item Timetable/Show(teachers) (shows the the timetable for a certain teacher).
 - Version 2.7.3 - user can change the number of hours and days;
@@ -38,7 +38,7 @@ Versions 2.7.0 - 2.7.8 - Liviu Lalescu
 -------------------------------------------------------------------------------
 Versions 2.8.0 - 2.8.5 - Liviu Lalescu
 - Version 2.8.0 - bug fixes
-	- added CSRActivityPreferredTime (user may specify for each activity a preferred 
+	- added CSRActivityPreferredTime (user may specify for each activity a preferred
 	time) - (suggested by Sajith V. K.)
 - Version 2.8.1 - bug fixes
 - Version 2.8.2 - added CHRActivitiesSameTime (idea by Sajith V. K., to handle activities
@@ -54,7 +54,7 @@ Versions 2.8.0 - 2.8.5 - Liviu Lalescu
 -------------------------------------------------------------------------------
 Versions 2.9.0 - 2.9.6 - Liviu Lalescu
 - Version 2.9.0 - bug fix in ConstraintStudentsYearNotAvailable
-	- changed Restriction into Constraint, now you can implement any constraint 
+	- changed Restriction into Constraint, now you can implement any constraint
 	as compulsory or not
 - Version 2.9.1 - small crash bug fixed (when erasing a year and pressing Cancel)
 	- added ConstraintActivitiesNotSameTime
@@ -74,7 +74,7 @@ Versions 2.9.0 - 2.9.6 - Liviu Lalescu
 	- constraints list is now a qt list (QPtrList)
 	- bug fixes
 	- max hours per week is now short integer (instead of char)
-	- removed population initialization method from the ini file and added it 
+	- removed population initialization method from the ini file and added it
 	into the GUI
 	- made the simulation somewhat faster, by getting rid of function realTimes(i)
 - Version 3.0.0 pre2 - Liviu Lalescu
@@ -250,7 +250,7 @@ Versions 3.8.0 - 3.8.5 - Liviu Lalescu
 	- Bug fix: Timetable->Allocate rooms->Start/Continue - crashed FET if there was no
 	previous Initialization (thanks to Marek Jaszuk)
 	- "Time constraint teacher max days per week broken for teacher:
-	XY.This increases the conflicts factor with 0" (thanks to Marek Jaszuk)
+	XY. This increases the conflicts factor with 0" (thanks to Marek Jaszuk)
 - Version 3.8.5
 	- Bug fix - when restoring the internal state (time or space), without previously saving
 	the internal state, FET crashed (thanks to Marek Jaszuk)
@@ -258,7 +258,7 @@ Versions 3.8.0 - 3.8.5 - Liviu Lalescu
 	- Now you can write the timetable after initialization or loading the internal state,
 	without starting the simulation
 ---------------------------------------------------------------------------------
-Versions 3.9.0 - 3.9.23 - Liviu Lalescu, French translation by Jerome Durand (fetfr@free.fr),
+Versions 3.9.0 - 3.9.23 - Liviu Lalescu, French translation by Jerome Durand,
 	2 conversion scripts by Jerome Durand and Vimal Joseph.
 - Version 3.9.0
 	- Bug fix - medium fitness now is shown correctly (no more negative values). Reported
@@ -327,18 +327,18 @@ Versions 3.9.0 - 3.9.23 - Liviu Lalescu, French translation by Jerome Durand (fe
 - Version 3.9.20
 	- Moved the directory "results" to "~/.fet/results"
 - Version 3.9.21
-	- The conflicts are now saved in a file ("time_conflicts.txt" and 
+	- The conflicts are now saved in a file ("time_conflicts.txt" and
 	 "space_conflicts.txt") - suggested by Sebastian Canagaratna.
 	- Now, saving the internal state works correctly in Debian - reported by
 	Sebastian Canagaratna.
 - Version 3.9.22
-	- The internal state and the exported timetables are now saved in files named after the 
+	- The internal state and the exported timetables are now saved in files named after the
 	.xml input file, to allow multiple simulations (suggested by Sebastian Canagaratna).
 	- Saving now the timetable in .xml and .html models (suggested by Cristian Gherman).
 - Version 3.9.23
 	- The user can view the timetable (and saving to html works) for students and teachers
 	showing also the rooms (suggested by Sebastian Canagaratna).
-	- The space allocation is somewhat faster, by getting rid of the logging part and an 
+	- The space allocation is somewhat faster, by getting rid of the logging part and an
 	unnecessary sorting.
 ---------------------------------------------------------------------------------
 Versions 3.10.0 - 3.10.5 - Liviu Lalescu
@@ -349,7 +349,7 @@ Versions 3.10.0 - 3.10.5 - Liviu Lalescu
 	- Small bug-fixes.
 	- Improvements in the interface.
 - Version 3.10.2
-	- Improvements in space allocation (now compulsory ConstraintTeacherRequiresRoom 
+	- Improvements in space allocation (now compulsory ConstraintTeacherRequiresRoom
 	works by repairing)
 	- Added ConstraintActivityPreferredRoom (suggested by Sebastian Canagaratna)
 - Version 3.10.3
@@ -379,12 +379,12 @@ Versions 3.11.0 - 3.11.6 - Liviu Lalescu
 - Version 3.11.6
 	- Improved Romanian translation
 ---------------------------------------------------------------------------------
-Versions 3.12.0 - 3.12.32 - Liviu Lalescu, 
-	French translation by Jerome Durand (fetfr@free.fr),
-	Catalan translation by Miguel Gea Milvaques, 
+Versions 3.12.0 - 3.12.32 - Liviu Lalescu,
+	French translation by Jerome Durand,
+	Catalan translation by Miguel Gea Milvaques,
 	Malay translation by Abdul Hadi Kamel.
 - Version 3.12.0
-	- The user now has the possibility to choose only one phase allocation 
+	- The user now has the possibility to choose only one phase allocation
 	(for difficult space constraints)
 - Version 3.12.1
 	- Improvements in the interface
@@ -445,7 +445,7 @@ Versions 3.12.0 - 3.12.32 - Liviu Lalescu,
 	- Small update in the FAQ
 - Version 3.12.25
 	- The teachers' timetable now contains a subject tag
-	- Bug fix - when the time constraints are invalid, the user is presented the problem 
+	- Bug fix - when the time constraints are invalid, the user is presented the problem
 		- reported by Sebastian Canagaratna
 - Version 3.12.26
 	- Small improvement in the interface
@@ -466,7 +466,7 @@ Versions 3.12.0 - 3.12.32 - Liviu Lalescu,
 - Version 3.12.32
 	- Added Malay translation (thanks to Abdul Hadi Kamel)
 ---------------------------------------------------------------------------------
-Versions 3.13.0 - 3.13.8 - Liviu Lalescu, 
+Versions 3.13.0 - 3.13.8 - Liviu Lalescu,
 - Version 3.13.0
 	- Added ConstraintSubjectSubjectTagPreferredRoom(s) and ConstraintSubjectPreferredRoom(s)
 	(suggested by Abdul Hadi Kamel).
@@ -493,7 +493,7 @@ Versions 3.13.0 - 3.13.8 - Liviu Lalescu,
 	- Small bug fix (when adding a new ConstraintActivityPreferredTime).
 ---------------------------------------------------------------------------------
 Versions 3.14.0 - 3.14.21
-	- Liviu Lalescu, 
+	- Liviu Lalescu,
 	- Polish translation by Radoslaw Pasiok,
 	- Malay translation update by Abdul Hadi Kamel.
 - Version 3.14.0
@@ -536,7 +536,7 @@ Versions 3.14.0 - 3.14.21
 - Version 3.14.13
 	- Improved "Save as" dialog.
 - Version 3.14.14
-	- Now, special characters <, >, ', " and & are handled correctly in names 
+	- Now, special characters <, >, ', " and & are handled correctly in names
 	(bug reported by Frans de Bruijn)
 	- Code readability improvement (instead of getXMLDescription, now it is getXmlDescription)
 - Version 3.14.15
@@ -629,7 +629,7 @@ Versions 3.17.0 - 3.17.12
 	- Improvement in Romanian translation (by Liviu Lalescu)
 - Version 3.17.5
 	- Added a new sample, number 9 (sent by Cristian Gherman)
-	- Now each generated timetable html file contains an ending tag, mentioning the date 
+	- Now each generated timetable html file contains an ending tag, mentioning the date
 	and the time the timetable was generated
 - Version 3.17.6
 	- Improvement: the interface now contains the constraints to minimize the number of
@@ -707,7 +707,7 @@ Versions 4.0.0 - 4.0.9
 ---------------------------------------------------------------------------------
 Versions 4.1.0 - 4.1.10
 	- Liviu Lalescu,
-	- German translation by Volker Dirr	
+	- German translation by Volker Dirr
 	- FAQ improvement by Les Richardson
 - Version 4.1.0
 	- In the Modify Activity Dialog, the "split into..." spin box is now showed correctly
@@ -757,7 +757,7 @@ Versions 4.1.0 - 4.1.10
 	This bug was introduced in version 4.1.6.
 - Version 4.1.8
 	- Improved readability and corrected possible future bugs, by adding a
-	chromosome property called "timeChangedForMatrixCalculation" and 
+	chromosome property called "timeChangedForMatrixCalculation" and
 	"spaceChangedForMatrixCalculation" (suggested by Volker Dirr).
 	- The minimum population size in the dialog is now 3
 	(suggested by Volker Dirr).
@@ -766,7 +766,7 @@ Versions 4.1.0 - 4.1.10
 - Version 4.1.10
 	- Possible bug fix (reported by Volker Dirr).
 ---------------------------------------------------------------------------------
-Versions 4.2.0 - 4.2.x
+Versions 4.2.0 - 4.2.9
 	- Liviu Lalescu,
 	- 2-point and uniform crossover implemented and tested by Volker Dirr
 	- Turkish language update by Mahir Nacar
@@ -788,11 +788,11 @@ Versions 4.2.0 - 4.2.x
 	- French translation improved by Patrick Fox.
 - Version 4.2.5
 	- Small interface improvements, the add constraint activity preferred time
-	and add constraint activity preferred times contains a filter (suggested 
+	and add constraint activity preferred times contains a filter (suggested
 	by Abdul Hadi Kamel)
 - Version 4.2.6
 	- Small interface improvements, the modify constraint activity preferred time
-	and modify constraint activity preferred times contains a filter (suggested 
+	and modify constraint activity preferred times contains a filter (suggested
 	by Abdul Hadi Kamel)
 - Version 4.2.7
 	- Added Hungarian translation (incomplete), by Ferenczi Viktor.
@@ -809,7 +809,7 @@ Versions 4.2.0 - 4.2.x
 Versions 5.0.0 - 5.0.2
 	- Liviu Lalescu,
 	- xhtml form of saving timetables by Volker Dirr (timetabling.de)
-- Version 5.0.0-preview1 
+- Version 5.0.0-preview1
 	- new algorithm
 	- too many changes to mention
 - Version 5.0.0-preview2
@@ -1120,7 +1120,7 @@ Versions 5.4.0 - 5.4.18
 	- Update of README file
 	- MAX_ACTIVITIES is now 5000
 - Version 5.4.16
-	- Groups and years timetables contain dashed lines in cells which contain more activities 
+	- Groups and years timetables contain dashed lines in cells which contain more activities
 	(suggested by Silver, done by Volker Dirr)
 	- Arabic translation update by Silver
 - Version 5.4.17
@@ -1138,7 +1138,7 @@ Versions 5.4.0 - 5.4.18
 	- Greek translation update by my80s
 	- When opening a corrupt file, it reports line, column and error.
 	- Added an Italian sample by Marco Barsotti.
-	- Made possible to lock not only time, but also space or both when viewing the timetable 
+	- Made possible to lock not only time, but also space or both when viewing the timetable
 	(suggested by Horatiu Halmajan)
 	- Small improvement: maximum room capacity and number of students for a set is now 15000,
 	instead of 1000
@@ -1184,7 +1184,7 @@ Versions 5.5.0 - 5.5.9
 	- Generating multiple now saves each timetable in .fet form (suggested by kdsayang)
 	- Increased number of days per week to 28, to allow exam scheduling (suggested by kdsayang)
 - Version 5.5.5
-	- Very small bug fix (very unlikely to happen, also the effect is almost null)	
+	- Very small bug fix (very unlikely to happen, also the effect is almost null)
 	- Indonesian, Spanish and Arabic translation updates
 	- Added an additional check for inconsistency
 - Version 5.5.6
@@ -1415,7 +1415,7 @@ Version 5.11.0
 	- Converted all dialogs to Qt 4 Designer files - suggested by George Miliotis.
 	Compilation time is now shorter and intermediary and executable files are smaller.
 	- Added constraint teacher(s) min days per week (suggested by several users).
-	- Added constraint teacher(s) or students (set) for an activity tag maximum hours daily (suggested by several users).
+	- Added constraint teacher(s) or students (set) activity tag maximum hours daily (suggested by several users).
 	It is not perfect and must be enabled from settings menu.
 	- Added constraint students (set) max gaps per day. It is not perfect and must be enabled from settings menu.
 	- Very rare crash bug fix (reported by Marco Barsotti).
@@ -1792,7 +1792,7 @@ Versions 5.27.0 - 5.27.9
 	- Fixed a compilation error under CentOS 6 (reported by azaer).
 - Version 5.27.3
 	- Updated to Qt 5.4.2.
-	- Added the "duration" filter in activities preferred starting times and preferred time slots (suggested by Volker Dirr and jillali elghazoui).
+	- Added the "duration" filter in activities preferred starting times and preferred time slots (suggested by Volker Dirr and abdeljalil elghazoui).
 - Version 5.27.4
 	- Updated to Qt 5.5.0.
 	- Added a new complete French translation, by Pascal Cohen.
@@ -1915,15 +1915,15 @@ Versions 5.30.0 - 5.30.8
 	a useless progress dialog. Reported by Malamojka.
 - Version 5.30.8
 	- Updated to Qt 5.7.1.
-	- A few Brazilian Portuguese translation bugs corrected (reported by rodolforg, fixed by Alexandre R. Soares).
+	- A few Brazilian Portuguese translation bugs corrected (reported by Rodolfo Ribeiro Gomes, fixed by Alexandre R. Soares).
 ---------------------------------------------------------------------------------
 Versions 5.31.0 - 5.31.9
 - Version 5.31.0
 	- Updated to Qt 5.8.0.
 	- Added a new type of constraint: teacher(s)/students (set) max span per day (the maximum time spent in the institution on a day).
-	Suggested by Vangelis Karafillidis and rodolforg.
+	Suggested by Vangelis Karafillidis and Rodolfo Ribeiro Gomes.
 	- Added a new type of constraint: teacher(s)/students (set) min resting hours (the minimum free time slots between the last working hour on a day and
-	the first working hour on the next day). Suggested by rodolforg.
+	the first working hour on the next day). Suggested by Rodolfo Ribeiro Gomes.
 	- Fixed some typos in the German translation (reported by math user, corrected by Bob Hairgrove).
 	- Added 3 new example files from Namibia, by Bobby Wise.
 - Version 5.31.1
@@ -1933,7 +1933,7 @@ Versions 5.31.0 - 5.31.9
 	for easier navigation with the keyboard. Suggested by math user.
 - Version 5.31.2
 	- Each activity tag now has an additional property, "Printable", so that you can show/hide each individual activity tag in the HTML timetables and in
-	the printout of the timetables from the interface (suggested by Malamojka, rodolforg, and math user).
+	the printout of the timetables from the interface (suggested by Malamojka, Rodolfo Ribeiro Gomes, and math user).
 	- Bug fixes in the HTML timetables and in the printout of the timetables from the interface (reported by Volker Dirr and math user).
 	- Added a new example file from Russia, by Julio González Gil.
 	- Added a new anonymous example file, by Matsumoto.
@@ -1971,7 +1971,7 @@ Versions 5.32.0 - 5.32.3
 	- Added the en_GB (British English) locale, so that the date/time in the generated timetables can be shown in British format (suggested by rjmillett. It was also
 	previously suggested by Mr Robo).
 - Version 5.32.1
-	- Corrected a few compilation errors on older compilers (reported by Valdo, fixed by rodolforg and Liviu Lalescu).
+	- Corrected a few compilation errors on older compilers (reported by Valdo, fixed by Rodolfo Ribeiro Gomes and Liviu Lalescu).
 	- Implemented the rooms' timetable view time horizontal from the FET interface (suggested by sigit_yuwono).
 	- In the timetable view time horizontal dialogs the activities which are locked in space are shown with an italic font (suggested by Vangelis Karafillidis).
 - Version 5.32.2
@@ -2025,8 +2025,8 @@ Versions 5.35.0 - 5.35.7
 	- Updated the Czech translation, by Pavel Fric.
 - Version 5.35.1
 	- The alphabetic sorting of the items now respects the user's locale (the special characters are better ordered).
-	Suggestions and code by rodolforg. Also, there were used suggestions and code found on qtcentre.org, in a post by ChrisW67.
-	- Improved the translation procedure of some fields. Suggestion and code by rodolforg.
+	Suggestions and code by Rodolfo Ribeiro Gomes. Also, there were used suggestions and code found on qtcentre.org, in a post by ChrisW67.
+	- Improved the translation procedure of some fields. Suggestion and code by Rodolfo Ribeiro Gomes.
 	- Minor strings bugs fixed (reported by Vangelis Karafillidis).
 	- Improvement in the Romanian translation: instead of a cedilla, the special characters ș, ț, Ș, and Ț now use a small comma beneath them
 	(as recommended by dexonline.ro and cum-scriem-corect.blogspot.ro).
@@ -2043,7 +2043,7 @@ Versions 5.35.0 - 5.35.7
 	- Updated the Greek translation, by Vangelis Karafillidis.
 - Version 5.35.4
 	- Fixed two compilation errors under the Microsoft Visual C++ compiler (reported by Volker Dirr). Now FET can be compiled with this compiler.
-	- The Help->About dialog of FET is now easily translatable into other languages (suggested by rodolforg, Innocent De Marchi, and other users).
+	- The Help->About dialog of FET is now easily translatable into other languages (suggested by Rodolfo Ribeiro Gomes, Innocent De Marchi, and other users).
 	- Minor string bug fixed (reported by Vangelis Karafillidis).
 	- Updated the Greek translation, by Vangelis Karafillidis.
 	- Added a new example file from Brazil, by francescotorres.
@@ -2087,7 +2087,7 @@ Versions 5.36.0 - 5.36.2
 	- Bug fix in the unlocking of activities of a certain day if the timetable was not generated: If the user selected only space unlocking, no activities
 	were unlocked.
 ---------------------------------------------------------------------------------
-Versions 5.37.0 - 5.37.v
+Versions 5.37.0 - 5.37.5
 - Version 5.37.0
 	- Code update: removed the dependency of the obsolete Qt 'foreach' keyword (suggested by Volker Dirr). The speed of generation is improved by 5%-25%,
 	depending on the data file. Now you need a C++11 compliant compiler to compile FET.
@@ -2121,3 +2121,775 @@ Versions 5.37.0 - 5.37.v
 	- Minor improvement (automatic check for updates also sends to the server the user's processor architecture type, as other programs usually do) - suggested
 	and implemented by Volker Dirr.
 	- Updated the translations.
+---------------------------------------------------------------------------------
+Versions 5.38.0 - 5.38.1
+- Version 5.38.0
+	- Updated to Qt 5.12.3.
+	- Added a new type of constraint: min gaps between an ordered pair of activity tags for a students set / all students / a teacher / all teachers,
+	suggested by Nagendra and other users.
+	- Bug fixes and code cleanup.
+	- Minor bug fix: the modify constraint room not available times dialog did not allow the weight to be set to 0%, a value which should have been permitted.
+	Reported by math.
+	- Added two new example files from Hungary, by Madas Pál.
+	- Added a new example file from Tunisia, by fourat.
+	- Added a new example file from India, by Nagendra.
+- Version 5.38.1
+	- Updated to Qt 5.13.0.
+	- Very rare crash bug fixed, when executing fet-cl on an incorrect input file with the option to export the CSV files. Reported by Xingxing.
+	- Code cleanup (fixed some compiler warnings which appeared with the new Qt 5.13.0).
+---------------------------------------------------------------------------------
+Version 5.39.0
+- Version 5.39.0
+	- Added a new type of constraint: activity tags not overlapping (suggested by Henrique Belo).
+	- Speed improvement in the pre-generation routine, if the data file contains constraints of type activities not overlapping.
+---------------------------------------------------------------------------------
+Versions 5.40.0 - 5.40.3
+- Version 5.40.0
+	- Updated to Qt 5.13.1.
+	- Added virtual rooms, which give the possibility for the user to specify more rooms for an activity, or to choose between a large room or more smaller
+	rooms for an activity, and might open the possibilities for other kinds of usage. Suggested by math on the forum, who had some very useful ideas.
+	These users also suggested more rooms for an activity: Volker Dirr, Anton Anthofer, dasa, Thaneswer Patel, and amin.
+	Unfortunately, this feature might make FET about 5-10% slower even if you are not using virtual rooms, and I apologize for this,
+	but virtual rooms are useful.
+	- Added the possibility to allow a one day exception of max span plus one for the constraints of type teacher(s) max span per day
+	(suggested by totera, Luca, and bachiri401).
+	- Bug fix: now it is not allowed to run FET command-line on files which do not contain any activity.
+	- Minor bug fix when using constraints with weights having 5 or 6 digits after the decimal dot (like 99.999975%). This minor bug did not affect
+	the generation, only the final report of the (soft) conflicts.
+	- Minor bug fix in the import of the rooms and of the buildings, by Volker Dirr.
+	- Added a new example file from Romania, by rapsy.
+- Version 5.40.1
+	- Bug fix: if using virtual rooms, when generating a new timetable and locking it, some constraints of type activity preferred room could be added again,
+	even if they were already present, if the real rooms chosen for the virtual room were the same but in a different order (the order should not matter).
+- Version 5.40.2
+	- Various rare but important bug fixes concerning the new feature of virtual rooms.
+	- Small memory leak bug fixed (when reading incorrect files with virtual rooms).
+	- Minor fixes and improvements.
+	- Added a new example file from Greece, by dimzev.
+- Version 5.40.3
+	- Updated to Qt 5.13.2.
+	- Code cleanup.
+	- Added two new example files from Syria, by Zafar Allah Askar.
+---------------------------------------------------------------------------------
+Version 5.41.0
+- Version 5.41.0
+	- Implemented these types of constraints: teacher(s)/students (set) activity tag min hours daily (suggested by Chafik Graiguer, Pietro,
+	Vangelis Karafillidis, Benahmed Abdelkrim, s.lanore, and maybe other users). These constraints types are not perfect and must be enabled
+	from the settings menu.
+	- Implemented the constraint type activities occupy min time slots from selection (suggested by flauta, Vangelis Karafillidis, and math).
+	- Implemented the constraint type activities min simultaneous in selected time slots (suggested by Vangelis Karafillidis).
+	- Implemented these types of constraints: teacher(s)/students (set) max room changes per day/week, and teacher(s)/students (set) min gaps
+	between room changes (suggested by Benahmed Abdelkrim, abdeljalil elghazoui, otman hashem, Ahmed El Hawary, Abdellah Sabri, khatou1973,
+	nachrach111, Omar Ben Ali, forstera, and maybe other users).
+	- Code improvements in the generation code of the constraints of type teacher(s) max span per day when allowing a one day exception of
+	max span plus one.
+	- Code improvements in the generation code of the constraints of type activities occupy max time slots from selection
+	and activities max simultaneous in selected time slots.
+	- Improved the activity planning dialog, by Volker Dirr (one improvement - to swap the students sets - was suggested by uni_instructor).
+	- The activity planning dialog is now accessible by a keyboard shortcut (Ctrl+A in English, maybe other letters in other languages)
+	(suggested by uni_instructor).
+	- Removed a useless computation that was done after the generation (suggested by Marco Diego Aurélio Mesquita).
+	- Various other code improvements/cleanup.
+	- Added a new example file from Algeria, by Lysso.
+---------------------------------------------------------------------------------
+Versions 5.42.0 - 5.42.3
+- Version 5.42.0
+	- Updated to Qt 5.14.0.
+	- Corrected many warnings appearing with the new Qt 5.14.0 (about using deprecated Qt functions).
+	- Minor speed improvements when using the constraints involving room/building changes for students/teachers.
+	- Crash bug fixed when reading a file which was not in the FET XML format (probably not met in practice). Now FET reports that it is an
+	incorrect file.
+	- Bug fix: when opening the students' timetable view days horizontal dialog with the subgroups list variant selected, the details for the
+	current activity were not shown. Also, in this case, locking the selected activities did not work. Reported by math.
+	- Minor bug fixes in the activity planning dialog: when swapping the teachers/students, their initial order in the related activities
+	might not have been preserved.
+	- Code cleanup.
+- Version 5.42.1
+	- Bug fix: the command-line version of FET did not remove the file logs/difficult_activities.txt before a new generation, if it was written
+	by a previous unsuccessful generation.
+	- Minor code improvements and cleanup.
+	- Added more proper acknowledgments and references for the used libraries.
+- Version 5.42.2
+	- Minor improvements.
+- Version 5.42.3
+	- Updated to Qt 5.14.1.
+	- When opening a file containing unrecognized XML tags, FET will issue a warning and indicate their locations. Reported by math.
+	- Minor fix/improvement for the Mac OS X version: the "About FET" menu item was shown/executed incorrectly (reported by Darren McDonald and math).
+	Also, with this occasion, the "Quit" menu item was linked to the specific recommended menu place for this platform.
+	- Minor improvements.
+	- Updated the Spanish translation, by Emiliano Llano Díaz.
+---------------------------------------------------------------------------------
+Versions 5.43.0 - 5.43.2
+- Version 5.43.0
+	- Updated the code for the future Qt versions: removed usage of QLinkedList, of Java-style iterators, of the soon-to-be obsolete function
+	QNetworkReply::error(), and of some obsolete Qt signals, and changed from endl to Qt::endl in the necessary places.
+	These changes are not visible to the user.
+	- Many code improvements/cleanup in the interface part.
+	- Exporting of the advanced statistics to the disk now centers the text contents of the table cells.
+	- Improved the command-line usage instructions (suggested by Zsolt Udvari). They are now easier to read. Also, running the command-line
+	version will create log/results files/directories only if an input file is given.
+- Version 5.43.1
+	- Minor bug fix: the constraint students (set) max days per week allowed a minimum value of 0 max days per week. Now the minimum value is correctly 1.
+	Reported by bachiri401.
+	- Slightly improved the dialogs for the constraints of type activity/subject/activity tag/subject+activity tag preferred room(s) (suggested by bachiri401).
+	- Code update/cleanup.
+- Version 5.43.2
+	- Corrected a compiler error appearing with the future Qt versions (this bug was introduced in FET version 5.43.0: the function
+	QNetworkReply::error() will not be obsolete and the replacement function QNetworkReply::networkError() was dropped. So we needed
+	to revert this also in the FET code, otherwise we would get a compiler error with the future Qt versions).
+	- Updated the code for the future Qt versions: removed usage of the soon-to-be obsolete constant QString::SkipEmptyParts
+	(the future constant will be Qt::SkipEmptyParts).
+---------------------------------------------------------------------------------
+Versions 5.44.0 - 5.44.9
+- Version 5.44.0
+	- Changed the random number generator to a better one, MRG32k3a, by Pierre L'Ecuyer (used with permission). This has a longer period but, unfortunately,
+	on some older/not so powerful computers/platforms (especially the 32-bit ones), this new random number generator might run (much) slower. But the generation
+	time should be generally nearly the same or comparable, since the random numbers generation routine seems to take only about 3% of the generation time.
+	- Bug fix for the future Qt versions: Qt reverted back from the signal QComboBox::currentIndexChanged(int, const QString &) used in their snapshot
+	to the signal QComboBox::currentIndexChanged(int). The combo boxes should now work correctly with the future versions of Qt.
+	- Code cleanup.
+- Version 5.44.1
+	- Updated to Qt 5.14.2.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+	- Minor fixes.
+- Version 5.44.2
+	- Bug fix: when using constraints activity tags not overlapping with the activity tags names containing the special characters &, >, or < (and possibly " or '),
+	the saved file would be corrupted and could not be reopened without firstly correcting it manually. Reported by Darren McDonald.
+- Version 5.44.3
+	- Minor fixes and code cleanup.
+- Version 5.44.4
+	- Bug fix: the program froze when hiding rows or columns in the activity planning dialog. This bug was introduced in version 5.43.0. Reported by Dietmar Deuster.
+	- Code improvements.
+- Version 5.44.5
+	- Minor fixes and code cleanup.
+- Version 5.44.6
+	- Minor fixes in the all time/space constraints dialogs.
+	- Removed the warning that was issued when the user selected a higher HTML level for the generated timetables (if the selected HTML level was 3 or higher,
+	the program warned of possible large file sizes).
+	- Minor code improvements.
+	- Code cleanup.
+- Version 5.44.7
+	- Code improvements/cleanup in the generate function.
+- Version 5.44.8
+	- Updated to Qt 5.15.0.
+	- Code cleanup.
+- Version 5.44.9
+	- Corrected the source files of the application icons and generated higher resolution ones (suggested by Darren McDonald, using additional suggestions
+	from Vangelis Karafillidis and DT). The application icon in the icns format (used on Mac OS X) was contributed by Darren McDonald.
+	- The application name is now set correctly (using a solution found by Darren McDonald).
+---------------------------------------------------------------------------------
+Versions 5.45.0 - 5.45.1
+- Version 5.45.0
+	- Slightly improved the code for the constraints of type teacher(s)/students (set) max days per week and teacher(s)/students (set) interval max days per week.
+	- Corrected a compilation warning appearing with the new gcc 10.1.1.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+- Version 5.45.1
+	- Minor fixes and code cleanup.
+	- Added a new example file from South Africa, by Eric Carolus.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+---------------------------------------------------------------------------------
+Versions 5.46.0 - 5.46.1
+- Version 5.46.0
+	- Added a new feature to create easier overlapping groups/years, from the subgroups/groups dialogs (suggested by samantha.goddard's file).
+	- Added the possibility of executing an external command after the generation (suggested by Zsolt Udvari and other users). The implementation of this feature
+	was inspired by the Claws Mail software.
+	- Added a new example file from Hong Kong, by Marcus.
+- Version 5.46.1
+	- Increased the maximum number of hours per day to 72 (suggested by Celia22).
+	- Added help/information in the add/modify constraint activity preferred room dialog (suggested by math).
+	- Minor improvements.
+---------------------------------------------------------------------------------
+Versions 5.47.0 - 5.47.1
+- Version 5.47.0
+	- Updated to Qt 5.15.1.
+	- Theoretical improvement/logic bug fixed in the generation when using constraints of type students (set) early max beginnings at second hour without
+	max gaps constraints or with more than zero max gaps allowed.
+	- Added a warning if using constraints of type teacher(s)/students (set) max hours daily with weights less than 100%, because the algorithm
+	is not perfectly implemented in this case.
+	- The automatic division of years by categories will now retain the settings for each year, separately (suggested by Eric Carolus and possibly other users).
+	- Minor code improvements (suggested by Volker Dirr).
+- Version 5.47.1
+	- Updated to Qt 5.15.2.
+	- Corrected a few warnings appearing with the new Qt 5.15.2 (about using deprecated Qt functions).
+	- Corrected three minor warnings when compiling with clang.
+	- Minor improvements in the text description of the activities.
+	- Code cleanup.
+	- Added a new example file from Spain, by Fran.
+---------------------------------------------------------------------------------
+Versions 5.48.0 - 5.48.2
+- Version 5.48.0
+	- Updated the code to be compliant with the future Qt 6.0.0 (suggested by Volker Dirr).
+- Version 5.48.1
+	- Corrected a compilation error on 32-bit platforms (reported by Zsolt Udvari).
+	- Code cleanup (suggested by Volker Dirr, found using Cppcheck).
+- Version 5.48.2
+	- Code improvements and cleanup (including one improvement suggested by Volker Dirr, found using Coverity Scan).
+---------------------------------------------------------------------------------
+Versions 5.49.0 - 5.49.1
+- Version 5.49.0
+	- It is now possible to use any number of constraints of type teacher(s)/students (set) interval max days per week for a teacher/students set
+	(previously this number was limited to maximum three for each teacher/students set).
+	- It is now possible to reset the number of categories of a students year to zero in the divide year dialog (suggested by Eric Carolus).
+	- Code improvements and cleanup.
+	- Added an updated example file from South Africa, by Eric Carolus, replacing a deprecated example file.
+- Version 5.49.1
+	- Minor fix/improvement in the colors of the timetables.
+	- Redesigned the locked/unlocked icons for the special constraints.
+	- Acknowledged the code contributors in a new file, CONTRIBUTORS, and in a new section in Help->About FET, Contributors.
+	- Minor improvements.
+---------------------------------------------------------------------------------
+Versions 6.0.0 - 6.0.4
+- Version 6.0.0
+	- Updated to Qt 6.0.3.
+	- Increased the limits of the generation algorithm (the new limits are most probably more than enough for everybody).
+	- Combined the most important custom versions into the official FET. The new feature is called "mode" and it can be:
+	"official", "mornings-afternoons" (for Morocco and Algeria), "block planning", and "terms" (for Finland).
+	- The multiple generation can be done on multiple threads, each timetable on a separate thread. Multiple timetables should
+	be obtained much faster if you have a multi-core/hyper-threading processor.
+
+	The following people, listed in chronological order, contributed to this release: bachiri401 (thorough testing), Alexey Chernous (testing),
+	Darren McDonald (testing and bug reports), DT (suggestions), Chichi Lalescu (suggestions), YOUSSEF HOUIET (testing and bug reports),
+	and the translators: Benahmed Abdelkrim (Arabic), Robert Hairgrove (German), Alexandre R. Soares (Brazilian Portuguese),
+	Alexey Chernous (Russian), Vangelis Karafillidis (Greek), and Emiliano Llano Díaz (Spanish).
+- Version 6.0.1
+	- Bug fix when importing the teachers from a CSV file in the mornings-afternoons mode. This bug would eventually lead to a crash
+	(assertion failed) when viewing the teachers list. Reported by Khineche Kaddour.
+- Version 6.0.2
+	- Crash bugs fixed when using Qt 5.15.2, reported by ghani1990. The exact locations with wrong code were found using gdb.
+	- Bug fix: the program was using some uninitialized variables (discovered with Valgrind). But this did not affect the generation.
+- Version 6.0.3
+	- Updated to Qt 6.1.0.
+	- Code cleanup.
+	- Added three new example files, by Jijo Jose (two from India and one from South Africa).
+- Version 6.0.4
+	- Updated to Qt 6.1.1.
+	- Bug fix in the timetable generate multiple dialog, when generating on multiple threads: if the generation time limit was reached and if the limit
+	on the total number of generated timetables was reached, the highest-stage solutions of some of the timetables generated in the last round were missing
+	in the final results.
+---------------------------------------------------------------------------------
+Versions 6.1.0 - 6.1.8
+- Version 6.1.0
+	- Updated to Qt 6.1.2.
+	- Added the import/export of comments from/to CSV (comma separated values) files (suggested by Darren McDonald).
+	- Added two new example files from South Africa, by Eric Carolus.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.1.1
+	- Crash bugs fixed, when using the constraints teacher(s) max two activity tags from N1, N2, and N3 (in the Mornings-Afternoons mode)
+	and there were activities having none of these tags. Reported by Mohamed Ait Ichou. Other minor bugs were fixed in these constraints
+	(the description of the constraints, and an activity should not have more than one tag from these three, if using these constraints relating
+	to its teacher(s)).
+- Version 6.1.2
+	- Enabled the constraints of type teacher(s)/students (set) activity tag min hours daily in the Mornings-Afternoons mode (suggested by
+	Khineche Kaddour, YOUSSEF HOUIET, and other users).
+	- Added a new example file from Algeria, by Benahmed Abdelkrim.
+- Version 6.1.3
+	- Added the constraints of type teacher(s) max gaps per morning and afternoon (in the Mornings-Afternoons mode) (suggested by ghani1990).
+	- Added the constraints of type teacher(s)/students (set) begin mornings early max beginnings at second hour (in the Mornings-Afternoons mode)
+	(suggested by bachiri401).
+	- Improved the visual aspect of the teachers and students time constraints lists in the Mornings-Afternoons mode (suggested by bachiri401, Benahmed Abdelkdrim,
+	and Khineche Kaddour). Also it was improved the visual aspect of the activities time constraints.
+	- The dialogs of adding constraints of type two activities ordered, two activities ordered if same day, two activities consecutive, two activities grouped,
+	and three activities grouped were improved. Now there are selected different activities (the first two or three ones), not only the first. Suggested by math.
+	- Updated the French translation, by Pascal Cohen.
+- Version 6.1.4
+	- Added a new constraint, two sets of activities are ordered (suggested by math and Volker Dirr).
+	- Added the option to sort alphabetically the subgroups in the view/print/HTML timetables (suggested by math).
+	- Minor improvements (some of them were suggested by math).
+- Version 6.1.5
+	- Crash bug fixed, when using the constraint teachers max gaps per morning and afternoon (in the Mornings-Afternoons mode) (reported by hellal sofiane yazid).
+	- Now also the subgroups' XML timetables are saved in ordered form, if the user selected this option.
+	- Code and interface improvements.
+- Version 6.1.6
+	- Updated to Qt 6.1.3.
+	- Possible crash bugs fixed (probably never met in practice).
+	- Improvement in the timetable generate multiple dialog: showing the number of successfully generated timetables (useful for instance when generating
+	with a time limit).
+- Version 6.1.7
+	- Added a new type of constraint in the Mornings-Afternoons mode: teacher(s) max three consecutive days (suggested by Benahmed Abdelkrim, Hiba Hadi,
+	and other users).
+	- Added a new example file from Algeria, by Benahmed Abdelkrim.
+- Version 6.1.8
+	- Updated to Qt 6.2.0.
+	- Improvements in the new constraint introduced in the previous version (teacher(s) max three consecutive days).
+	- Minor interface bug fixes.
+---------------------------------------------------------------------------------
+Versions 6.2.0 - 6.2.8
+- Version 6.2.0
+	- Crash bugs fixed, when restoring the default settings (probably very rare).
+	- Corrected a bug regarding the efficiency of generation in the constraints teacher(s) min hours daily per real day (in the Mornings-Afternoons mode)
+	(discovered using the new Clang 13.0.0).
+	- Minor corrections in some texts of the interface.
+	- Updated the Romanian translation, by Liviu Lalescu.
+- Version 6.2.1
+	- Improvements of the efficiency of generation in the constraints teacher(s) min hours daily per real day (in the Mornings-Afternoons mode).
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.2.2
+	- Updated to Qt 6.2.1.
+	- Crash bugs fixed (rare, in the Mornings-Afternoons mode, if using constraints of type teacher(s)/students (set) min mornings/afternoons per week
+	for teachers/students sets who had no activities). Reported by Abdul Latif Al-Ablaq, Hisham Abu Ferdous, and Ahmed Moullafi (Ahmed Moullafi provided
+	an input file which was very useful in isolating the bugs).
+- Version 6.2.3
+	- Minor corrections in the documentation, reported by Alexey Chernous.
+	- Added an initial partial Bulgarian translation, by Asen Pashov.
+	- Updated the Russian translation, by Alexey Chernous (some typos/small errors were found using Ispell / Aspell).
+	- Updated the Vietnamese translation, by Phạm Văn Quyền Anh, who is the new translator.
+	- Corrected the Romanian translation, by Liviu Lalescu (the typos/small errors were found using Ispell / Aspell).
+	- Corrected the Arabic translation, by Benahmed Abdelkrim (the typos/small errors were found using Ispell / Aspell).
+- Version 6.2.4
+	- Updated to Qt 6.2.2.
+	- Updated and corrected the Bulgarian translation, by Asen Pashov.
+- Version 6.2.5
+	- Added a new type of constraint, teacher(s)/students (set) min gaps between activity tag (suggested by uni_instructor and Thaneswer Patel).
+	- Added an 'inverted' option for the filter in the activities and subactivities dialogs, to see the activities which are _not_ related to the
+	selected filter (suggested by uni_instructor, with further suggestions by Volker Dirr).
+	- The print preview dialogs will retain their size and position (suggested by Thaneswer Patel).
+	- Corrected the US English original strings (many typos/small errors were found using Ispell / Aspell).
+	- Corrected the Brazilian Portuguese translation, by Alexandre R. Soares (some typos/small errors were found using Ispell / Aspell).
+	- Updated the Bulgarian translation, by Asen Pashov.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.2.6
+	- Potential crash bug fix (most certainly not met in practice).
+	- More detailed reports when reading a .fet file with wrong teachers, subject, activity tags, or students sets in the activities list. Suggested by math.
+	- The search for updates on startup will now also send the current Qt version to the server.
+- Version 6.2.7
+	- Updated to Qt 6.2.3.
+	- The font of the text of the interface is now customizable (suggested by Khelifi Fouad Mohssen). This font type will also be applied when printing
+	the timetables (suggested by agemagician).
+- Version 6.2.8
+	- Minor improvements.
+---------------------------------------------------------------------------------
+Versions 6.3.0 - 6.3.4
+- Version 6.3.0
+	- Added a new type of constraint in the Mornings-Afternoons mode: students (set) max three consecutive days (suggested by Benahmed Abdelkrim).
+	- Improvement in the speed of generation in the Mornings-Afternoons mode.
+	- Minor bug fixes.
+- Version 6.3.1
+	- Updated to Qt 6.2.4.
+- Version 6.3.2
+	- Updated to Qt 6.3.0.
+	- Minor improvements.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.3.3
+	- Interface bug fix: when switching from a language with a right-to-left layout to one with a left-to-right layout, the interface layout remained
+	right-to-left.
+	- Code cleanup.
+	- The Arabic translation will now use Western Arabic numerals (suggested by wldchtgmlcm and Benahmed Abdelkrim).
+- Version 6.3.4
+	- Minor improvements.
+	- Minor correction in the Arabic translation, by Benahmed Abdelkrim.
+	- Updated the Russian translation, by Alexey Chernous.
+---------------------------------------------------------------------------------
+Version 6.4.0
+- Version 6.4.0
+	- Improvement: now the algorithm won't put more than two subactivities from the same larger activity on the same day (real day for the
+	Mornings-Afternoons mode), even if 'consecutive if same day' is not selected (suggested by Benahmed Abdelkrim). Unfortunately, some locked timetables
+	might become impossible with this change - in this case please unlock them and generate again.
+	- Added a new type of constraint in the Mornings-Afternoons mode: min half days between activities (suggested by ngoctp29121982, with a further
+	suggestion by bachiri401).
+	- Added the option to lock activities to their scheduled day, useful for timetables which change over the year, due to teacher arrival/leaving.
+	This option is available in the students/teachers view timetable time horizontal dialogs. Suggested by Vangelis Karafillidis and Alexey Chernous.
+	- Improved the behavior of the timetable view students/teachers/rooms days horizontal dialogs, as suggested by Vangelis Karafillidis.
+	- Updated the Romanian translation, by Liviu Lalescu.
+	- Updated the Russian translation, by Alexey Chernous.
+	- Updated the French translation, by Pascal Cohen.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+---------------------------------------------------------------------------------
+Versions 6.5.0 - 6.5.7
+- Version 6.5.0
+	- Important generation bug fix, when using constraints of type students (set) max span per (real) day. This bug was found with the help of
+	Vangelis Karafillidis. Unfortunately, this bug fix means that the generation might take longer (for the contrived example
+	FET-5-official/Romania/Pedagogic-High-School-Tg-Mures/2007-2008_sem1-d-test-students-max-span-per-day.fet the generation time might
+	be even with 50% longer on average). But the algorithm is correct now and hopefully on real-life examples the behavior will be better;
+	for this same contrived example, cycling (which is very very bad), which appeared when locking the activities to days, is not a problem anymore.
+	- Bug fixes in the interface: when modifying the number of hours per half day in the Mornings-Afternoons mode, the constraints of type
+	'max span per real day' were forced to reduce their maximum span to the number of hours per half day, not to the number of hours per real day.
+	- Added two new types of constraints for the Terms mode: activities min in a term and max terms between activities (suggested by mikkojoo).
+	- Added a new example file from Algeria, by Benahmed Abdelkrim.
+- Version 6.5.1
+	- Bug fix in the Terms mode: decreasing the number of terms will now report the number of affected constraints (of type 'max terms between
+	activities' and 'activities occupy max terms') and update them correctly.
+	- Improved the teachers and students XML output timetable files, by including the id-s of the activities in the time slots (suggested by Fred).
+- Version 6.5.2
+	- Added a new type of constraint, students (set) max two activity tags from N1, N2, and N3 per day, in the Mornings-Afternoons mode
+	(suggested by Ali Doussary).
+	- Added a new type of constraint, teacher(s)/students (set) max two activity tags from N1, N2, and N3 per real day, in the Mornings-Afternoons mode
+	(suggested by Ali Doussary).
+	- Added a new type of constraint, teacher(s)/students (set) max building changes per real day, in the Mornings-Afternoons mode
+	(suggested by Phạm Văn Quyền Anh and Ngọc Ngô Minh).
+	- Improvements in the constraints teacher(s)/students (set) max two activity tags from N1, N2, and N3 per (real) day (in the Mornings-Afternoons mode).
+	- Minor improvements for the Mornings-Afternoons mode, suggested by Ngọc Ngô Minh.
+	- Updated the Vietnamese translation, by Ngọc Ngô Minh, who is the new translator.
+- Version 6.5.3
+	- Updated to Qt 6.3.1.
+	- Minor interface bug fixes: in the timetable view teachers/students/rooms days horizontal, the cells marked with -x- or -X- were sometimes shown
+	with bold, italic, or underlined font when changing the teacher/students set/room if there were locked activities in the timetable.
+- Version 6.5.4
+	- Added a new type of constraint, teacher(s) min days per week, in the Mornings-Afternoons mode (suggested by Abdeljalil Elghazoui and Benahmed Abdelkrim).
+	(This constraint was already available in the other modes, but in the Mornings-Afternoons mode there was available only the constraint type teacher(s)
+	min real days per week.)
+	- Added a new example file from Algeria, by Benahmed Abdelkrim.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.5.5
+	- Added a new type of constraint, max half days between activities, in the Mornings-Afternoons mode (suggested by Mohamed Ait Ichou and fourat).
+- Version 6.5.6
+	- Added a new type of constraint: activity(ies) begin(s) students'/teachers' day (suggested by Henrique Belo).
+- Version 6.5.7
+	- Added a new type of constraint, teacher(s) max span per day, in the Mornings-Afternoons mode (suggested by Phạm Văn Quyền Anh). (This constraint type was
+	already implemented for the other modes, but in the Mornings-Afternoons mode there was available only the constraint type teacher(s) max span per real day.)
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares.
+---------------------------------------------------------------------------------
+Versions 6.6.0 - 6.6.2
+- Version 6.6.0
+	- Updated to Qt 6.3.2.
+	- Added a new type of constraint in the Mornings-Afternoons mode, students (set)/teacher(s) min hours per afternoon (suggested by bachiri401 and Hocine Berrou).
+	- Bug fixes when modifying/removing subjects/activity tags/students sets/teachers attached to constraints of type activities begin students'/teachers' day
+	(reported by YOUSSEF HOUIET).
+	- Updated the Russian translation, by Alexey Chernous.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares.
+- Version 6.6.1
+	- Added a complete Italian translation, by Francesco Rizzo, who is the new translator.
+- Version 6.6.2
+	- Minor bug fixes in the reporting of the soft conflicts, when having some types of time constraints related to inactive activities.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+	- Updated the Vietnamese translation, by Phạm Văn Quyền Anh, who is again the assigned translator (he translated also in the past).
+---------------------------------------------------------------------------------
+Versions 6.7.0 - 6.7.8
+- Version 6.7.0
+	- Added simple support for the credit hour system (American system) (suggested by Imad). The new feature is that you can add multiple constraints
+	of type activities same starting hour / activities occupy max different rooms with a single click.
+	- Corrected a few compiler warnings (some reported by Clang, some reported by the new Qt 6.4.0).
+	- Updated the Russian translation, by Alexey Chernous.
+	- Updated the Vietnamese translation, by Phạm Văn Quyền Anh.
+- Version 6.7.1
+	- Crashing bugs fixed, when generating multiple on more threads (hopefully they are all fixed now, and hopefully no new ones are introduced. If you experience
+	crashes or lockings of the program while generating single or multiple on more threads please report them).
+	- Minor improvements.
+- Version 6.7.2
+	- Updated to Qt 6.4.1.
+	- Minor improvements.
+- Version 6.7.3
+	- Bug fix: when generating an impossible file on multiple threads, the program could hang (discovered with the help of math). The bug was isolated with the help
+	of GDB (GNU Debugger).
+	- Improved the generation on some locked timetables for which the program would report impossible generation, even if these files were solved when they were
+	unlocked (reported by math).
+- Version 6.7.4
+	- Added the possibility to select, in the Mornings-Afternoons mode, instead of min days between activities, the number of min _half_ days between activities,
+	when adding activities from the interface or when importing them from CSV files (suggested by ngoctp29121982, who's advice was very useful).
+	The export of the activities to CSV files in this case is also updated (if there are constraints of type min half days between activities, they will be exported
+	in a format compatible with the importing).
+	- Code cleanup.
+- Version 6.7.5
+	- Minor corrections.
+	- Code cleanup.
+- Version 6.7.6
+	- Interface bug fix: in the activities dialog, in the list of space constraints directly related to the selected activity, the constraints of type teacher/students
+	set home room(s) which affected this activity were not shown. Reported by giardiniere and Volker Dirr.
+- Version 6.7.7
+	- Interface improvement: in the activities dialog, in the list of time constraints directly related to the selected activity, there will be shown the related
+	constraints of type teacher/students set not available times.
+	- Minor improvements.
+	- Code cleanup.
+- Version 6.7.8
+	- Updated to Qt 6.4.2.
+	- Code cleanup.
+---------------------------------------------------------------------------------
+Versions 6.8.0 - 6.8.7
+- Version 6.8.0
+	- Added an advanced filter in the activities/subactivities dialog (similar to the existing advanced filter in the all time/space constraints dialog).
+	Also, it is now simpler to activate/deactivate the (sub)activities in these dialogs - there were added activate/deactivate buttons, such that it is no longer
+	needed to enter the "Modify (sub)activity dialog". Also, it is now possible to activate/deactivate with a single button all the listed (filtered) (sub)activities.
+	Also, in the all time/space constraints dialog, it is now possible to activate/deactivate with a single button all the listed (filtered) time/space constraints.
+	Suggested by Horațiu Hălmăjan, Yush Yuen, Constantin Romulus, Nguyễn Hữu Duyệt, noddy11, Anthony Siaudeau, Vangelis Karafillidis, and Liviu Lalescu.
+	- Various improvements and minor bug fixes.
+	- Updated the Romanian translation, by Liviu Lalescu.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+	- Updated the French translation, by Pascal Cohen.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+	- Updated the German translation, by Volker Dirr.
+- Version 6.8.1
+	- Added the possibility to lock/unlock the activities selected with an advanced filter (suggested by giardiniere).
+	- Interface bug fixes.
+	- Code cleanup.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares.
+- Version 6.8.2
+	- Speed improvements when using the advanced filter for the (sub)activities in the case of very large data.
+	- Minor improvements.
+	- Minor corrections in the Romanian translation, by Liviu Lalescu. The typos were found using a program written by Volker Dirr.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+	- Updated the German translation, by Volker Dirr.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares. It is now almost complete.
+- Version 6.8.3
+	- Code cleanup.
+	- Updated some strings in the English text.
+	- Updated the Italian translation, by Francesco Rizzo.
+	- Updated the German translation, by Volker Dirr.
+	- Updated the Romanian translation, by Liviu Lalescu.
+	- Updated the French translation, by Pascal Cohen.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares. It is now complete.
+	- Updated the Arabic translation, by Benahmed Abdelkrim.
+- Version 6.8.4
+	- Code cleanup.
+	- Minor corrections in the English text. The typos were found using a program written by Volker Dirr.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+	- Minor corrections in the Romanian translation, by Liviu Lalescu. The typos were found using a program written by Volker Dirr.
+	- Updated the German translation, by Volker Dirr.
+- Version 6.8.5
+	- Code cleanup.
+	- Minor corrections in the English text, by Darren McDonald and Liviu Lalescu.
+- Version 6.8.6
+	- Code cleanup.
+	- Minor corrections in the English text.
+- Version 6.8.7
+	- Updated to Qt 6.4.3.
+	- Improved the method of selection of the interface font (suggested by giardiniere).
+	- Updated the Italian translation, by Andrea Primiani, who is the new translator.
+---------------------------------------------------------------------------------
+Versions 6.9.0 - 6.9.7
+- Version 6.9.0
+	- Updated to Qt 6.5.0.
+	- Added two batch files for Windows, making it possible to start the FET interface in the Fusion or Windows styles (suggested by Volker Dirr).
+	Unlike the standard Qt style, these styles respect the dark mode on the Windows operating system, if the user selected it (starting with
+	Qt version 6.5.0).
+	- Improvement: if there are present 'group activities in the initial order' items in the data file, but all of them are inactive,
+	there will not be issued a warning regarding this advanced feature at the start of the generation of the timetable.
+	- Improved the dialog of 'group activities in the initial order' items.
+	- Code cleanup (suggested by Volker Dirr, found using the function 'Analyze > Clang-Tidy and Clazy' of Qt Creator).
+	- Updated the Italian translation, by Andrea Primiani.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+- Version 6.9.1
+	- Updated to Qt 6.5.1.
+	- Corrected a few English fields, by Vangelis Karafillidis.
+	- Updated the Italian translation, by Andrea Primiani.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+- Version 6.9.2
+	- Minor improvements in the add/modify constraint min half days between activities dialogs, when using the Mornings-Afternoons mode
+	(suggested by Vũ Ngọc Thành).
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.9.3
+	- Updated to Qt 6.5.2.
+	- The activities import/export from/to CSV files will now process correctly the individually modified teachers, subjects, activity tags,
+	and students of the subactivities. The different components will be separated by the | symbol. Suggested by ngoctp29121982 and Volker Dirr.
+	- Corrected a few English fields, by Vangelis Karafillidis.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+- Version 6.9.4
+	- Added a new type of constraint, max hourly span of a set of activities (suggested by pnlshd).
+	- Minor code improvements.
+	- Corrected a few English fields, by Vangelis Karafillidis.
+	- Updated the Greek translation, by Vangelis Karafillidis.
+- Version 6.9.5
+	- Corrected a few English fields, by Vangelis Karafillidis.
+	- Updated the Greek translation, by Vangelis Karafillidis. It is now complete.
+- Version 6.9.6
+	- Updated to Qt 6.5.3.
+	- Very rare crash bugs fixed (reported by Rouge Rosé).
+	- Code cleanup.
+- Version 6.9.7
+	- Updated to Qt 6.6.0. This involved updating the FET code in many places (using an easy search-and-replace), to get rid of the many new
+	compilation warnings (referring to the use of the deprecated function qAsConst). Now you will need a C++17 complying C++ compiler to compile FET.
+	- Minor improvement in an English field.
+---------------------------------------------------------------------------------
+Version 6.10.0
+- Version 6.10.0
+	- Important bug fixes and improvements concerning the advanced function of removing the redundant constraints. Some of the bugs were present since
+	the introduction of this function, in FET version 5.7.1, released on 6 October 2008, and others were present since the introduction of the facility
+	to activate/deactivate constraints, in FET version 5.16.0, released on 12 December 2011.
+	- Added the option to show/hide the subjects, teachers, students, and rooms, in the Print dialog and in the HTML timetables, in addition to
+	the already existing facility of this type for the activity tags. Suggested by Silver, Drago, xtzetzias, and maybe other users.
+	- Updated the German translation, by Volker Dirr.
+---------------------------------------------------------------------------------
+Versions 6.11.0 - 6.11.1
+- Version 6.11.0
+	- In the dialogs of all activities, all time constraints, and all space constraints, the list of activities / time constraints / space constraints
+	is multi-selectable (suggested by T. Renganathan, Yush Yuen, daviodan, Lizio, fartoto_dz2004, Vangelis Karafillidis, and maybe other users).
+	- Added an option in the dialogs add time / space constraints for the teacher(s), so that you can now add individual constraints for each teacher
+	with a single click (suggested by Valdo, Julio González Gil, utismetis, Davide Cottignoli, mercurialuser, auriolar, Rodolfo Ribeiro Gomes, pg788, satellite2,
+	Zafar Allah Askar, nouvakis, mbarsan, pgsrihr, Massimo Mancini, Chafik Graiguer, Vangelis Karafillidis, Fritzlang, wojgp, and maybe other users).
+	- Implemented a time horizontal view of teachers / students not available times constraints (suggested by Vangelis Karafillidis). These views
+	are accessible from the teachers / students time constraints menus.
+	- The cells in the three timetable view time horizontal dialogs can now be made very small, so that you can have a better view of the overall timetable.
+	- Minor bug fixes / improvements in the export of the timetables if using HTML level 6.
+	- Minor improvements.
+- Version 6.11.1
+	- Minor improvements in the time horizontal view dialogs of the teachers / students not available times, which were introduced in the previous FET version.
+	Suggested by Liviu Lalescu and Vangelis Karafillidis.
+	- Improvements in the dialogs of not available times for teachers / students and teachers / students / rooms timetable view time horizontal,
+	the lines separating the days are thicker.
+	- Other minor improvements.
+---------------------------------------------------------------------------------
+Version 6.12.0
+- Version 6.12.0
+	- Added an undo/redo system (actually, the possibility of saving and restoring data states to/from history). Suggested by: Massimo Mancini, uni_instructor,
+	Anthony Siaudeau, Zsolt Udvari, pekuon, and maybe other users. DT had some useful suggestions regarding this new feature.
+	- The confirmation for activating/deactivating activities/time constraints/space constraints can now be disabled (suggested by pnlshd).
+	- The dialogs for activities/all time constraints/all space constraints now contain a count of the selected items (suggested by pnlshd).
+	- Minor improvements.
+	- Updated the Russian translation, by Alexey Chernous.
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares. It is again complete.
+---------------------------------------------------------------------------------
+Versions 6.13.0 - 6.13.2
+- Version 6.13.0
+	- Added a kind of data file autosave feature (suggested by mohammed, Vangelis Karafillidis, DT, and maybe other users). This feature is optional,
+	and by default it is disabled (it can be enabled from the 'File > Autosave settings' menu entry).
+	- If the description of the operation to be logged in history is too large, it will be truncated to maximum 20,000 characters, so that the history
+	won't occupy too much memory.
+	- When printing the timetables from the interface, without colors, the user can select the option that all the fonts will have the black color,
+	instead of gray and silver being used for some categories of text (suggested by Nikandros and Volker Dirr).
+	- Updated the Arabic translation, by Benahmed Abdelkrim. It is again complete.
+- Version 6.13.1
+	- Crash bugs fixed, when working with the new 'History' feature and locking/unlocking activities from the 'Timetable view' dialogs
+	(reported by Vangelis Karafillidis). These bugs appeared in version 6.12.0, with the introduction of the 'History' feature.
+	- Minor interface bug fixes (reported by Volker Dirr).
+	- Code cleanup.
+- Version 6.13.2
+	- Updated to Qt 6.6.1.
+	- Bug fix: when generating multiple from the GUI or generating from the command-line with a time limit, for some impossible timetables
+	the generation could go on indefinitely without respecting the specified time limit. The bug was introduced in version 6.7.3, which was released
+	on 24 November 2022.
+	- Added an additional test for the feasibility of the generation in the Mornings-Afternoons mode (suggested by sunnysolanki76).
+	- Code cleanup.
+---------------------------------------------------------------------------------
+Versions 6.14.0 - 6.14.2
+- Version 6.14.0
+	- Implemented the HTML exporting and the printing of the timetables for the buildings (suggested by Benahmed Abdelkrim).
+	- Minor corrections in the HTML exporting and in the printing of the timetables.
+	- Code cleanup.
+- Version 6.14.1
+	- Critical crash bugs fixed, when removing space constraints from their dialogs (not from the 'all space constraints' dialog)
+	(reported by gerry). These bugs were present since FET version 6.12.0, released on 13 November 2023.
+- Version 6.14.2
+	- The 'printable' option of the activity tags will be considered when exporting the generated timetable as a CSV file (so that the nonprintable
+	activity tags will not appear). Suggested by pnlshd.
+	- Code cleanup.
+---------------------------------------------------------------------------------
+Versions 6.15.0 - 6.15.1
+- Version 6.15.0
+	- Added the possibility of saving the history to the hard disk, next to the saved .fet data file (suggested by uni_instructor and ngoctp29121982).
+	This option is by default disabled and must be enabled from the settings.
+	- Minor improvements in the memory consumption (the details of the history operations are now stored archived).
+	- Code cleanup.
+- Version 6.15.1
+	- Correction for saving/retrieving the history on/from the disk: if the data structure changes, the history will be invalidated, instead of
+	possible bugs/crashes of the program (using an idea of Volker Dirr).
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares. It is again complete.
+---------------------------------------------------------------------------------
+Versions 6.16.0 - 6.16.1
+- Version 6.16.0
+	- Many source code updates and improvements (using ideas from Volker Dirr).
+	- Minor bug fix in the interface (reported by Volker Dirr).
+	- Minor improvement when saving the history data file (using ideas from Volker Dirr).
+	- Updated the Bulgarian translation, by Hristiyan Dimitrov, who is the new translator.
+- Version 6.16.1
+	- The constraints of type activity(ies) begin(s)/end(s) student(s)'/teacher(s)' day are now allowed to have weight <100% (suggested by maxi_mus).
+	- Minor improvements in some English fields.
+	- Minor code improvements.
+---------------------------------------------------------------------------------
+Version 6.17.0
+- Version 6.17.0
+	- Updated to Qt 6.6.2.
+	- Crash bug fixed when spreading the activities evenly over the week (this bug was introduced in FET version 6.12.0, released on 13 November 2023).
+	Reported by GUEFFAZ REDA.
+	- Minor improvement: if the spreading of the activities evenly over the week does not affect the data, there will not be registered a new history state.
+	- Other minor bug fixes and improvements.
+	- Added a new type of constraint: teacher(s) / students (set) max building changes per (real) day in hourly interval (suggested by Vũ Ngọc Thành
+	and other users in the past). Unfortunately, for some files using constraints referring to the building changes the timetable generation speed might
+	decrease with about 2% - 4%. For a file with many constraints referring to building changes we even noticed a 12% speed of the generation decrease,
+	but this is hopefully very rare.
+	- Added a new type of constraint: teacher(s) / students (set) max hours daily in an hourly interval (suggested by Cyrus Ireri, and in the past by many
+	other users). This constraint type can be used, apart from its primary purpose, to set a dynamic break for the teachers / students.
+---------------------------------------------------------------------------------
+Versions 6.18.0 - 6.18.1
+- Version 6.18.0
+	- Minor bug fixes: if there were no teachers in the file and the user added multiple constraints, one for each teacher, there were recorded
+	useless history points.
+	- Added a new type of constraint: teacher(s) / students (set) max room changes per (real) day in an hourly interval (suggested by giardiniere and
+	other users in the past).
+- Version 6.18.1
+	- Minor bug fixes in some English fields.
+	- Minor bug fixes / improvements when reading an invalid file (reported by Cyrus Ireri).
+	- Updated the Brazilian Portuguese translation, by Alexandre R. Soares. It is again complete.
+	- Updated the Greek translation, by Vangelis Karafillidis. It is again complete.
+---------------------------------------------------------------------------------
+Versions 6.19.0 - 6.19.5
+- Version 6.19.0
+	- Updated to Qt 6.6.3.
+	- Added two new types of constraints: teacher(s)/students (set) min gaps between activity tag/ordered pair of activity tags per real day, in the
+	Mornings-Afternoons mode (suggested by victorcapel). On this occasion some bugs in the routine used to check the final timetable were corrected
+	(they did not affect the generation). Benahmed Abdelkrim contributed with a bug report on the new code.
+	- Minor bug fix: if the user changes the mode to Mornings-Afternoons, the constraints of type min/max days between activities will be adjusted if
+	necessary (if the number of min/max days between activities is greater than the new number of real days per week).
+	- Minor bug fix in the description of the recorded history state when adding multiple constraints of type activities same starting hour / occupy
+	max different rooms. Also, now the order of the added constraints is given by the id of the first activity from each constraint.
+	- Minor bug fix: when reading a wrong file containing an activity without a specified subject, FET will report an error on reading the file
+	instead of possible assertions failed when trying to edit the data or generate the timetable (reported by vlaicumihnea).
+	- Added a "Black" check box option in the statistics print from the interface, so that the fonts won't be gray, but black (suggested by Cyrus Ireri).
+	On this occasion, a minor correction was done in the exporting of the advanced statistics to the disk (if the HTML level was 7 - colors, the fonts
+	of line 2 should have been black, not gray).
+	- Minor change: The section "Timetable_Generation_Options_List" (which may contain elements of type "GroupActivitiesInInitialOrder") will be printed
+	even if it is empty.
+	- Added four new example files, by Alexey Chernous.
+	- Added three new example files, by activityum.
+	- Updated the Russian translation, by Alexey Chernous.
+- Version 6.19.1
+	- Updated to Qt 6.7.0.
+	- You can now open a file directly when starting the FET interface: "fet filename.fet" (recently suggested by Cyrus Ireri, and also suggested in
+	the past by MING-KIAN JONATHAN CEDRIC LEE KIM GNOK, Volker Dirr, and maybe other users).
+	- Better highlighting of the selected row(s)/column(s) in the tables (suggested by Cyrus Ireri, who also contributed with a bug report on the new code).
+	- Minor bug fixes, by Volker Dirr, when printing the timetables / advanced statistics from the interface.
+	- Code cleanup.
+- Version 6.19.2
+	- Bug fix: when opening a file on program startup with the command "fet filename.fet", the recent files list was not updated correctly with the file's
+	complete path, if it was not specified (this bug was introduced in the previous version).
+- Version 6.19.3
+	- Minor improvement to the highlighting of the selected row(s)/column(s) in the time horizontal view of the teachers'/students' not available times.
+ 	- Code cleanup.
+- Version 6.19.4
+	- Minor corrections.
+- Version 6.19.5
+	- Corrected the two Windows batch files which start the program in the Fusion and Windows styles, to take care of possible space characters in the
+	path to the FET executable (bug reported by Khafallah Oualid).
+	- Minor corrections.
+---------------------------------------------------------------------------------
+Version 6.20.0
+- Version 6.20.0
+	- Updated to Qt 6.7.1.
+	- Added two new types of constraints: teacher(s)/students (set) min gaps between activity tag/ordered pair of activity tags between morning and
+	afternoon, in the Mornings-Afternoons mode (suggested by victorcapel).
+	- Minor bug fixes: when using the activity planning dialog and activating/deactivating activities/subactivities using the activate/deactivate buttons
+	(as opposed to selecting/deselecting the 'active' check box from the modify activity/subactivity dialogs, which worked correctly), the activity planning
+	dialog was not updated immediately (reported by Cyrus Ireri).
+---------------------------------------------------------------------------------
+Versions 6.21.0 - 6.21.1
+- Version 6.21.0
+	- In the Mornings-Afternoons mode the timetables will show/use the real days/hours (suggested by Mohamed Ait Ichou, danghoan, Hieu Nguyen Trong, and
+	maybe other users). TongThanhKieu suggested thicker lines between the morning and the afternoon in the timetable view teachers/students/rooms
+	days horizontal dialogs.
+	- Very rare crash bugs fixed when reading a corrupted input file (reported by vlaicumihnea).
+- Version 6.21.1
+	- Critical bug fix in the Mornings-Afternoons mode, when saving the locked fet file (the real days per week and the real hours per day were not saved).
+---------------------------------------------------------------------------------
+Versions 6.22.0 - 6.22.v
+- Version 6.22.0
+	- Added long names for the days, real days (in the Mornings-Afternoons mode), hours, and real hours (in the Mornings-Afternoons mode), and
+	long names and codes for the subjects, activity tags, teachers, students, buildings, and rooms. Also, it is now possible to choose from the Settings menu
+	which of this information to print in the timetables (suggested by Jude G, Cyrus Ireri, and other users). Cyrus Ireri helped with testing and reports,
+	and Benahmed Abdelkrim found and reported a critical bug for the Mornings-Afternoons mode (which was fixed in the final version).
+	- Minor bug fix in the import from CSV files (reported by Darren McDonald).
+- Version 6.22.1
+	- Updated to Qt 6.7.2.
+	- Corrected and improved the output of the HTML timetables (reported/suggested by Cyrus Ireri).
+	- Added the teachers/students/rooms days vertical options when viewing the timetable from the interface (suggested by Mohamed Ait Ichou,
+	YOUSSEF HOUIET, and maybe other users in the past).
+	- Corrected the timetable view dialogs when using a right-to-left writing system (previously, the separation lines were drawn incorrectly).
+	Reported by Benahmed Abdelkrim.
+	- Minor improvement: removed the brackets in the menu entries for viewing the timetables (suggested by Volker Dirr).
+	- Updated the Italian translation, by Andrea Primiani.
+- Version 6.22.2
+	- Corrected the main form appearance under older Qt versions.
+	- Minor improvement: added an explanation about how the constraints of type students (set)/teacher(s) max room/building changes per week work
+	(suggested by Vũ Ngọc Thành and Volker Dirr).
+	- Updated the Italian translation, by Andrea Primiani. It is now complete.
+	- Improved the Brazilian Portuguese translation, by Alexandre R. Soares.
+	- Corrected the Romanian translation, by Liviu Lalescu (the typos/small errors were found using Ispell / Aspell).

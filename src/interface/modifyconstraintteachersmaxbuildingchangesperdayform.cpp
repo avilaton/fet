@@ -2,8 +2,8 @@
                           modifyconstraintteachersmaxbuildingchangesperdayform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachersmaxbuildingchangesperdayform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintTeachersMaxBuildingChangesPerDayForm::ModifyConstraintTeachersMaxBuildingChangesPerDayForm(QWidget* parent, ConstraintTeachersMaxBuildingChangesPerDay* ctr): QDialog(parent)
 {
@@ -27,19 +25,19 @@ ModifyConstraintTeachersMaxBuildingChangesPerDayForm::ModifyConstraintTeachersMa
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMaxBuildingChangesPerDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMaxBuildingChangesPerDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	this->_ctr=ctr;
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
 	maxChangesSpinBox->setMinimum(0);
 	maxChangesSpinBox->setMaximum(gt.rules.nHoursPerDay);
-	maxChangesSpinBox->setValue(ctr->maxBuildingChangesPerDay);	
+	maxChangesSpinBox->setValue(ctr->maxBuildingChangesPerDay);
 }
 
 ModifyConstraintTeachersMaxBuildingChangesPerDayForm::~ModifyConstraintTeachersMaxBuildingChangesPerDayForm()
@@ -58,11 +56,21 @@ void ModifyConstraintTeachersMaxBuildingChangesPerDayForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxBuildingChangesPerDay=maxChangesSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeachersMaxBuildingChangesPerDayForm::cancel()
+{
 	this->close();
 }

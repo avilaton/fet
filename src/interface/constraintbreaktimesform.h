@@ -2,8 +2,8 @@
                           constraintbreaktimesform.h  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTBREAKTIMESFORM_H
 #define CONSTRAINTBREAKTIMESFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintbreaktimesform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintBreakTimesForm : public TimeConstraintBaseDialog  {
+class ConstraintBreakTimesForm : public QDialog, Ui::ConstraintBreakTimesForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintBreakTimesForm(QWidget* parent);
 	~ConstraintBreakTimesForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+	
+	void filterChanged();
 };
 
 #endif

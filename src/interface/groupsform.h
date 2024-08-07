@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -29,6 +29,7 @@ public:
 
 public slots:
 	void addGroup();
+	void addExistingGroups();
 	void removeGroup();
 	void purgeGroup();
 	void modifyGroup();
@@ -38,12 +39,14 @@ public slots:
 	
 	void sortGroups();
 	
-	void yearChanged(const QString &yearName);
-	void groupChanged(const QString &groupName);
+	void yearChanged(const QString& yearName);
+	void groupChanged(const QString& groupName);
 	
 	void activateStudents();
 	void deactivateStudents();
 	
+	void longName();
+	void code();
 	void comments();
 };
 

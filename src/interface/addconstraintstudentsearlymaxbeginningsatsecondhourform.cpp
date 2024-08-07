@@ -2,8 +2,8 @@
                           addconstraintstudentsearlymaxbeginningssatsecondhourform.cpp  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsearlymaxbeginningsatsecondhourform.h"
 #include "timeconstraint.h"
@@ -29,17 +28,15 @@ AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::AddConstraintStudentsEa
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	maxBeginningsSpinBox->setMinimum(0);
 	maxBeginningsSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 	maxBeginningsSpinBox->setValue(0);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::~AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm()
@@ -47,13 +44,9 @@ AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::~AddConstraintStudentsE
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -69,12 +62,15 @@ void AddConstraintStudentsEarlyMaxBeginningsAtSecondHourForm::addCurrentConstrai
 		return;
 	}
 
-	ctr=new ConstraintStudentsEarlyMaxBeginningsAtSecondHour(weight/*, compulsory*/, maxBeginningsSpinBox->value());
+	ctr=new ConstraintStudentsEarlyMaxBeginningsAtSecondHour(weight, maxBeginningsSpinBox->value());
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

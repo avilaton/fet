@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2018 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,9 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "fetguisettings.h"
-
-#include "centerwidgetonscreen.h"
+#include "timetable_defs.h"
 
 #include "studentscomboboxesstyleform.h"
 
@@ -30,8 +28,8 @@ StudentsComboBoxesStyleForm::StudentsComboBoxesStyleForm(QWidget* parent): QDial
 	
 	okPushButton->setDefault(true);
 	
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(wasAccepted()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(wasCanceled()));
+	connect(okPushButton, &QPushButton::clicked, this, &StudentsComboBoxesStyleForm::wasAccepted);
+	connect(cancelPushButton, &QPushButton::clicked, this, &StudentsComboBoxesStyleForm::wasCanceled);
 	
 	simpleRadioButton->setChecked(STUDENTS_COMBO_BOXES_STYLE==STUDENTS_COMBO_BOXES_STYLE_SIMPLE);
 	iconsRadioButton->setChecked(STUDENTS_COMBO_BOXES_STYLE==STUDENTS_COMBO_BOXES_STYLE_ICONS);

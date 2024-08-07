@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,10 +15,9 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
-
-#include "centerwidgetonscreen.h"
 
 #include "institutionnameform.h"
 
@@ -26,7 +25,8 @@
 
 extern Timetable gt;
 
-extern bool simulation_running;
+extern bool generation_running;
+extern bool generation_running_multi;
 
 InstitutionNameForm::InstitutionNameForm(QWidget* parent): QDialog(parent)
 {
@@ -34,13 +34,13 @@ InstitutionNameForm::InstitutionNameForm(QWidget* parent): QDialog(parent)
 	
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(okPushButton, &QPushButton::clicked, this, &InstitutionNameForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &InstitutionNameForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
-	institutionNameLineEdit->setText(gt.rules.getInstitutionName());
+	institutionNameLineEdit->setText(gt.rules.institutionName);
 	institutionNameLineEdit->selectAll();
 	institutionNameLineEdit->setFocus();
 }
@@ -52,14 +52,24 @@ InstitutionNameForm::~InstitutionNameForm()
 
 void InstitutionNameForm::ok()
 {
-	if(!simulation_running)
+	if(!generation_running && !generation_running_multi){
+		QString oin=gt.rules.institutionName;
+	
 		gt.rules.setInstitutionName(institutionNameLineEdit->text());
+		
+		gt.rules.addUndoPoint(tr("Changed the institution name from %1 to %2.").arg(oin).arg(gt.rules.institutionName));
+	}
 	else{
 		QMessageBox::information(this, tr("FET information"),
-			tr("Cannot update institution name during simulation\n"
-			"Please stop simulation before this"));
+			tr("Cannot update institution name during generation."
+			" Please stop the generation before this."));
 		return;
 	}
 
+	this->close();
+}
+
+void InstitutionNameForm::cancel()
+{
 	this->close();
 }

@@ -2,8 +2,8 @@
                           addconstraintstudentsmaxspanperdayform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsmaxspanperdayform.h"
 #include "timeconstraint.h"
@@ -29,8 +28,8 @@ AddConstraintStudentsMaxSpanPerDayForm::AddConstraintStudentsMaxSpanPerDayForm(Q
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxSpanPerDayForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxSpanPerDayForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -38,8 +37,6 @@ AddConstraintStudentsMaxSpanPerDayForm::AddConstraintStudentsMaxSpanPerDayForm(Q
 	maxSpanSpinBox->setMinimum(1);
 	maxSpanSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	maxSpanSpinBox->setValue(gt.rules.nHoursPerDay);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsMaxSpanPerDayForm::~AddConstraintStudentsMaxSpanPerDayForm()
@@ -47,13 +44,9 @@ AddConstraintStudentsMaxSpanPerDayForm::~AddConstraintStudentsMaxSpanPerDayForm(
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsMaxSpanPerDayForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMaxSpanPerDayForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -72,9 +65,12 @@ void AddConstraintStudentsMaxSpanPerDayForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsMaxSpanPerDay(weight, maxSpanSpinBox->value());
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

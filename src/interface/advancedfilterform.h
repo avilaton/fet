@@ -2,8 +2,8 @@
                           advancedfilterform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,7 +20,7 @@
 
 #include <QtGlobal>
 
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 #include <QtWidgets>
 #else
 #include <QtGui>
@@ -43,7 +43,7 @@ public:
 
 	QPushButton* morePushButton;
 	QPushButton* fewerPushButton;
-	QList<QComboBox*> descrDetDescrComboBoxList;
+	QList<QComboBox*> descrDetDescrDetDescrWithConstraintsComboBoxList;
 	QList<QComboBox*> contNContReNReComboBoxList;
 	QList<QLineEdit*> textLineEditList;
 	QPushButton* resetPushButton;
@@ -61,7 +61,7 @@ public:
 	QString atts;
 	
 public:
-	AdvancedFilterForm(QWidget* parent, bool all, QList<int> descrDetDescr, QList<int> contNCont, QStringList text, bool caseSensitive, const QString& textToSettings);
+	AdvancedFilterForm(QWidget* parent, const QString& title, bool detDescrWithConstraints, bool all, QList<int> descrDetDescrDetDescrWithConstraints, QList<int> contNCont, QStringList text, bool caseSensitive, const QString& textToSettings);
 	~AdvancedFilterForm();
 	
 public slots:

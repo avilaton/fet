@@ -2,8 +2,8 @@
                           modifyconstraintstudentsintervalmaxdaysperweekform.h  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -35,6 +35,7 @@ public:
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

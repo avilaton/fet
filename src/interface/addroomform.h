@@ -2,8 +2,8 @@
                           addroomform.h  -  description
                              -------------------
     begin                : Sun Jan 4 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,9 +20,13 @@
 
 #include "ui_addroomform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class AddRoomForm : public QDialog, Ui::AddRoomForm_template {
 	Q_OBJECT
-public: 
+public:
 	AddRoomForm(QWidget* parent);
 	~AddRoomForm();
 

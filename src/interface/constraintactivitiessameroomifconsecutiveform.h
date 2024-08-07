@@ -2,8 +2,8 @@
                           constraintactivitiessameroomifconsecutiveform.h  -  description
                              -------------------
     begin                : Sept 14, 2013
-    copyright            : (C) 2013 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2013 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,30 @@
 #ifndef CONSTRAINTACTIVITIESSAMEROOMIFCONSECUTIVEFORM_H
 #define CONSTRAINTACTIVITIESSAMEROOMIFCONSECUTIVEFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintactivitiessameroomifconsecutiveform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesSameRoomIfConsecutiveForm : public SpaceConstraintBaseDialog  {
+class ConstraintActivitiesSameRoomIfConsecutiveForm : public QDialog, Ui::ConstraintActivitiesSameRoomIfConsecutiveForm_template  {
 	Q_OBJECT
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintActivitiesSameRoomIfConsecutiveForm(QWidget* parent);
 	~ConstraintActivitiesSameRoomIfConsecutiveForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
+	bool filterOk(SpaceConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
+	
+//	void help();
 };
 
 #endif

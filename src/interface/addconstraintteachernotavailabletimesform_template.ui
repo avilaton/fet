@@ -23,7 +23,7 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Note: this constraint does not induce gaps for teachers. If a teacher has lessons before and after a not available period, there will be no gaps counted</string>
+      <string>Note: this constraint does not induce gaps for teachers. If a teacher has activities before and after a not available period, there will be no gaps counted</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -57,9 +57,6 @@
          </property>
          <property name="insertPolicy">
           <enum>QComboBox::NoInsert</enum>
-         </property>
-         <property name="autoCompletion">
-          <bool>false</bool>
          </property>
          <property name="duplicatesEnabled">
           <bool>false</bool>
@@ -114,7 +111,7 @@
     </layout>
    </item>
    <item row="2" column="0">
-    <widget class="SelectableTimeTable" name="notAllowedTimesTable"/>
+    <widget class="QTableWidget" name="notAllowedTimesTable"/>
    </item>
    <item row="3" column="0">
     <layout class="QGridLayout" name="buttonsGridLayout">
@@ -154,7 +151,7 @@
       </widget>
      </item>
      <item row="1" column="3">
-      <widget class="QPushButton" name="pushButton5">
+      <widget class="QPushButton" name="helpPushButton">
        <property name="text">
         <string>Help</string>
        </property>
@@ -165,13 +162,6 @@
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>SelectableTimeTable</class>
-   <extends>QTableWidget</extends>
-   <header>selectabletimetable.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

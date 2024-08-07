@@ -2,8 +2,8 @@
                           modifyconstraintmindaysbetweenactivitiesform.cpp  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-
-#include "modifyconstraintmindaysbetweenactivitiesform.h"
-#include "spaceconstraint.h"
 
 #include <QList>
 
@@ -27,8 +23,7 @@
 #include <QAbstractItemView>
 #include <QScrollBar>
 
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
+#include "modifyconstraintmindaysbetweenactivitiesform.h"
 
 ModifyConstraintMinDaysBetweenActivitiesForm::ModifyConstraintMinDaysBetweenActivitiesForm(QWidget* parent, ConstraintMinDaysBetweenActivities* ctr): QDialog(parent)
 {
@@ -36,20 +31,16 @@ ModifyConstraintMinDaysBetweenActivitiesForm::ModifyConstraintMinDaysBetweenActi
 
 	okPushButton->setDefault(true);
 	
-	activitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+	allActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(activitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivity()));
-	connect(addAllActivitiesPushButton, SIGNAL(clicked()), this, SLOT(addAllActivities()));
-	connect(selectedActivitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivity()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::ok);
+	connect(allActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::addActivity);
+	connect(addAllActivitiesPushButton, &QPushButton::clicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::addAllActivities);
+	connect(selectedActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::removeActivity);
 
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(clearPushButton, &QPushButton::clicked, this, &ModifyConstraintMinDaysBetweenActivitiesForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -68,21 +59,23 @@ ModifyConstraintMinDaysBetweenActivitiesForm::ModifyConstraintMinDaysBetweenActi
 	selectedActivitiesList.clear();
 	selectedActivitiesListWidget->clear();
 	for(int i=0; i<ctr->n_activities; i++){
-		int actId=ctr->activitiesId[i];
+		int actId=ctr->activitiesIds[i];
 		this->selectedActivitiesList.append(actId);
-		Activity* act=NULL;
-		for(int k=0; k<gt.rules.activitiesList.size(); k++){
-			act=gt.rules.activitiesList[k];
-			if(act->id==actId)
-				break;
-		}
-		assert(act);
-		this->selectedActivitiesListWidget->addItem(act->getDescription());
+		Activity *act=gt.rules.activitiesPointerHash.value(actId, nullptr);
+		assert(act!=nullptr);
+		this->selectedActivitiesListWidget->addItem(act->getDescription(gt.rules));
 	}
 	
-	minDaysSpinBox->setMinimum(1);
-	minDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
-	minDaysSpinBox->setValue(ctr->minDays);
+	if(gt.rules.mode!=MORNINGS_AFTERNOONS){
+		minDaysSpinBox->setMinimum(1);
+		minDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
+		minDaysSpinBox->setValue(ctr->minDays);
+	}
+	else{
+		minDaysSpinBox->setMinimum(1);
+		minDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek/2-1);
+		minDaysSpinBox->setValue(ctr->minDays);
+	}
 
 	consecutiveIfSameDayCheckBox->setChecked(ctr->consecutiveIfSameDay);
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
@@ -109,10 +102,15 @@ ModifyConstraintMinDaysBetweenActivitiesForm::ModifyConstraintMinDaysBetweenActi
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 
 	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintMinDaysBetweenActivitiesForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintMinDaysBetweenActivitiesForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintMinDaysBetweenActivitiesForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintMinDaysBetweenActivitiesForm::filterChanged);
 }
 
 ModifyConstraintMinDaysBetweenActivitiesForm::~ModifyConstraintMinDaysBetweenActivitiesForm()
@@ -122,19 +120,19 @@ ModifyConstraintMinDaysBetweenActivitiesForm::~ModifyConstraintMinDaysBetweenAct
 
 void ModifyConstraintMinDaysBetweenActivitiesForm::filterChanged()
 {
-	activitiesListWidget->clear();
+	allActivitiesListWidget->clear();
 	this->activitiesList.clear();
 
 	for(int i=0; i<gt.rules.activitiesList.size(); i++){
 		Activity* ac=gt.rules.activitiesList[i];
 		if(filterOk(ac)){
-			activitiesListWidget->addItem(ac->getDescription());
+			allActivitiesListWidget->addItem(ac->getDescription(gt.rules));
 			this->activitiesList.append(ac->id);
 		}
 	}
 	
-	int q=activitiesListWidget->verticalScrollBar()->minimum();
-	activitiesListWidget->verticalScrollBar()->setValue(q);
+	int q=allActivitiesListWidget->verticalScrollBar()->minimum();
+	allActivitiesListWidget->verticalScrollBar()->setValue(q);
 }
 
 bool ModifyConstraintMinDaysBetweenActivitiesForm::filterOk(Activity* act)
@@ -142,13 +140,13 @@ bool ModifyConstraintMinDaysBetweenActivitiesForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -162,13 +160,13 @@ bool ModifyConstraintMinDaysBetweenActivitiesForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -216,22 +214,24 @@ void ModifyConstraintMinDaysBetweenActivitiesForm::ok()
 		 tr("The best way to add the activities would be:")+
 		 "\n\n"+
 
-		 tr("1. If you add 'force consecutive if same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
+		 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
 		  ". Example: 7 activities with duration 1 in a 5 days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
 		  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
 
 		  "\n\n"+
 
-		 tr("2. If you don't add 'force consecutive if same day', then add a larger activity split into a number of"
+		 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
 		  " activities equal with the number of days per week and the remaining components into other larger split activity."
 		  " For example, suppose you need to add 7 activities with duration 1 in a 5 days week. Add 2 larger container activities,"
 		  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
 		  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
 
-	  	 "\n\n"+
+		 "\n\n"+
+		 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+		  "\n\n"+
 		 tr("Do you want to add current constraint as it is now (not recommended) or cancel and edit as instructed?");
 	
-		int t=QMessageBox::warning(this, tr("FET warning"),	s,
+		int t=QMessageBox::warning(this, tr("FET warning"), s,
 		 QMessageBox::Yes, QMessageBox::Cancel);
 		if(t==QMessageBox::Cancel)
 			return;
@@ -242,10 +242,10 @@ void ModifyConstraintMinDaysBetweenActivitiesForm::ok()
 		ConstraintMinDaysBetweenActivities adc;
 
 		int i;
-		QList<int>::iterator it;
-		adc.activitiesId.clear();
-		for(i=0, it=this->selectedActivitiesList.begin(); it!=this->selectedActivitiesList.end(); it++, i++){
-			adc.activitiesId.append(*it);
+		QList<int>::const_iterator it;
+		adc.activitiesIds.clear();
+		for(i=0, it=this->selectedActivitiesList.constBegin(); it!=this->selectedActivitiesList.constEnd(); it++, i++){
+			adc.activitiesIds.append(*it);
 		}
 		adc.n_activities=i;
 		
@@ -255,93 +255,99 @@ void ModifyConstraintMinDaysBetweenActivitiesForm::ok()
 		
 		bool duplicate=false;
 		
-		for(TimeConstraint* tc : qAsConst(gt.rules.timeConstraintsList))
+		for(TimeConstraint* tc : std::as_const(gt.rules.timeConstraintsList))
 			if(tc!=this->_ctr && tc->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES)
 				if( ( *((ConstraintMinDaysBetweenActivities*)tc) ) == adc){
 					duplicate=true;
 					break;
 				}
-				
+		
 		if(duplicate){
 			QMessageBox::warning(this, tr("FET information"), tr("Cannot proceed, current constraint is equal to another one (it is duplicated)"));
 			return;
 		}
 	}
 	
-	if(_ctr->activitiesId!=selectedActivitiesList){
-		for(int oldId : qAsConst(_ctr->activitiesId)){
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
+	if(_ctr->activitiesIds!=selectedActivitiesList){
+		for(int oldId : std::as_const(_ctr->activitiesIds)){
 			QSet<ConstraintMinDaysBetweenActivities*> cs=gt.rules.mdbaHash.value(oldId, QSet<ConstraintMinDaysBetweenActivities*>());
 			assert(cs.contains(_ctr));
 			cs.remove(_ctr);
 			gt.rules.mdbaHash.insert(oldId, cs);
 		}
 		
-		for(int newId : qAsConst(selectedActivitiesList)){
+		for(int newId : std::as_const(selectedActivitiesList)){
 			QSet<ConstraintMinDaysBetweenActivities*> cs=gt.rules.mdbaHash.value(newId, QSet<ConstraintMinDaysBetweenActivities*>());
 			assert(!cs.contains(_ctr));
 			cs.insert(_ctr);
 			gt.rules.mdbaHash.insert(newId, cs);
 		}
 		
-		_ctr->activitiesId=selectedActivitiesList;
-		_ctr->n_activities=_ctr->activitiesId.count();
+		_ctr->activitiesIds=selectedActivitiesList;
+		_ctr->n_activities=_ctr->activitiesIds.count();
+		_ctr->recomputeActivitiesSet();
 	}
 
 	/*int i;
 	QList<int>::iterator it;
-	this->_ctr->activitiesId.clear();
+	this->_ctr->activitiesIds.clear();
 	for(i=0, it=this->selectedActivitiesList.begin(); it!=this->selectedActivitiesList.end(); it++, i++){
-		this->_ctr->activitiesId.append(*it);
+		this->_ctr->activitiesIds.append(*it);
 	}
-	this->_ctr->n_activities=i;*/
-		
+	this->_ctr->n_activities=i;
+	this->_ctr->recomputeActivitiesSet();*/
+	
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->consecutiveIfSameDay=consecutiveIfSameDayCheckBox->isChecked();
 	this->_ctr->minDays=minDaysSpinBox->value();
 	
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintMinDaysBetweenActivitiesForm::cancel()
+{
 	this->close();
 }
 
 void ModifyConstraintMinDaysBetweenActivitiesForm::addActivity()
 {
-	if(activitiesListWidget->currentRow()<0)
+	if(allActivitiesListWidget->currentRow()<0)
 		return;
-	int tmp=activitiesListWidget->currentRow();
+	int tmp=allActivitiesListWidget->currentRow();
 	int _id=this->activitiesList.at(tmp);
 	
-	QString actName=activitiesListWidget->currentItem()->text();
+	QString actName=allActivitiesListWidget->currentItem()->text();
 	assert(actName!="");
-	int i;
+	
 	//duplicate?
-	for(i=0; i<selectedActivitiesListWidget->count(); i++)
-		if(actName==selectedActivitiesListWidget->item(i)->text())
-			break;
-	if(i<selectedActivitiesListWidget->count())
+	if(this->selectedActivitiesList.contains(_id))
 		return;
+	
 	selectedActivitiesListWidget->addItem(actName);
 	selectedActivitiesListWidget->setCurrentRow(selectedActivitiesListWidget->count()-1);
-	
+
 	this->selectedActivitiesList.append(_id);
 }
 
 void ModifyConstraintMinDaysBetweenActivitiesForm::addAllActivities()
 {
-	for(int tmp=0; tmp<activitiesListWidget->count(); tmp++){
+	for(int tmp=0; tmp<allActivitiesListWidget->count(); tmp++){
 		int _id=this->activitiesList.at(tmp);
 	
-		QString actName=activitiesListWidget->item(tmp)->text();
+		QString actName=allActivitiesListWidget->item(tmp)->text();
 		assert(actName!="");
-		int i;
-		//duplicate?
-		for(i=0; i<selectedActivitiesList.count(); i++)
-			if(selectedActivitiesList.at(i)==_id)
-				break;
-		if(i<selectedActivitiesList.count())
+		
+		if(this->selectedActivitiesList.contains(_id))
 			continue;
-			
+		
 		selectedActivitiesListWidget->addItem(actName);
 		this->selectedActivitiesList.append(_id);
 	}

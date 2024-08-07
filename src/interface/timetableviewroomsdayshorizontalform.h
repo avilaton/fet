@@ -2,8 +2,8 @@
                           timetableviewroomsdayshorizontalform.h  -  description
                              -------------------
     begin                : Wed May 14 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,16 +18,42 @@
 #ifndef TIMETABLEVIEWROOMSDAYSHORIZONTALFORM_H
 #define TIMETABLEVIEWROOMSDAYSHORIZONTALFORM_H
 
-#include "ui_timetableviewroomsdayshorizontalform_template.h"
-
 #include <QResizeEvent>
 
+#include <QAbstractItemDelegate>
+#include <QStyledItemDelegate>
+
+#include "ui_timetableviewroomsdayshorizontalform_template.h"
+
 class QColor; //by Marco Vassura
+
+class QColor; //by Marco Vassura
+
+class TimetableViewRoomsDaysHorizontalDelegate: public QStyledItemDelegate
+{
+	Q_OBJECT
+	
+public:
+	int nRows; //The number of rows after which a line is drawn
+	int nColumns;
+	
+public:
+	TimetableViewRoomsDaysHorizontalDelegate(QWidget* parent, int _nRows, int _nColumns): QStyledItemDelegate(parent){
+		nRows=_nRows;
+		nColumns=_nColumns;
+	}
+	
+	void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const;
+};
 
 class TimetableViewRoomsDaysHorizontalForm : public QDialog, public Ui::TimetableViewRoomsDaysHorizontalForm_template
 {
 	Q_OBJECT
 	
+private:
+	QAbstractItemDelegate* oldItemDelegate;
+	TimetableViewRoomsDaysHorizontalDelegate* newItemDelegate;
+
 public:
 	TimetableViewRoomsDaysHorizontalForm(QWidget* parent);
 	void newTimetableGenerated();
@@ -46,14 +72,14 @@ public slots:
 
 	void currentItemChanged(QTableWidgetItem* current, QTableWidgetItem* previous);
 	
-	void lock();
 	void lockTime();
 	void lockSpace();
+	void lockTimeSpace();
 	void help();
 	
 protected:
 	void resizeEvent(QResizeEvent* event);
-	QColor stringToColor(QString s); //by Marco Vassura
+	QColor stringToColor(const QString& s); //by Marco Vassura
 };
 
 #endif

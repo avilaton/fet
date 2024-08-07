@@ -2,8 +2,8 @@
                           modifyconstraintstudentsmaxspanperdayform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintstudentsmaxspanperdayform.h"
 #include "timeconstraint.h"
@@ -27,12 +26,12 @@ ModifyConstraintStudentsMaxSpanPerDayForm::ModifyConstraintStudentsMaxSpanPerDay
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxSpanPerDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxSpanPerDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	this->_ctr=ctr;
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
@@ -63,12 +62,22 @@ void ModifyConstraintStudentsMaxSpanPerDayForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	
 	this->_ctr->maxSpanPerDay=maxSpanSpinBox->value();
 
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	this->close();
+}
+
+void ModifyConstraintStudentsMaxSpanPerDayForm::cancel()
+{
 	this->close();
 }

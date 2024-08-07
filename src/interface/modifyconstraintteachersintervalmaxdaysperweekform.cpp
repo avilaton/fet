@@ -2,8 +2,8 @@
                           modifyconstraintteachersintervalmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachersintervalmaxdaysperweekform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::ModifyConstraintTeachersInte
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -64,7 +63,7 @@ ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::~ModifyConstraintTeachersInt
 
 void ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
 	maxDaysSpinBox->setMinimum(0);
-	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);	
+	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 }
 
 void ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::ok()
@@ -103,14 +102,24 @@ void ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxDaysPerWeek=max_days;
 
 	this->_ctr->startHour=startHour;
 	this->_ctr->endHour=endHour;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeachersIntervalMaxDaysPerWeekForm::cancel()
+{
 	this->close();
 }

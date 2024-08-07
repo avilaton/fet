@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include "timetableshowconflictsform.h"
-#include "centerwidgetonscreen.h"
 
 #include "timetable.h"
 
@@ -34,7 +33,7 @@ TimetableShowConflictsForm::TimetableShowConflictsForm(QWidget* parent): QDialog
 
 	conflictsTextEdit->setReadOnly(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closePushButton, &QPushButton::clicked, this, &TimetableShowConflictsForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -51,7 +50,7 @@ void TimetableShowConflictsForm::newTimetableGenerated()
 
 	conflictsTextEdit->setReadOnly(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closePushButton, SIG NAL(clicked()), this, SL OT(close()));
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);*/

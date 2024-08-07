@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -16,17 +16,14 @@
  ***************************************************************************/
 
 #include "addstudentssubgroupform.h"
+#include "addexistingstudentssubgroupsform.h"
 #include "modifystudentssubgroupform.h"
 #include "subgroupsform.h"
 #include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
-#include "interface/editcommentsform.h"
-
-#include "timetableexport.h"
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include <QMessageBox>
 
@@ -43,6 +40,13 @@
 #include <QList>
 #include <QPair>
 
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
+
 SubgroupsForm::SubgroupsForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
@@ -55,29 +59,32 @@ SubgroupsForm::SubgroupsForm(QWidget* parent): QDialog(parent)
 	groupsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	subgroupsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(yearsListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(yearChanged(const QString&)));
-	connect(groupsListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(groupChanged(const QString&)));
-	connect(addSubgroupPushButton, SIGNAL(clicked()), this, SLOT(addSubgroup()));
-	connect(removeSubgroupPushButton, SIGNAL(clicked()), this, SLOT(removeSubgroup()));
-	connect(purgeSubgroupPushButton, SIGNAL(clicked()), this, SLOT(purgeSubgroup()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(subgroupsListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(subgroupChanged(const QString&)));
-	connect(modifySubgroupPushButton, SIGNAL(clicked()), this, SLOT(modifySubgroup()));
+	connect(yearsListWidget, &QListWidget::currentTextChanged, this, &SubgroupsForm::yearChanged);
+	connect(groupsListWidget, &QListWidget::currentTextChanged, this, &SubgroupsForm::groupChanged);
+	connect(addSubgroupPushButton, &QPushButton::clicked, this, &SubgroupsForm::addSubgroup);
+	connect(addExistingSubgroupsPushButton, &QPushButton::clicked, this, &SubgroupsForm::addExistingSubgroups);
+	connect(removeSubgroupPushButton, &QPushButton::clicked, this, &SubgroupsForm::removeSubgroup);
+	connect(purgeSubgroupPushButton, &QPushButton::clicked, this, &SubgroupsForm::purgeSubgroup);
+	connect(closePushButton, &QPushButton::clicked, this, &SubgroupsForm::close);
+	connect(subgroupsListWidget, &QListWidget::currentTextChanged, this, &SubgroupsForm::subgroupChanged);
+	connect(modifySubgroupPushButton, &QPushButton::clicked, this, &SubgroupsForm::modifySubgroup);
 
-	connect(moveSubgroupUpPushButton, SIGNAL(clicked()), this, SLOT(moveSubgroupUp()));
-	connect(moveSubgroupDownPushButton, SIGNAL(clicked()), this, SLOT(moveSubgroupDown()));
+	connect(moveSubgroupUpPushButton, &QPushButton::clicked, this, &SubgroupsForm::moveSubgroupUp);
+	connect(moveSubgroupDownPushButton, &QPushButton::clicked, this, &SubgroupsForm::moveSubgroupDown);
 
-	connect(sortSubgroupsPushButton, SIGNAL(clicked()), this, SLOT(sortSubgroups()));
-	connect(activateStudentsPushButton, SIGNAL(clicked()), this, SLOT(activateStudents()));
-	connect(deactivateStudentsPushButton, SIGNAL(clicked()), this, SLOT(deactivateStudents()));
-	connect(subgroupsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(modifySubgroup()));
+	connect(sortSubgroupsPushButton, &QPushButton::clicked, this, &SubgroupsForm::sortSubgroups);
+	connect(activateStudentsPushButton, &QPushButton::clicked, this, &SubgroupsForm::activateStudents);
+	connect(deactivateStudentsPushButton, &QPushButton::clicked, this, &SubgroupsForm::deactivateStudents);
+	connect(subgroupsListWidget, &QListWidget::itemDoubleClicked, this, &SubgroupsForm::modifySubgroup);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &SubgroupsForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &SubgroupsForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &SubgroupsForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
 	
@@ -99,7 +106,7 @@ SubgroupsForm::~SubgroupsForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
@@ -122,6 +129,7 @@ void SubgroupsForm::addSubgroup()
 	assert(groupIndex>=0);
 
 	AddStudentsSubgroupForm form(this, yearName, groupName);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	groupChanged(groupsListWidget->currentItem()->text());
@@ -129,6 +137,56 @@ void SubgroupsForm::addSubgroup()
 	int i=subgroupsListWidget->count()-1;
 	if(i>=0)
 		subgroupsListWidget->setCurrentRow(i);
+}
+
+void SubgroupsForm::addExistingSubgroups()
+{
+	if(yearsListWidget->currentRow()<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected year"));
+		return;
+	}
+	QString yearName=yearsListWidget->currentItem()->text();
+	
+	StudentsYear* year=nullptr;
+	
+	for(StudentsYear* sty : std::as_const(gt.rules.yearsList))
+		if(sty->name==yearName){
+			year=sty;
+			break;
+		}
+		
+	assert(year!=nullptr);
+	
+	if(groupsListWidget->currentRow()<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected group"));
+		return;
+	}
+	QString groupName=groupsListWidget->currentItem()->text();
+	
+	StudentsGroup* group=nullptr;
+	
+	for(StudentsGroup* stg : std::as_const(year->groupsList))
+		if(stg->name==groupName){
+			group=stg;
+			break;
+		}
+		
+	assert(group!=nullptr);
+	
+	AddExistingStudentsSubgroupsForm form(this, year, group);
+	setParentAndOtherThings(&form, this);
+	int t=form.exec();
+	
+	if(t==QDialog::Accepted){
+		groupChanged(groupsListWidget->currentItem()->text());
+	
+		int i=subgroupsListWidget->count()-1;
+		if(i>=0)
+			subgroupsListWidget->setCurrentRow(i);
+	}
+	else{
+		assert(t==QDialog::Rejected);
+	}
 }
 
 void SubgroupsForm::removeSubgroup()
@@ -158,11 +216,11 @@ void SubgroupsForm::removeSubgroup()
 	int subgroupIndex=gt.rules.searchSubgroup(yearName, groupName, subgroupName);
 	assert(subgroupIndex>=0);
 	
-	QList<QPair<QString, QString> > yearsGroupsContainingSubgroup_List;
-	//QSet<QPair<QString, QString> > yearsGroupsContainingSubgroup_Set;
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList))
-		for(StudentsGroup* group : qAsConst(year->groupsList))
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList))
+	QList<QPair<QString, QString>> yearsGroupsContainingSubgroup_List;
+	//QSet<QPair<QString, QString>> yearsGroupsContainingSubgroup_Set;
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList))
+		for(StudentsGroup* group : std::as_const(year->groupsList))
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList))
 				if(subgroup->name==subgroupName)
 					yearsGroupsContainingSubgroup_List.append(QPair<QString, QString>(year->name, group->name));
 			
@@ -175,7 +233,7 @@ void SubgroupsForm::removeSubgroup()
 		s=tr("This subgroup exists in more places, listed below. It will only be removed from the current year/group,"
 		 " and the related activities and constraints will not be removed. Do you want to continue?");
 		s+="\n";
-		for(const QPair<QString, QString>& pair : qAsConst(yearsGroupsContainingSubgroup_List))
+		for(const QPair<QString, QString>& pair : std::as_const(yearsGroupsContainingSubgroup_List))
 			s+=QString("\n")+pair.first+QString(", ")+pair.second;
 	}
 	
@@ -185,13 +243,15 @@ void SubgroupsForm::removeSubgroup()
 		return;
 
 	/*if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete subgroup %1 and all related activities and constraints?").arg(subgroupName),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete subgroup %1 and all related activities and constraints?").arg(subgroupName),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
 		return;*/
 
 	bool tmp=gt.rules.removeSubgroup(yearName, groupName, subgroupName);
 	assert(tmp);
 	if(tmp){
+		gt.rules.addUndoPoint(tr("Removed the subgroup %1 from the group %2, the year %3.").arg(subgroupName).arg(groupName).arg(yearName));
+
 		int q=subgroupsListWidget->currentRow();
 		
 		subgroupsListWidget->setCurrentRow(-1);
@@ -207,7 +267,7 @@ void SubgroupsForm::removeSubgroup()
 			subgroupTextEdit->setPlainText(QString(""));
 	}
 
-	/*if(gt.rules.searchStudentsSet(subgroupName)!=NULL)
+	/*if(gt.rules.searchStudentsSet(subgroupName)!=nullptr)
 		QMessageBox::information( this, tr("FET"), tr("This subgroup still exists into another group. "
 		"The related activities and constraints were not removed"));*/
 }
@@ -239,11 +299,11 @@ void SubgroupsForm::purgeSubgroup()
 	int subgroupIndex=gt.rules.searchSubgroup(yearName, groupName, subgroupName);
 	assert(subgroupIndex>=0);
 	
-	QList<QPair<QString, QString> > yearsGroupsContainingSubgroup_List;
-	//QSet<QPair<QString, QString> > yearsGroupsContainingSubgroup_Set;
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList))
-		for(StudentsGroup* group : qAsConst(year->groupsList))
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList))
+	QList<QPair<QString, QString>> yearsGroupsContainingSubgroup_List;
+	//QSet<QPair<QString, QString>> yearsGroupsContainingSubgroup_Set;
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList))
+		for(StudentsGroup* group : std::as_const(year->groupsList))
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList))
 				if(subgroup->name==subgroupName)
 					yearsGroupsContainingSubgroup_List.append(QPair<QString, QString>(year->name, group->name));
 			
@@ -256,7 +316,7 @@ void SubgroupsForm::purgeSubgroup()
 		s=tr("This subgroup exists in more places, listed below. It will be removed from all these places."
 		 " All the related activities and constraints will be removed. Do you want to continue?");
 		s+="\n";
-		for(const QPair<QString, QString>& pair : qAsConst(yearsGroupsContainingSubgroup_List))
+		for(const QPair<QString, QString>& pair : std::as_const(yearsGroupsContainingSubgroup_List))
 			s+=QString("\n")+pair.first+QString(", ")+pair.second;
 	}
 	
@@ -266,13 +326,15 @@ void SubgroupsForm::purgeSubgroup()
 		return;
 
 	/*if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete subgroup %1 and all related activities and constraints?").arg(subgroupName),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete subgroup %1 and all related activities and constraints?").arg(subgroupName),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
 		return;*/
 
 	bool tmp=gt.rules.purgeSubgroup(subgroupName);
 	assert(tmp);
 	if(tmp){
+		gt.rules.addUndoPoint(tr("Removed the subgroup %1 from everywhere.").arg(subgroupName));
+
 		int q=subgroupsListWidget->currentRow();
 		
 		subgroupsListWidget->setCurrentRow(-1);
@@ -288,12 +350,12 @@ void SubgroupsForm::purgeSubgroup()
 			subgroupTextEdit->setPlainText(QString(""));
 	}
 
-	/*if(gt.rules.searchStudentsSet(subgroupName)!=NULL)
+	/*if(gt.rules.searchStudentsSet(subgroupName)!=nullptr)
 		QMessageBox::information( this, tr("FET"), tr("This subgroup still exists into another group. "
 		"The related activities and constraints were not removed"));*/
 }
 
-void SubgroupsForm::yearChanged(const QString &yearName)
+void SubgroupsForm::yearChanged(const QString& yearName)
 {
 	int yearIndex=gt.rules.searchYear(yearName);
 	if(yearIndex<0){
@@ -318,7 +380,7 @@ void SubgroupsForm::yearChanged(const QString &yearName)
 	}
 }
 
-void SubgroupsForm::groupChanged(const QString &groupName)
+void SubgroupsForm::groupChanged(const QString& groupName)
 {
 	QString yearName=yearsListWidget->currentItem()->text();
 	int yearIndex=gt.rules.searchYear(yearName);
@@ -347,10 +409,10 @@ void SubgroupsForm::groupChanged(const QString &groupName)
 		subgroupTextEdit->setPlainText(QString(""));
 }
 
-void SubgroupsForm::subgroupChanged(const QString &subgroupName)
+void SubgroupsForm::subgroupChanged(const QString& subgroupName)
 {
 	StudentsSet* ss=gt.rules.searchStudentsSet(subgroupName);
-	if(ss==NULL){
+	if(ss==nullptr){
 		subgroupTextEdit->setPlainText(QString(""));
 		return;
 	}
@@ -379,15 +441,26 @@ void SubgroupsForm::moveSubgroupUp()
 	assert(groupsListWidget->currentRow()<sy->groupsList.count());
 	StudentsGroup* sg=sy->groupsList.at(groupsListWidget->currentRow());
 	
+	StudentsSubgroup* ss1=sg->subgroupsList.at(i);
+	StudentsSubgroup* ss2=sg->subgroupsList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	subgroupsListWidget->item(i)->setText(s2);
 	subgroupsListWidget->item(i-1)->setText(s1);
 	
-	sg->subgroupsList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	sg->subgroupsList[i]=ss2;
+	sg->subgroupsList[i-1]=ss1;
+
+	gt.rules.addUndoPoint(tr("Moved the subgroup %1 up in the group %2, the year %3.").arg(ss1->name).arg(sg->name).arg(sy->name));
 
 	subgroupsListWidget->setCurrentRow(i-1);
+	subgroupChanged(/*i-1*/s1);
 }
 
 void SubgroupsForm::moveSubgroupDown()
@@ -411,15 +484,26 @@ void SubgroupsForm::moveSubgroupDown()
 	assert(groupsListWidget->currentRow()<sy->groupsList.count());
 	StudentsGroup* sg=sy->groupsList.at(groupsListWidget->currentRow());
 	
+	StudentsSubgroup* ss1=sg->subgroupsList.at(i);
+	StudentsSubgroup* ss2=sg->subgroupsList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	subgroupsListWidget->item(i)->setText(s2);
 	subgroupsListWidget->item(i+1)->setText(s1);
 	
-	sg->subgroupsList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	sg->subgroupsList[i]=ss2;
+	sg->subgroupsList[i+1]=ss1;
+
+	gt.rules.addUndoPoint(tr("Moved the subgroup %1 down in the group %2, the year %3.").arg(ss1->name).arg(sg->name).arg(sy->name));
 
 	subgroupsListWidget->setCurrentRow(i+1);
+	subgroupChanged(/*i+1*/s1);
 }
 
 void SubgroupsForm::sortSubgroups()
@@ -442,6 +526,8 @@ void SubgroupsForm::sortSubgroups()
 	
 	gt.rules.sortSubgroupsAlphabetically(yearName, groupName);
 	
+	gt.rules.addUndoPoint(tr("Sorted the subgroups in the group %1, the year %2.").arg(groupName).arg(yearName));
+
 	groupChanged(groupName);
 }
 
@@ -475,11 +561,12 @@ void SubgroupsForm::modifySubgroup()
 	int subgroupIndex=gt.rules.searchSubgroup(yearName, groupName, subgroupName);
 	assert(subgroupIndex>=0);
 	
-	StudentsSet* sset=gt.rules.searchStudentsSet(subgroupName);
-	assert(sset!=NULL);
-	int numberOfStudents=sset->numberOfStudents;
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(subgroupName);
+	assert(studentsSet!=nullptr);
+	int numberOfStudents=studentsSet->numberOfStudents;
 	
 	ModifyStudentsSubgroupForm form(this, yearName, groupName, subgroupName, numberOfStudents);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	groupChanged(groupName);
@@ -521,6 +608,9 @@ void SubgroupsForm::activateStudents()
 	QString subgroupName=subgroupsListWidget->currentItem()->text();
 	int count=gt.rules.activateStudents(subgroupName);
 	QMessageBox::information(this, tr("FET information"), tr("Activated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Activated the subgroup %1 (%2 activities).", "%2 is the number of activated activities").arg(subgroupName).arg(count));
 }
 
 void SubgroupsForm::deactivateStudents()
@@ -548,7 +638,10 @@ void SubgroupsForm::deactivateStudents()
 	
 	QString subgroupName=subgroupsListWidget->currentItem()->text();
 	int count=gt.rules.deactivateStudents(subgroupName);
-	QMessageBox::information(this, tr("FET information"), tr("De-activated a number of %1 activities").arg(count));
+	QMessageBox::information(this, tr("FET information"), tr("Deactivated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Deactivated the subgroup %1 (%2 activities).", "%2 is the number of deactivated activities").arg(subgroupName).arg(count));
 }
 
 void SubgroupsForm::comments()
@@ -561,19 +654,183 @@ void SubgroupsForm::comments()
 	
 	QString subgroupName=subgroupsListWidget->currentItem()->text();
 	
-	StudentsSet* sset=gt.rules.searchStudentsSet(subgroupName);
-	assert(sset!=NULL);
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(subgroupName);
+	assert(studentsSet!=nullptr);
 
-	EditCommentsForm dialog("StudentsSubgroupCommentsDialog", this, tr("Students subgroup comments"));
-	dialog.setComments(sset->comments);
+	QDialog getCommentsDialog(this);
+	
+	getCommentsDialog.setWindowTitle(tr("Students subgroup comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
 
-	int t=dialog.exec();
-
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(studentsSet->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("StudentsSubgroupCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
+	
 	if(t==QDialog::Accepted){
-		sset->comments=dialog.getComments();
+		QString ocs=studentsSet->comments;
+
+		studentsSet->comments=commentsPT->toPlainText();
+	
+		gt.rules.addUndoPoint(tr("Changed the comments for the subgroup %1 from\n%2\nto\n%3.").arg(subgroupName).arg(ocs).arg(studentsSet->comments));
+
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		subgroupChanged(subgroupName);
+	}
+}
+
+void SubgroupsForm::longName()
+{
+	int ind=subgroupsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected subgroup"));
+		return;
+	}
+	
+	QString subgroupName=subgroupsListWidget->currentItem()->text();
+	
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(subgroupName);
+	assert(studentsSet!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Subgroup long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(studentsSet->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("SubgroupLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=studentsSet->longName;
+	
+		studentsSet->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the subgroup %1 from\n%2\nto\n%3.").arg(subgroupName).arg(oln).arg(studentsSet->longName));
 	
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		subgroupChanged(subgroupName);
+	}
+}
+
+void SubgroupsForm::code()
+{
+	int ind=subgroupsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected subgroup"));
+		return;
+	}
+	
+	QString subgroupName=subgroupsListWidget->currentItem()->text();
+	
+	StudentsSet* studentsSet=gt.rules.searchStudentsSet(subgroupName);
+	assert(studentsSet!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Subgroup code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(studentsSet->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("SubgroupCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=studentsSet->code;
+	
+		studentsSet->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the subgroup %1 from\n%2\nto\n%3.").arg(subgroupName).arg(oc).arg(studentsSet->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		subgroupChanged(subgroupName);
 	}

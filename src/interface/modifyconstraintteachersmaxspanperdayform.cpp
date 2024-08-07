@@ -2,8 +2,8 @@
                           modifyconstraintteachersmaxspanperdayform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachersmaxspanperdayform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeachersMaxSpanPerDayForm::ModifyConstraintTeachersMaxSpanPerDay
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMaxSpanPerDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersMaxSpanPerDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -40,6 +39,8 @@ ModifyConstraintTeachersMaxSpanPerDayForm::ModifyConstraintTeachersMaxSpanPerDay
 	maxSpanSpinBox->setMinimum(1);
 	maxSpanSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	maxSpanSpinBox->setValue(ctr->maxSpanPerDay);
+	
+	exceptionCheckBox->setChecked(ctr->allowOneDayExceptionPlusOne);
 }
 
 ModifyConstraintTeachersMaxSpanPerDayForm::~ModifyConstraintTeachersMaxSpanPerDayForm()
@@ -63,12 +64,24 @@ void ModifyConstraintTeachersMaxSpanPerDayForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	
 	this->_ctr->maxSpanPerDay=maxSpanSpinBox->value();
+	
+	this->_ctr->allowOneDayExceptionPlusOne=exceptionCheckBox->isChecked();
+
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	this->close();
+}
 
+void ModifyConstraintTeachersMaxSpanPerDayForm::cancel()
+{
 	this->close();
 }

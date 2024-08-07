@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -29,7 +29,7 @@ public:
 	~SubjectsForm();
 
 public slots:
-	bool addSubject();
+	void addSubject();
 	void removeSubject();
 	void renameSubject();
 	
@@ -43,6 +43,8 @@ public slots:
 	void activateSubject();
 	void deactivateSubject();
 	
+	void longName();
+	void code();
 	void comments();
 };
 

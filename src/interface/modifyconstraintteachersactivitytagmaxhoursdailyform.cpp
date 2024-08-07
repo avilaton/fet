@@ -2,8 +2,8 @@
                           modifyconstraintteachersactivitytagmaxhoursdailyform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachersactivitytagmaxhoursdailyform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeachersActivityTagMaxHoursDailyForm::ModifyConstraintTeachersAc
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersActivityTagMaxHoursDailyForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeachersActivityTagMaxHoursDailyForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -63,7 +62,7 @@ ModifyConstraintTeachersActivityTagMaxHoursDailyForm::~ModifyConstraintTeachersA
 
 void ModifyConstraintTeachersActivityTagMaxHoursDailyForm::updateMaxHoursSpinBox(){
 	maxHoursSpinBox->setMinimum(1);
-	maxHoursSpinBox->setMaximum(gt.rules.nHoursPerDay);	
+	maxHoursSpinBox->setMaximum(gt.rules.nHoursPerDay);
 }
 
 void ModifyConstraintTeachersActivityTagMaxHoursDailyForm::ok()
@@ -86,12 +85,22 @@ void ModifyConstraintTeachersActivityTagMaxHoursDailyForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxHoursDaily=max_hours;
 	this->_ctr->activityTagName=activityTagName;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeachersActivityTagMaxHoursDailyForm::cancel()
+{
 	this->close();
 }

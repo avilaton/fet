@@ -2,8 +2,8 @@
                           addconstraintmaxdaysbetweenactivitiesform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,17 +20,12 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintmaxdaysbetweenactivitiesform.h"
-#include "spaceconstraint.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
 #include <QScrollBar>
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintMaxDaysBetweenActivitiesForm::AddConstraintMaxDaysBetweenActivitiesForm(QWidget* parent): QDialog(parent)
 {
@@ -38,19 +33,15 @@ AddConstraintMaxDaysBetweenActivitiesForm::AddConstraintMaxDaysBetweenActivities
 
 	addConstraintPushButton->setDefault(true);
 	
-	activitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+	allActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
-	connect(activitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivity()));
-	connect(addAllActivitiesPushButton, SIGNAL(clicked()), this, SLOT(addAllActivities()));
-	connect(selectedActivitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivity()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::addConstraint);
+	connect(allActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::addActivity);
+	connect(addAllActivitiesPushButton, &QPushButton::clicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::addAllActivities);
+	connect(selectedActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::removeActivity);
+	connect(clearPushButton, &QPushButton::clicked, this, &AddConstraintMaxDaysBetweenActivitiesForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -64,11 +55,16 @@ AddConstraintMaxDaysBetweenActivitiesForm::AddConstraintMaxDaysBetweenActivities
 	QSize tmp4=activityTagsComboBox->minimumSizeHint();
 	Q_UNUSED(tmp4);
 
-	//updateActivitiesListWidget();
-	
-	maxDaysSpinBox->setMinimum(0);
-	maxDaysSpinBox->setValue(gt.rules.nDaysPerWeek-1);
-	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
+	if(gt.rules.mode!=MORNINGS_AFTERNOONS){
+		maxDaysSpinBox->setMinimum(0);
+		maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
+		maxDaysSpinBox->setValue(gt.rules.nDaysPerWeek-1);
+	}
+	else{
+		maxDaysSpinBox->setMinimum(0);
+		maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek/2-1);
+		maxDaysSpinBox->setValue(gt.rules.nDaysPerWeek/2-1);
+	}
 
 	teachersComboBox->addItem("");
 	for(int i=0; i<gt.rules.teachersList.size(); i++){
@@ -91,13 +87,18 @@ AddConstraintMaxDaysBetweenActivitiesForm::AddConstraintMaxDaysBetweenActivities
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 
 	selectedActivitiesListWidget->clear();
 	this->selectedActivitiesList.clear();
 
 	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintMaxDaysBetweenActivitiesForm::filterChanged);
 }
 
 AddConstraintMaxDaysBetweenActivitiesForm::~AddConstraintMaxDaysBetweenActivitiesForm()
@@ -110,13 +111,13 @@ bool AddConstraintMaxDaysBetweenActivitiesForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -130,13 +131,13 @@ bool AddConstraintMaxDaysBetweenActivitiesForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -150,30 +151,25 @@ bool AddConstraintMaxDaysBetweenActivitiesForm::filterOk(Activity* act)
 
 void AddConstraintMaxDaysBetweenActivitiesForm::filterChanged()
 {
-	this->updateActivitiesListWidget();
-}
-
-void AddConstraintMaxDaysBetweenActivitiesForm::updateActivitiesListWidget()
-{
-	activitiesListWidget->clear();
+	allActivitiesListWidget->clear();
 
 	this->activitiesList.clear();
 
 	for(int i=0; i<gt.rules.activitiesList.size(); i++){
 		Activity* ac=gt.rules.activitiesList[i];
 		if(filterOk(ac)){
-			activitiesListWidget->addItem(ac->getDescription());
+			allActivitiesListWidget->addItem(ac->getDescription(gt.rules));
 			this->activitiesList.append(ac->id);
 		}
 	}
 	
-	int q=activitiesListWidget->verticalScrollBar()->minimum();
-	activitiesListWidget->verticalScrollBar()->setValue(q);
+	int q=allActivitiesListWidget->verticalScrollBar()->minimum();
+	allActivitiesListWidget->verticalScrollBar()->setValue(q);
 }
 
 void AddConstraintMaxDaysBetweenActivitiesForm::addConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -196,9 +192,8 @@ void AddConstraintMaxDaysBetweenActivitiesForm::addConstraint()
 	}
 
 	QList<int> ids;
-	int i;
-	QList<int>::iterator it;
-	for(i=0, it=this->selectedActivitiesList.begin(); it!=this->selectedActivitiesList.end(); it++, i++)
+	QList<int>::const_iterator it;
+	for(it=this->selectedActivitiesList.constBegin(); it!=this->selectedActivitiesList.constEnd(); it++)
 		ids.append(*it);
 	
 	ctr=new ConstraintMaxDaysBetweenActivities(weight, this->selectedActivitiesList.count(), ids, maxDaysSpinBox->value());
@@ -210,51 +205,47 @@ void AddConstraintMaxDaysBetweenActivitiesForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - it must be a duplicate"));
+			tr("Constraint NOT added - please report error"));
 		delete ctr;
 	}
 }
 
 void AddConstraintMaxDaysBetweenActivitiesForm::addActivity()
 {
-	if(activitiesListWidget->currentRow()<0)
+	if(allActivitiesListWidget->currentRow()<0)
 		return;
-	int tmp=activitiesListWidget->currentRow();
+	int tmp=allActivitiesListWidget->currentRow();
 	int _id=this->activitiesList.at(tmp);
 	
-	QString actName=activitiesListWidget->currentItem()->text();
+	QString actName=allActivitiesListWidget->currentItem()->text();
 	assert(actName!="");
-	int i;
+	
 	//duplicate?
-	for(i=0; i<selectedActivitiesListWidget->count(); i++)
-		if(actName==selectedActivitiesListWidget->item(i)->text())
-			break;
-	if(i<selectedActivitiesListWidget->count())
+	if(this->selectedActivitiesList.contains(_id))
 		return;
+	
 	selectedActivitiesListWidget->addItem(actName);
 	selectedActivitiesListWidget->setCurrentRow(selectedActivitiesListWidget->count()-1);
-	
+
 	this->selectedActivitiesList.append(_id);
 }
 
 void AddConstraintMaxDaysBetweenActivitiesForm::addAllActivities()
 {
-	for(int tmp=0; tmp<activitiesListWidget->count(); tmp++){
+	for(int tmp=0; tmp<allActivitiesListWidget->count(); tmp++){
 		int _id=this->activitiesList.at(tmp);
 	
-		QString actName=activitiesListWidget->item(tmp)->text();
+		QString actName=allActivitiesListWidget->item(tmp)->text();
 		assert(actName!="");
-		int i;
-		//duplicate?
-		for(i=0; i<selectedActivitiesList.count(); i++)
-			if(selectedActivitiesList.at(i)==_id)
-				break;
-		if(i<selectedActivitiesList.count())
+		
+		if(this->selectedActivitiesList.contains(_id))
 			continue;
-			
+		
 		selectedActivitiesListWidget->addItem(actName);
 		this->selectedActivitiesList.append(_id);
 	}

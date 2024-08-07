@@ -2,8 +2,8 @@
                           modifyconstraintstudentsmingapsbetweenbuildingchangesform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintstudentsmingapsbetweenbuildingchangesform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm(QWidget* parent, ConstraintStudentsMinGapsBetweenBuildingChanges* ctr): QDialog(parent)
 {
@@ -27,19 +25,19 @@ ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::ModifyConstraintStude
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	this->_ctr=ctr;
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
 	minGapsSpinBox->setMinimum(1);
 	minGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
-	minGapsSpinBox->setValue(ctr->minGapsBetweenBuildingChanges);	
+	minGapsSpinBox->setValue(ctr->minGapsBetweenBuildingChanges);
 }
 
 ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::~ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm()
@@ -58,11 +56,21 @@ void ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->minGapsBetweenBuildingChanges=minGapsSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsMinGapsBetweenBuildingChangesForm::cancel()
+{
 	this->close();
 }

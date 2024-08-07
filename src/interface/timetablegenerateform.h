@@ -2,8 +2,8 @@
                           timetablegenerateform.h  -  description
                              -------------------
     begin                : Tue Apr 22 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -19,23 +19,33 @@
 #define TIMETABLEGENERATEFORM_H
 
 #include "ui_timetablegenerateform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-#include <QThread>
+//#include <QThread>
 
-class GenerateThread: public QThread{
+//#include <QProcess>
+#include <QList>
+
+/*class GenerateThread: public QThread{
 	Q_OBJECT
 
 public:
 	void run();
-};
+
+signals:
+	void generationComputed(int generation);
+};*/
 
 class TimetableGenerateForm : public QDialog, Ui::TimetableGenerateForm_template  {
 	Q_OBJECT
+	
+//private:
+//	QList<QProcess*> commandProcesses;
 
 public:
-
 	TimetableGenerateForm(QWidget* parent);
-
 	~TimetableGenerateForm();
 
 public slots:
@@ -50,9 +60,9 @@ public slots:
 	//void generationLogging(int generation);
 
 private slots:
-	void activityPlaced(int na);
+	void activityPlaced(int nThread, int na);
 
-	void simulationFinished();
+	void generationFinished();
 
 	void impossibleToSolve();
 	
@@ -61,10 +71,6 @@ private slots:
 	void seeInitialOrder();
 	
 //	void seeHighestStage();
-
-private:
-	void showDialog(const QString & title, const QString & msg, bool beep);
-	QString getDifficultActivityListString(const std::vector<int> &difficultActivities);
 };
 
 #endif

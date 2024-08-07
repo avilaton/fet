@@ -2,8 +2,8 @@
                           teachersubjectsqualificationsform.cpp  -  description
                              -------------------
     begin                : 2016
-    copyright            : (C) 2016 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2016 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,16 +18,16 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "teachersubjectsqualificationsform.h"
-#include "spaceconstraint.h"
 #include "teacher.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
 #include <QSet>
-#include <QLinkedList>
+
+#include <list>
+#include <iterator>
 
 TeacherSubjectsQualificationsForm::TeacherSubjectsQualificationsForm(QWidget* parent, Teacher* teacher): QDialog(parent)
 {
@@ -38,23 +38,23 @@ TeacherSubjectsQualificationsForm::TeacherSubjectsQualificationsForm(QWidget* pa
 	subjectsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedSubjectsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(subjectsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addSubject()));
-	connect(selectedSubjectsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeSubject()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
-	connect(addAllSubjectsPushButton, SIGNAL(clicked()), this, SLOT(addAllSubjects()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &TeacherSubjectsQualificationsForm::close);
+	connect(okPushButton, &QPushButton::clicked, this, &TeacherSubjectsQualificationsForm::ok);
+	connect(subjectsListWidget, &QListWidget::itemDoubleClicked, this, &TeacherSubjectsQualificationsForm::addSubject);
+	connect(selectedSubjectsListWidget, &QListWidget::itemDoubleClicked, this, &TeacherSubjectsQualificationsForm::removeSubject);
+	connect(clearPushButton, &QPushButton::clicked, this, &TeacherSubjectsQualificationsForm::clear);
+	connect(addAllSubjectsPushButton, &QPushButton::clicked, this, &TeacherSubjectsQualificationsForm::addAllSubjects);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
 	QSet<QString> allSubjects;
-	for(Subject* subject : qAsConst(gt.rules.subjectsList)){
+	for(Subject* subject : std::as_const(gt.rules.subjectsList)){
 		allSubjects.insert(subject->name);
 		subjectsListWidget->addItem(subject->name);
 	}
 	
-	for(const QString& subject : qAsConst(teacher->qualifiedSubjectsList)){
+	for(const QString& subject : std::as_const(teacher->qualifiedSubjectsList)){
 		assert(allSubjects.contains(subject));
 		selectedSubjectsListWidget->addItem(subject);
 	}
@@ -71,18 +71,40 @@ TeacherSubjectsQualificationsForm::~TeacherSubjectsQualificationsForm()
 
 void TeacherSubjectsQualificationsForm::ok()
 {
-	QLinkedList<QString> newSubjectsList;
-	QHash<QString, QLinkedList<QString>::Iterator> newSubjectsHash;
+	//!!!Do not use the commented code below!!!
+	//!!!If we used the commented code below (which worked well with QLinkedList, but not with std::list) we would get segmentation fault.
+	//Possible steps to reproduce: press OK in this dialog, then rename or remove a subject from this list of qualified subjects.
+	/*std::list<QString> newSubjectsList;
+	QHash<QString, std::list<QString>::iterator> newSubjectsHash;
 	for(int i=0; i<selectedSubjectsListWidget->count(); i++){
-		newSubjectsList.append(selectedSubjectsListWidget->item(i)->text());
-		newSubjectsHash.insert(selectedSubjectsListWidget->item(i)->text(), newSubjectsList.end()-1);
+		newSubjectsList.push_back(selectedSubjectsListWidget->item(i)->text());
+		newSubjectsHash.insert(selectedSubjectsListWidget->item(i)->text(), std::prev(newSubjectsList.end()));
 	}
 	
 	_teacher->qualifiedSubjectsList=newSubjectsList;
-	_teacher->qualifiedSubjectsHash=newSubjectsHash;
-	
+	_teacher->qualifiedSubjectsHash=newSubjectsHash;*/
+
+	QString so;
+	for(const QString& s : std::as_const(_teacher->qualifiedSubjectsList))
+		so+=s+QString(", ");
+	so.chop(2);
+
+	_teacher->qualifiedSubjectsList.clear();
+	_teacher->qualifiedSubjectsHash.clear();
+	for(int i=0; i<selectedSubjectsListWidget->count(); i++){
+		_teacher->qualifiedSubjectsList.push_back(selectedSubjectsListWidget->item(i)->text());
+		_teacher->qualifiedSubjectsHash.insert(selectedSubjectsListWidget->item(i)->text(), std::prev(_teacher->qualifiedSubjectsList.end()));
+	}
+
+	QString sn;
+	for(const QString& s : std::as_const(_teacher->qualifiedSubjectsList))
+		sn+=s+QString(", ");
+	sn.chop(2);
+
+	gt.rules.addUndoPoint(tr("Changed the list of qualified subjects for teacher %1 from:\n%2\nto\n%3.").arg(_teacher->name).arg(so).arg(sn));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }

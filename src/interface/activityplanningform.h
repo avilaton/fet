@@ -1,10 +1,10 @@
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
-                      activityplanning.h  -  description
+                      activityplanningform.h  -  description
                              -------------------
     begin                : 2009
     copyright            : (C) 2009 by Volker Dirr
@@ -63,12 +63,20 @@ private:
 	QSplitter* leftSplitter;
 	SparseTableView* activitiesTableView;
 	SparseTableView* teachersTableView;
+	
+	int storeStudentsForSwap;
+	int storeSubjectForSwap;
+	void swapTeachers(int studentsActivity1, int subjectActivity1, int studentsActivity2, int subjectActivity2);
+	void swapStudents(int studentsActivity1, int subjectActivity1, int studentsActivity2, int subjectActivity2);
+	
 	QRadioButton* RBActivity;
 	QRadioButton* RBSubactivity;
 	QRadioButton* RBAdd;
 	QRadioButton* RBModify;
 	QRadioButton* RBDelete;
-	QRadioButton* RBSwapTeacher;
+	QRadioButton* RBChangeTeacher;
+	QRadioButton* RBSwapTeachers;
+	QRadioButton* RBSwapStudents;
 	QComboBox* CBActive;
 	QCheckBox* showDuplicates;
 	QCheckBox* showYears;
@@ -78,7 +86,7 @@ private:
 	QCheckBox* showActivityTags;
 	QCheckBox* hideEmptyLines;
 	QCheckBox* hideUsedTeachers;
-	QCheckBox* swapAxis;
+	QCheckBox* swapAxes;
 	QPushButton* pbPseudoActivities;
 	QPushButton* pbDeleteAll;
 	//QPushButton* pbHelp;
@@ -89,8 +97,7 @@ private:
 	QPushButton* pbClose;
 	QCheckBox* changedActivities;
 	
-	QGroupBox* actionsBox;
-	QGroupBox* optionsBox;
+	QTabWidget *actionsOptionsTabWidget;
 	
 	void computeActivitiesForDeletion(const QString& teacherName, const QString& studentsSetName, const QString& subjectName,
 		const QList<int>& tmpID, const QList<int>& tmpGroupID,
@@ -114,16 +121,16 @@ private slots:
 	//void teachersCellSelected(QTableWidgetItem*);
 	void teachersCellSelected(const QModelIndex& index);
 	//mouseTracking (start 1/4)
-	//void ActivtiesCellEntered(int, int);
+	//void ActivitiesCellEntered(int, int);
 	//void TeachersCellEntered(int, int);
 	//mouseTracking (end 1/4)
-	void activitiesTableHorizontalHeaderClicked(int);
-	void activitiesTableVerticalHeaderClicked(int);
-	void teachersTableHorizontalHeaderClicked(int);
-	void updateTables(int);
+	void activitiesTableHorizontalHeaderClicked(int column);
+	void activitiesTableVerticalHeaderClicked(int row);
+	void teachersTableHorizontalHeaderClicked(int column);
+	void updateTables();
 	void updateTables_Students_Subjects();
 	void updateTables_Teachers();
-	void updateTablesVisual(int);
+	void updateTablesVisual();
 	//void help();
 	void pseudoActivities();
 	void deleteAll();
@@ -135,7 +142,7 @@ private slots:
 };
 
 
-//communication box by Liviu Lalescu
+//communication spin box by Liviu Lalescu
 class PlanningCommunicationSpinBox: public QObject{
 	Q_OBJECT
 

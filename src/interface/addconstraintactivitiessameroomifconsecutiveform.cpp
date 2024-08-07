@@ -2,8 +2,8 @@
                           addconstraintactivitiessameroomifconsecutiveform.cpp  -  description
                              -------------------
     begin                : Sept 14, 2013
-    copyright            : (C) 2013 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2013 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,17 +18,12 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivitiessameroomifconsecutiveform.h"
-#include "spaceconstraint.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
 #include <QScrollBar>
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintActivitiesSameRoomIfConsecutiveForm::AddConstraintActivitiesSameRoomIfConsecutiveForm(QWidget* parent): QDialog(parent)
 {
@@ -39,20 +34,16 @@ AddConstraintActivitiesSameRoomIfConsecutiveForm::AddConstraintActivitiesSameRoo
 	allActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivitiesListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(allActivitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivity()));
-	connect(addAllActivitiesPushButton, SIGNAL(clicked()), this, SLOT(addAllActivities()));
-	connect(selectedActivitiesListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivity()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::close);
+	connect(allActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::addActivity);
+	connect(addAllActivitiesPushButton, &QPushButton::clicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::addAllActivities);
+	connect(selectedActivitiesListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::removeActivity);
+	connect(clearPushButton, &QPushButton::clicked, this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::clear);
 	
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-							
+	
 	//activities
 	QSize tmp1=teachersComboBox->minimumSizeHint();
 	Q_UNUSED(tmp1);
@@ -84,13 +75,18 @@ AddConstraintActivitiesSameRoomIfConsecutiveForm::AddConstraintActivitiesSameRoo
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 
 	selectedActivitiesListWidget->clear();
 	selectedActivitiesList.clear();
 
 	filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivitiesSameRoomIfConsecutiveForm::filterChanged);
 }
 
 AddConstraintActivitiesSameRoomIfConsecutiveForm::~AddConstraintActivitiesSameRoomIfConsecutiveForm()
@@ -100,7 +96,7 @@ AddConstraintActivitiesSameRoomIfConsecutiveForm::~AddConstraintActivitiesSameRo
 
 void AddConstraintActivitiesSameRoomIfConsecutiveForm::addCurrentConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -125,9 +121,12 @@ void AddConstraintActivitiesSameRoomIfConsecutiveForm::addCurrentConstraint()
 	ctr=new ConstraintActivitiesSameRoomIfConsecutive(weight, selectedActivitiesList);
 
 	bool tmp2=gt.rules.addSpaceConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));
@@ -141,13 +140,13 @@ bool AddConstraintActivitiesSameRoomIfConsecutiveForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -161,13 +160,13 @@ bool AddConstraintActivitiesSameRoomIfConsecutiveForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -181,18 +180,13 @@ bool AddConstraintActivitiesSameRoomIfConsecutiveForm::filterOk(Activity* act)
 
 void AddConstraintActivitiesSameRoomIfConsecutiveForm::filterChanged()
 {
-	this->updateActivitiesListWidget();
-}
-
-void AddConstraintActivitiesSameRoomIfConsecutiveForm::updateActivitiesListWidget()
-{
 	allActivitiesListWidget->clear();
 	this->activitiesList.clear();
 	
 	for(int i=0; i<gt.rules.activitiesList.size(); i++){
 		Activity* ac=gt.rules.activitiesList[i];
 		if(filterOk(ac)){
-			allActivitiesListWidget->addItem(ac->getDescription());
+			allActivitiesListWidget->addItem(ac->getDescription(gt.rules));
 			this->activitiesList.append(ac->id);
 		}
 	}
@@ -210,41 +204,28 @@ void AddConstraintActivitiesSameRoomIfConsecutiveForm::addActivity()
 	
 	QString actName=allActivitiesListWidget->currentItem()->text();
 	assert(actName!="");
-	int i;
+	
 	//duplicate?
-	for(i=0; i<selectedActivitiesListWidget->count(); i++)
-		if(actName==selectedActivitiesListWidget->item(i)->text())
-			break;
-	if(i<selectedActivitiesListWidget->count())
+	if(this->selectedActivitiesList.contains(_id))
 		return;
+	
 	selectedActivitiesListWidget->addItem(actName);
 	selectedActivitiesListWidget->setCurrentRow(selectedActivitiesListWidget->count()-1);
-	
+
 	this->selectedActivitiesList.append(_id);
 }
 
 void AddConstraintActivitiesSameRoomIfConsecutiveForm::addAllActivities()
 {
 	for(int tmp=0; tmp<allActivitiesListWidget->count(); tmp++){
-		//int tmp=allActivitiesListWidget->currentRow();
 		int _id=this->activitiesList.at(tmp);
 	
 		QString actName=allActivitiesListWidget->item(tmp)->text();
 		assert(actName!="");
-		int i;
-		//duplicate?
-		for(i=0; i<selectedActivitiesList.count(); i++)
-			if(selectedActivitiesList.at(i)==_id)
-				break;
-		if(i<selectedActivitiesList.count())
+		
+		if(this->selectedActivitiesList.contains(_id))
 			continue;
 		
-		/*for(i=0; i<selectedActivitiesListWidget->count(); i++)
-			if(actName==selectedActivitiesListWidget->item(i)->text())
-				break;
-		if(i<selectedActivitiesListWidget->count())
-			continue;*/
-			
 		selectedActivitiesListWidget->addItem(actName);
 		this->selectedActivitiesList.append(_id);
 	}

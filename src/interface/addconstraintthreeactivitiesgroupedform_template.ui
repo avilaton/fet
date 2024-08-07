@@ -101,9 +101,6 @@
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
        </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
-       </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
        </property>
@@ -137,9 +134,6 @@
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
        </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
-       </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
        </property>
@@ -150,7 +144,7 @@
    <item row="3" column="0">
     <layout class="QVBoxLayout">
      <item>
-      <widget class="QLabel" name="activityTextLabel_2_2">
+      <widget class="QLabel" name="activityTextLabel_3">
        <property name="frameShape">
         <enum>QFrame::NoFrame</enum>
        </property>
@@ -172,9 +166,6 @@
        </property>
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
-       </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
        </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>

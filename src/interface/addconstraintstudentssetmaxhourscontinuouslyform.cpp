@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetmaxhourscontinuouslyform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetMaxHoursContinuouslyForm::AddConstraintStudentsSetMaxHoursContinuouslyForm(QWidget* parent): QDialog(parent)
 {
@@ -32,10 +28,10 @@ AddConstraintStudentsSetMaxHoursContinuouslyForm::AddConstraintStudentsSetMaxHou
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxHoursContinuouslyForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxHoursContinuouslyForm::close);
 
-		centerWidgetOnScreen(this);
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 
 	QSize tmp2=studentsComboBox->minimumSizeHint();
@@ -55,18 +51,12 @@ AddConstraintStudentsSetMaxHoursContinuouslyForm::~AddConstraintStudentsSetMaxHo
 
 void AddConstraintStudentsSetMaxHoursContinuouslyForm::updateStudentsSetComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
-}
-
-void AddConstraintStudentsSetMaxHoursContinuouslyForm::constraintChanged()
-{
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetMaxHoursContinuouslyForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -81,7 +71,7 @@ void AddConstraintStudentsSetMaxHoursContinuouslyForm::addCurrentConstraint()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -90,9 +80,12 @@ void AddConstraintStudentsSetMaxHoursContinuouslyForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsSetMaxHoursContinuously(weight, maxHours, students_name);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

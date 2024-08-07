@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,6 +20,8 @@
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QString>
 #include <QList>
 
@@ -27,6 +29,11 @@ class ActivityTag;
 class Rules;
 
 typedef QList<ActivityTag*> ActivityTagsList;
+
+class QDataStream;
+
+QDataStream& operator<<(QDataStream& stream, const ActivityTag& at);
+QDataStream& operator>>(QDataStream& stream, ActivityTag& at);
 
 /**
 This class represents an activity tag
@@ -37,21 +44,24 @@ class ActivityTag{
 	Q_DECLARE_TR_FUNCTIONS(ActivityTag)
 
 public:
-	QString name;
+	QString name; //short name, unique
+	
+	QString longName;
+	QString code;
 	
 	bool printable;
 
 	QString comments;
-
+	
 	ActivityTag();
 	~ActivityTag();
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
-bool activityTagsAscending(const ActivityTag* st1, const ActivityTag* st2);
+int activityTagsAscending(const ActivityTag* st1, const ActivityTag* st2);
 
 #endif

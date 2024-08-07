@@ -2,8 +2,8 @@
                           timetableviewteachersdayshorizontalform.cpp  -  description
                              -------------------
     begin                : Wed May 14 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,30 +15,23 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <Qt>
+
 #include <QtGlobal>
 
-#include "tablewidgetupdatebug.h"
-
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "fetmainform.h"
 #include "timetableviewteachersdayshorizontalform.h"
 #include "timetable_defs.h"
-#include "fetguisettings.h"
-
 #include "timetable.h"
 #include "solution.h"
 
 #include "fet.h"
 
-#include "timetableexport.h"
-
 #include "matrix.h"
 
 #include "lockunlock.h"
-
-#include "errorrenderer.h"
 
 #include <QMessageBox>
 
@@ -53,6 +46,8 @@
 #include <QList>
 
 #include <QCoreApplication>
+#include <QApplication>
+#include <QGuiApplication>
 
 #include <QString>
 #include <QStringList>
@@ -67,10 +62,75 @@
 #include <QColor>
 //end by Marco Vassura
 
-extern bool simulation_running;
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool teachers_schedule_ready;
+
+extern Solution best_solution;
+
+extern bool generation_running;
+extern bool generation_running_multi;
 
 extern Matrix3D<bool> teacherNotAvailableDayHour;
 extern Matrix2D<bool> breakDayHour;
+
+extern QSet<int> idsOfLockedTime;		//care about locked activities in view forms
+extern QSet<int> idsOfLockedSpace;		//care about locked activities in view forms
+extern QSet<int> idsOfPermanentlyLockedTime;	//care about locked activities in view forms
+extern QSet<int> idsOfPermanentlyLockedSpace;	//care about locked activities in view forms
+
+extern CommunicationSpinBox communicationSpinBox;	//small hint to sync the forms
+
+static bool REAL_VIEW=true;
+
+void TimetableViewTeachersDaysHorizontalDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
+{
+	QStyledItemDelegate::paint(painter, option, index);
+
+	int hour=index.row()%nRows;
+
+	if(QGuiApplication::isLeftToRight()){
+		if(hour==0){
+			painter->drawLine(option.rect.topLeft(), option.rect.topRight());
+			painter->drawLine(option.rect.topLeft().x(), option.rect.topLeft().y()+1, option.rect.topRight().x(), option.rect.topRight().y()+1);
+		}
+		if(hour==nRows-1){
+			painter->drawLine(option.rect.bottomLeft(), option.rect.bottomRight());
+			painter->drawLine(option.rect.bottomLeft().x(), option.rect.bottomLeft().y()-1, option.rect.bottomRight().x(), option.rect.bottomRight().y()-1);
+		}
+
+		if(index.column()==0){
+			painter->drawLine(option.rect.topLeft(), option.rect.bottomLeft());
+			painter->drawLine(option.rect.topLeft().x()+1, option.rect.topLeft().y(), option.rect.bottomLeft().x()+1, option.rect.bottomLeft().y());
+		}
+		if(index.column()==nColumns-1){
+			painter->drawLine(option.rect.topRight(), option.rect.bottomRight());
+			painter->drawLine(option.rect.topRight().x()-1, option.rect.topRight().y(), option.rect.bottomRight().x()-1, option.rect.bottomRight().y());
+		}
+	}
+	else if(QGuiApplication::isRightToLeft()){
+		if(hour==0){
+			painter->drawLine(option.rect.topRight(), option.rect.topLeft());
+			painter->drawLine(option.rect.topRight().x(), option.rect.topRight().y()+1, option.rect.topLeft().x(), option.rect.topLeft().y()+1);
+		}
+		if(hour==nRows-1){
+			painter->drawLine(option.rect.bottomRight(), option.rect.bottomLeft());
+			painter->drawLine(option.rect.bottomRight().x(), option.rect.bottomRight().y()-1, option.rect.bottomLeft().x(), option.rect.bottomLeft().y()-1);
+		}
+
+		if(index.column()==0){
+			painter->drawLine(option.rect.topRight(), option.rect.bottomRight());
+			painter->drawLine(option.rect.topRight().x()-1, option.rect.topRight().y(), option.rect.bottomRight().x()-1, option.rect.bottomRight().y());
+		}
+		if(index.column()==nColumns-1){
+			painter->drawLine(option.rect.topLeft(), option.rect.bottomLeft());
+			painter->drawLine(option.rect.topLeft().x()+1, option.rect.topLeft().y(), option.rect.bottomLeft().x()+1, option.rect.bottomLeft().y());
+		}
+	}
+	//I think we should not do an 'else {assert(0);}' here, because the layout might be unspecified, according to Qt documentation.
+}
 
 TimetableViewTeachersDaysHorizontalForm::TimetableViewTeachersDaysHorizontalForm(QWidget* parent): QDialog(parent)
 {
@@ -87,65 +147,122 @@ TimetableViewTeachersDaysHorizontalForm::TimetableViewTeachersDaysHorizontalForm
 	horizontalSplitter->setStretchFactor(0, 3);
 	horizontalSplitter->setStretchFactor(1, 10);
 
+	tableViewSetHighlightHeader(teachersTimetableTable);
+
 	teachersTimetableTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	
 	teachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(teacherChanged(const QString&)));
-	connect(teachersTimetableTable, SIGNAL(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)), this, SLOT(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)));
-	connect(lockTimePushButton, SIGNAL(clicked()), this, SLOT(lockTime()));
-	connect(lockSpacePushButton, SIGNAL(clicked()), this, SLOT(lockSpace()));
-	connect(lockTimeSpacePushButton, SIGNAL(clicked()), this, SLOT(lockTimeSpace()));
+	connect(closePushButton, &QPushButton::clicked, this, &TimetableViewTeachersDaysHorizontalForm::close);
+	connect(teachersListWidget, &QListWidget::currentTextChanged, this, &TimetableViewTeachersDaysHorizontalForm::teacherChanged);
+	connect(teachersTimetableTable, &QTableWidget::currentItemChanged, this, &TimetableViewTeachersDaysHorizontalForm::currentItemChanged);
+	connect(lockTimePushButton, &QPushButton::clicked, this, &TimetableViewTeachersDaysHorizontalForm::lockTime);
+	connect(lockSpacePushButton, &QPushButton::clicked, this, &TimetableViewTeachersDaysHorizontalForm::lockSpace);
+	connect(lockTimeSpacePushButton, &QPushButton::clicked, this, &TimetableViewTeachersDaysHorizontalForm::lockTimeSpace);
 
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
+	connect(helpPushButton, &QPushButton::clicked, this, &TimetableViewTeachersDaysHorizontalForm::help);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 
 	//restore vertical splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/vertical-splitter-state")))
 		verticalSplitter->restoreState(settings.value(this->metaObject()->className()+QString("/vertical-splitter-state")).toByteArray());
 
 	//restore horizontal splitter state
+	//QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/horizontal-splitter-state")))
 		horizontalSplitter->restoreState(settings.value(this->metaObject()->className()+QString("/horizontal-splitter-state")).toByteArray());
 
-	LockUnlock::assertIsUpdated(&gt.rules);
+///////////just for testing
+	QSet<int> backupLockedTime;
+	QSet<int> backupPermanentlyLockedTime;
+	QSet<int> backupLockedSpace;
+	QSet<int> backupPermanentlyLockedSpace;
+	
+	backupLockedTime=idsOfLockedTime;
+	backupPermanentlyLockedTime=idsOfPermanentlyLockedTime;
+	backupLockedSpace=idsOfLockedSpace;
+	backupPermanentlyLockedSpace=idsOfPermanentlyLockedSpace;
+	
+	//added by Volker Dirr
+	//this line is not really needed - just to be safer
+	LockUnlock::computeLockedUnlockedActivitiesTimeSpace();
+	
+	assert(backupLockedTime==idsOfLockedTime);
+	assert(backupPermanentlyLockedTime==idsOfPermanentlyLockedTime);
+	assert(backupLockedSpace==idsOfLockedSpace);
+	assert(backupPermanentlyLockedSpace==idsOfPermanentlyLockedSpace);
+///////////
 
 	//Commented on 2018-07-20
 	//LockUnlock::increaseCommunicationSpinBox();
 	
-	teachersTimetableTable->setRowCount(gt.rules.nHoursPerDay);
-	teachersTimetableTable->setColumnCount(gt.rules.nDaysPerWeek);
-	for(int j=0; j<gt.rules.nDaysPerWeek; j++){
-		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
-		teachersTimetableTable->setHorizontalHeaderItem(j, item);
-	}
-	for(int i=0; i<gt.rules.nHoursPerDay; i++){
-		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
-		teachersTimetableTable->setVerticalHeaderItem(i, item);
-	}
+	bool realView=(gt.rules.mode==MORNINGS_AFTERNOONS && REAL_VIEW==true);
 
-	for(int j=0; j<gt.rules.nHoursPerDay; j++){
-		for(int k=0; k<gt.rules.nDaysPerWeek; k++){
-			QTableWidgetItem* item= new QTableWidgetItem();
-			item->setTextAlignment(Qt::AlignCenter);
-			item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+	if(!realView){
+		teachersTimetableTable->setRowCount(gt.rules.nHoursPerDay);
+		teachersTimetableTable->setColumnCount(gt.rules.nDaysPerWeek);
 
-			teachersTimetableTable->setItem(j, k, item);
-			
-			//if(j==0 && k==0)
-				//teachersTimetableTable->setCurrentItem(item);
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
+			teachersTimetableTable->setHorizontalHeaderItem(j, item);
+		}
+		for(int i=0; i<gt.rules.nHoursPerDay; i++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
+			teachersTimetableTable->setVerticalHeaderItem(i, item);
+		}
+
+		for(int j=0; j<gt.rules.nHoursPerDay; j++){
+			for(int k=0; k<gt.rules.nDaysPerWeek; k++){
+				QTableWidgetItem* item= new QTableWidgetItem();
+				item->setTextAlignment(Qt::AlignCenter);
+				item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+
+				teachersTimetableTable->setItem(j, k, item);
+				
+				//if(j==0 && k==0)
+					//teachersTimetableTable->setCurrentItem(item);
+			}
+		}
+	}
+	else{
+		teachersTimetableTable->setRowCount(gt.rules.nRealHoursPerDay);
+		teachersTimetableTable->setColumnCount(gt.rules.nRealDaysPerWeek);
+
+		for(int j=0; j<gt.rules.nRealDaysPerWeek; j++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.realDaysOfTheWeek[j]);
+			teachersTimetableTable->setHorizontalHeaderItem(j, item);
+		}
+		for(int i=0; i<gt.rules.nRealHoursPerDay; i++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.realHoursOfTheDay[i]);
+			teachersTimetableTable->setVerticalHeaderItem(i, item);
+		}
+
+		for(int j=0; j<gt.rules.nRealHoursPerDay; j++){
+			for(int k=0; k<gt.rules.nRealDaysPerWeek; k++){
+				QTableWidgetItem* item= new QTableWidgetItem();
+				item->setTextAlignment(Qt::AlignCenter);
+				item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+
+				teachersTimetableTable->setItem(j, k, item);
+				
+				//if(j==0 && k==0)
+					//teachersTimetableTable->setCurrentItem(item);
+			}
 		}
 	}
 	
+	oldItemDelegate=teachersTimetableTable->itemDelegate();
+	newItemDelegate=new TimetableViewTeachersDaysHorizontalDelegate(nullptr, gt.rules.nHoursPerDay, teachersTimetableTable->columnCount());
+	teachersTimetableTable->setItemDelegate(newItemDelegate);
+
 	//resize columns
 	//if(!columnResizeModeInitialized){
 	teachersTimetableTable->horizontalHeader()->setMinimumSectionSize(teachersTimetableTable->horizontalHeader()->defaultSectionSize());
 	//	columnResizeModeInitialized=true;
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 	teachersTimetableTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 #else
 	teachersTimetableTable->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
@@ -167,7 +284,7 @@ TimetableViewTeachersDaysHorizontalForm::TimetableViewTeachersDaysHorizontalForm
 		teachersListWidget->setCurrentRow(0);
 
 	//added by Volker Dirr
-	connect(&LockUnlock::communicationSpinBox, SIGNAL(valueChanged()), this, SLOT(updateTeachersTimetableTable()));
+	connect(&communicationSpinBox, &CommunicationSpinBox::valueChanged, this, &TimetableViewTeachersDaysHorizontalForm::updateTeachersTimetableTable);
 }
 
 void TimetableViewTeachersDaysHorizontalForm::newTimetableGenerated()
@@ -189,14 +306,14 @@ void TimetableViewTeachersDaysHorizontalForm::newTimetableGenerated()
 	
 	teachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(teacherChanged(const QString&)));
-	connect(teachersTimetableTable, SIGNAL(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)), this, SLOT(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)));
-	connect(lockTimePushButton, SIGNAL(clicked()), this, SLOT(lockTime()));
-	connect(lockSpacePushButton, SIGNAL(clicked()), this, SLOT(lockSpace()));
-	connect(lockTimeSpacePushButton, SIGNAL(clicked()), this, SLOT(lockTimeSpace()));
+	connect(closePushButton, SIG NAL(clicked()), this, SL OT(close()));
+	connect(teachersListWidget, SIG NAL(currentTextChanged(const QString&)), this, SL OT(teacherChanged(const QString&)));
+	connect(teachersTimetableTable, SIG NAL(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)), this, SL OT(currentItemChanged(QTableWidgetItem*, QTableWidgetItem*)));
+	connect(lockTimePushButton, SIG NAL(clicked()), this, SL OT(lockTime()));
+	connect(lockSpacePushButton, SIG NAL(clicked()), this, SL OT(lockSpace()));
+	connect(lockTimeSpacePushButton, SIG NAL(clicked()), this, SL OT(lockTimeSpace()));
 
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
+	connect(helpPushButton, SIG NAL(clicked()), this, SL OT(help()));
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -212,42 +329,96 @@ void TimetableViewTeachersDaysHorizontalForm::newTimetableGenerated()
 		horizontalSplitter->restoreState(settings.value(this->metaObject()->className()+QString("/horizontal-splitter-state")).toByteArray());
 */
 
-	LockUnlock::assertIsUpdated(&gt.rules);
+///////////just for testing
+	QSet<int> backupLockedTime;
+	QSet<int> backupPermanentlyLockedTime;
+	QSet<int> backupLockedSpace;
+	QSet<int> backupPermanentlyLockedSpace;
+	
+	backupLockedTime=idsOfLockedTime;
+	backupPermanentlyLockedTime=idsOfPermanentlyLockedTime;
+	backupLockedSpace=idsOfLockedSpace;
+	backupPermanentlyLockedSpace=idsOfPermanentlyLockedSpace;
+	
+	//added by Volker Dirr
+	//this line is not really needed - just to be safer
+	LockUnlock::computeLockedUnlockedActivitiesTimeSpace();
+	
+	assert(backupLockedTime==idsOfLockedTime);
+	assert(backupPermanentlyLockedTime==idsOfPermanentlyLockedTime);
+	assert(backupLockedSpace==idsOfLockedSpace);
+	assert(backupPermanentlyLockedSpace==idsOfPermanentlyLockedSpace);
+///////////
 
 	//DON'T UNCOMMENT THIS CODE -> LEADS TO CRASH IF THERE ARE MORE VIEWS OPENED.
 	//LockUnlock::increaseCommunicationSpinBox();
 	
-	teachersTimetableTable->clear();
-	teachersTimetableTable->setRowCount(gt.rules.nHoursPerDay);
-	teachersTimetableTable->setColumnCount(gt.rules.nDaysPerWeek);
-	for(int j=0; j<gt.rules.nDaysPerWeek; j++){
-		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
-		teachersTimetableTable->setHorizontalHeaderItem(j, item);
-	}
-	for(int i=0; i<gt.rules.nHoursPerDay; i++){
-		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
-		teachersTimetableTable->setVerticalHeaderItem(i, item);
-	}
+	bool realView=(gt.rules.mode==MORNINGS_AFTERNOONS && REAL_VIEW==true);
 
-	for(int j=0; j<gt.rules.nHoursPerDay; j++){
-		for(int k=0; k<gt.rules.nDaysPerWeek; k++){
-			QTableWidgetItem* item= new QTableWidgetItem();
-			item->setTextAlignment(Qt::AlignCenter);
-			item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+	if(!realView){
+		teachersTimetableTable->clear();
+		teachersTimetableTable->setRowCount(gt.rules.nHoursPerDay);
+		teachersTimetableTable->setColumnCount(gt.rules.nDaysPerWeek);
 
-			teachersTimetableTable->setItem(j, k, item);
-			
-			//if(j==0 && k==0)
-				//teachersTimetableTable->setCurrentItem(item);
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
+			teachersTimetableTable->setHorizontalHeaderItem(j, item);
+		}
+		for(int i=0; i<gt.rules.nHoursPerDay; i++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
+			teachersTimetableTable->setVerticalHeaderItem(i, item);
+		}
+
+		for(int j=0; j<gt.rules.nHoursPerDay; j++){
+			for(int k=0; k<gt.rules.nDaysPerWeek; k++){
+				QTableWidgetItem* item= new QTableWidgetItem();
+				item->setTextAlignment(Qt::AlignCenter);
+				item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+
+				teachersTimetableTable->setItem(j, k, item);
+				
+				//if(j==0 && k==0)
+					//teachersTimetableTable->setCurrentItem(item);
+			}
+		}
+	}
+	else{
+		teachersTimetableTable->clear();
+		teachersTimetableTable->setRowCount(gt.rules.nRealHoursPerDay);
+		teachersTimetableTable->setColumnCount(gt.rules.nRealDaysPerWeek);
+
+		for(int j=0; j<gt.rules.nRealDaysPerWeek; j++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.realDaysOfTheWeek[j]);
+			teachersTimetableTable->setHorizontalHeaderItem(j, item);
+		}
+		for(int i=0; i<gt.rules.nRealHoursPerDay; i++){
+			QTableWidgetItem* item=new QTableWidgetItem(gt.rules.realHoursOfTheDay[i]);
+			teachersTimetableTable->setVerticalHeaderItem(i, item);
+		}
+
+		for(int j=0; j<gt.rules.nRealHoursPerDay; j++){
+			for(int k=0; k<gt.rules.nRealDaysPerWeek; k++){
+				QTableWidgetItem* item= new QTableWidgetItem();
+				item->setTextAlignment(Qt::AlignCenter);
+				item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+
+				teachersTimetableTable->setItem(j, k, item);
+				
+				//if(j==0 && k==0)
+					//teachersTimetableTable->setCurrentItem(item);
+			}
 		}
 	}
 	
+	newItemDelegate->nRows=gt.rules.nHoursPerDay;
+	newItemDelegate->nColumns=teachersTimetableTable->columnCount();
+
 /*
 	//resize columns
 	//if(!columnResizeModeInitialized){
 	teachersTimetableTable->horizontalHeader()->setMinimumSectionSize(teachersTimetableTable->horizontalHeader()->defaultSectionSize());
 	//	columnResizeModeInitialized=true;
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 	teachersTimetableTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 #else
 	teachersTimetableTable->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
@@ -256,9 +427,9 @@ void TimetableViewTeachersDaysHorizontalForm::newTimetableGenerated()
 	////////////////
 	
 */
-	disconnect(teachersListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(teacherChanged(const QString&)));
+	disconnect(teachersListWidget, &QListWidget::currentTextChanged, this, &TimetableViewTeachersDaysHorizontalForm::teacherChanged);
 	teachersListWidget->clear();
-	connect(teachersListWidget, SIGNAL(currentTextChanged(const QString&)), this, SLOT(teacherChanged(const QString&)));
+	connect(teachersListWidget, &QListWidget::currentTextChanged, this, &TimetableViewTeachersDaysHorizontalForm::teacherChanged);
 
 	assert(gt.rules.nInternalTeachers==gt.rules.teachersList.count());
 	for(int i=0; i<gt.rules.nInternalTeachers; i++)
@@ -268,7 +439,7 @@ void TimetableViewTeachersDaysHorizontalForm::newTimetableGenerated()
 		teachersListWidget->setCurrentRow(0);
 
 	//added by Volker Dirr
-	//connect(&communicationSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateTeachersTimetableTable()));
+	//connect(&communicationSpinBox, SIG NAL(valueChanged(int)), this, SL OT(updateTeachersTimetableTable()));
 }
 
 TimetableViewTeachersDaysHorizontalForm::~TimetableViewTeachersDaysHorizontalForm()
@@ -276,25 +447,29 @@ TimetableViewTeachersDaysHorizontalForm::~TimetableViewTeachersDaysHorizontalFor
 	saveFETDialogGeometry(this);
 
 	//save vertical splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/vertical-splitter-state"), verticalSplitter->saveState());
 
 	//save horizontal splitter state
+	//QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/horizontal-splitter-state"), horizontalSplitter->saveState());
+
+	teachersTimetableTable->setItemDelegate(oldItemDelegate);
+	delete newItemDelegate;
 }
 
 void TimetableViewTeachersDaysHorizontalForm::resizeRowsAfterShow()
 {
 	teachersTimetableTable->resizeRowsToContents();
-//	tableWidgetUpdateBug(teachersTimetableTable);
 }
 
-void TimetableViewTeachersDaysHorizontalForm::teacherChanged(const QString &teacherName)
+void TimetableViewTeachersDaysHorizontalForm::teacherChanged(const QString& teacherName)
 {
-	if(!CachedSchedule::isValid()){
+	if(!(students_schedule_ready && teachers_schedule_ready)){
 		QMessageBox::warning(this, tr("FET warning"), tr("Timetable not available in view teachers timetable dialog - please generate a new timetable"));
 		return;
 	}
+	assert(students_schedule_ready && teachers_schedule_ready);
 
 	if(teacherName==QString())
 		return;
@@ -309,11 +484,12 @@ void TimetableViewTeachersDaysHorizontalForm::teacherChanged(const QString &teac
 }
 
 void TimetableViewTeachersDaysHorizontalForm::updateTeachersTimetableTable(){
-	if(!CachedSchedule::isValid()){
+	if(!(students_schedule_ready && teachers_schedule_ready)){
 		QMessageBox::warning(this, tr("FET warning"), tr("Timetable not available in view teachers timetable dialog - please generate a new timetable "
-		"or close the timetable view teachers dialog"));
+		 "or close the timetable view teachers dialog"));
 		return;
 	}
+	assert(students_schedule_ready && teachers_schedule_ready);
 
 	if(gt.rules.nInternalRooms!=gt.rules.roomsList.count()){
 		QMessageBox::warning(this, tr("FET warning"), tr("Cannot display the timetable, because you added or removed some rooms. Please regenerate the timetable and then view it"));
@@ -328,7 +504,7 @@ void TimetableViewTeachersDaysHorizontalForm::updateTeachersTimetableTable(){
 
 	teachername = teachersListWidget->currentItem()->text();
 	
-	const int teacher=gt.rules.searchTeacher(teachername);
+	int teacher=gt.rules.searchTeacher(teachername);
 	if(teacher<0){
 		QMessageBox::warning(this, tr("FET warning"), tr("You have an old timetable view teachers dialog opened - please close it"));
 		return;
@@ -338,117 +514,197 @@ void TimetableViewTeachersDaysHorizontalForm::updateTeachersTimetableTable(){
 	teacherNameTextLabel->setText(s);
 
 	assert(gt.rules.initialized);
-	const Solution& best_solution=CachedSchedule::getCachedSolution();
+	
+	bool realView=(gt.rules.mode==MORNINGS_AFTERNOONS && REAL_VIEW==true);
+	bool normalView=!realView;
+	
+	for(int j=0; j<(normalView?gt.rules.nHoursPerDay:gt.rules.nRealHoursPerDay) && j<teachersTimetableTable->rowCount(); j++){
+		int jj;
+		if(normalView)
+			jj=j;
+		else
+			jj=j%gt.rules.nHoursPerDay;
+		
+		for(int k=0; k<(normalView?gt.rules.nDaysPerWeek:gt.rules.nRealDaysPerWeek) && k<teachersTimetableTable->columnCount(); k++){
+			int kk;
+			if(normalView)
+				kk=k;
+			else
+				kk=2*k+j/gt.rules.nHoursPerDay;
 
-	for(int k=0; k<teachersTimetableTable->columnCount(); k++){
-		for(int j=0; j<teachersTimetableTable->rowCount(); j++){
-			if (teachersTimetableTable->rowSpan(j,k) != 1 || teachersTimetableTable->columnSpan(j,k) != 1)
-				teachersTimetableTable->setSpan(j, k, 1, 1);
-		}
-	}
-
-	for(int k=0; k<gt.rules.nDaysPerWeek && k<teachersTimetableTable->columnCount(); k++){
-		for(int j=0; j<gt.rules.nHoursPerDay && j<teachersTimetableTable->rowCount(); ){
-			int nextJ = j+1;
+			QFont font(teachersTimetableTable->item(j, k)->font());
+			font.setBold(false);
+			font.setItalic(false);
+			font.setUnderline(false);
+			teachersTimetableTable->item(j, k)->setFont(font);
 
 			//begin by Marco Vassura
 			// add colors (start)
 			//if(USE_GUI_COLORS) {
-				teachersTimetableTable->item(j, k)->setBackground(teachersTimetableTable->palette().color(QPalette::Base));
-				teachersTimetableTable->item(j, k)->setForeground(teachersTimetableTable->palette().color(QPalette::Text));
+			teachersTimetableTable->item(j, k)->setBackground(teachersTimetableTable->palette().color(QPalette::Base));
+			teachersTimetableTable->item(j, k)->setForeground(teachersTimetableTable->palette().color(QPalette::Text));
 			//}
 			// add colors (end)
 			//end by Marco Vassura
 			s = "";
-			int ai=CachedSchedule::teachers_timetable_weekly[teacher][k][j]; //activity index
+			QString longString="";
+			int ai=teachers_timetable_weekly[teacher][kk][jj]; //activity index
+			//Activity* act=gt.rules.activitiesList.at(ai);
 			if(ai!=UNALLOCATED_ACTIVITY){
-				const Activity* act=&gt.rules.internalActivitiesList[ai];
-				assert(act!=NULL);
+				Activity* act=&gt.rules.internalActivitiesList[ai];
+				assert(act!=nullptr);
 				
-				if(act->teachersNames.count()==1){
-					//Don't do the assert below, because it crashes if you change the teacher's name and view the teachers' timetable,
-					//without generating again (as reported by Yush Yuen).
-					//assert(act->teachersNames.at(0)==teachername);
+				if(TIMETABLE_HTML_PRINT_TEACHERS){
+					if(act->teachersNames.count()==1){
+						//Don't do the assert below, because it crashes if you change the teacher's name and view the teachers' timetable,
+						//without generating again (as reported by Yush Yuen).
+						//assert(act->teachersNames.at(0)==teachername);
+					}
+					else{
+						assert(act->teachersNames.count()>=2);
+						//Don't do the assert below, because it crashes if you change the teacher's name and view the teachers' timetable,
+						//without generating again (as reported by Yush Yuen).
+						//assert(act->teachersNames.contains(teachername));
+						s+=act->teachersNames.join(", ");
+						s+="\n";
+					}
 				}
-				else{
-					assert(act->teachersNames.count()>=2);
-					//Don't do the assert below, because it crashes if you change the teacher's name and view the teachers' timetable,
-					//without generating again (as reported by Yush Yuen).
-					//assert(act->teachersNames.contains(teachername));
-					s+=act->teachersNames.join(", ");
+				
+				if(TIMETABLE_HTML_PRINT_SUBJECTS){
+					if(TIMETABLE_HTML_PRINT_ACTIVITY_TAGS){
+						QString ats=act->activityTagsNames.join(", ");
+						s += act->subjectName+" "+ats;
+					}
+					else{
+						s += act->subjectName;
+					}
 					s+="\n";
 				}
-				
-				if(TIMETABLE_HTML_PRINT_ACTIVITY_TAGS){
-					QString ats=act->activityTagsNames.join(", ");
-					s += act->subjectName+" "+ats;
-				}
-				else{
-					s += act->subjectName;
+				else if(TIMETABLE_HTML_PRINT_ACTIVITY_TAGS){
+					s+=act->activityTagsNames.join(", ");
+					s+="\n";
 				}
 				
 				//students
-				if(act->studentsNames.count()>0){
-					s+="\n";
-					s+=act->studentsNames.join(", ");
+				if(TIMETABLE_HTML_PRINT_STUDENTS){
+					if(act->studentsNames.count()>0){
+						s+=act->studentsNames.join(", ");
+						s+="\n";
+					}
 				}
 				
-				int r=best_solution.rooms[ai];
-				if(r!=UNALLOCATED_SPACE && r!=UNSPECIFIED_ROOM){
-					//s+=" ";
-					//s+=tr("R:%1", "Room").arg(gt.rules.internalRoomsList[r]->name);
-					s+="\n";
-					s+=gt.rules.internalRoomsList[r]->name;
+				if(TIMETABLE_HTML_PRINT_ROOMS){
+					int r=best_solution.rooms[ai];
+					if(r!=UNALLOCATED_SPACE && r!=UNSPECIFIED_ROOM){
+						//s+=" ";
+						//s+=tr("R:%1", "Room").arg(gt.rules.internalRoomsList[r]->name);
+						s+=gt.rules.internalRoomsList[r]->name;
+						
+						if(gt.rules.internalRoomsList[r]->isVirtual==true){
+							QStringList tsl;
+							for(int i : std::as_const(best_solution.realRoomsList[ai]))
+								tsl.append(gt.rules.internalRoomsList[i]->name);
+							s+=QString(" (")+tsl.join(", ")+QString(")");
+						}
+						s+="\n";
+					}
 				}
 				
-				s+=LockUnlock::getActivityLockTipString(act->id);
+				if(!s.isEmpty())
+					s.chop(1);
 				
+				//added by Volker Dirr (start)
+				QString descr="";
+				QString tt="";
+				if(idsOfPermanentlyLockedTime.contains(act->id)){
+					descr+=QCoreApplication::translate("TimetableViewForm", "PLT", "Abbreviation for permanently locked time. There are 5 strings: permanently locked time, permanently locked space, "
+						"locked time, locked space, preferred day. Make sure their abbreviations contain different letters and are visually different, so user can easily differentiate between them."
+						" These abbreviations may appear also in other places, please use the same abbreviations.");
+					tt=", ";
+				}
+				else if(idsOfLockedTime.contains(act->id)){
+					descr+=QCoreApplication::translate("TimetableViewForm", "LT", "Abbreviation for locked time. There are 5 strings: permanently locked time, permanently locked space, "
+					"locked time, locked space, preferred day. Make sure their abbreviations contain different letters and are visually different, so user can easily differentiate between them."
+						" These abbreviations may appear also in other places, please use the same abbreviations.");
+					tt=", ";
+				}
+				if(idsOfPermanentlyLockedSpace.contains(act->id)){
+					descr+=tt+QCoreApplication::translate("TimetableViewForm", "PLS", "Abbreviation for permanently locked space. There are 5 strings: permanently locked time, permanently locked space, "
+						"locked time, locked space, preferred day. Make sure their abbreviations contain different letters and are visually different, so user can easily differentiate between them."
+						" These abbreviations may appear also in other places, please use the same abbreviations.");
+					tt=", ";
+				}
+				else if(idsOfLockedSpace.contains(act->id)){
+					descr+=tt+QCoreApplication::translate("TimetableViewForm", "LS", "Abbreviation for locked space. There are 5 strings: permanently locked time, permanently locked space, "
+						"locked time, locked space, preferred day. Make sure their abbreviations contain different letters and are visually different, so user can easily differentiate between them."
+						" These abbreviations may appear also in other places, please use the same abbreviations.");
+					tt=", ";
+				}
+				if(!gt.rules.apdHash.value(act->id, QSet<ConstraintActivityPreferredDay*>()).isEmpty()){
+					descr+=tt+QCoreApplication::translate("TimetableViewForm", "PD", "Abbreviation for preferred day. There are 5 strings: permanently locked time, permanently locked space, "
+						"locked time, locked space, preferred day. Make sure their abbreviations contain different letters and are visually different, so user can easily differentiate between them."
+						" These abbreviations may appear also in other places, please use the same abbreviations.");
+				}
+				if(descr!=""){
+					descr.prepend("\n(");
+					//descr.prepend(" ");
+					descr.append(")");
+				}
+
+				longString=s+descr;
+				//added by Volker Dirr (end)
+
+				if(idsOfPermanentlyLockedTime.contains(act->id) || idsOfLockedTime.contains(act->id)){
+					QFont font(teachersTimetableTable->item(j, k)->font());
+					font.setBold(true);
+					teachersTimetableTable->item(j, k)->setFont(font);
+				}
+				if(idsOfPermanentlyLockedSpace.contains(act->id) || idsOfLockedSpace.contains(act->id)){
+					QFont font(teachersTimetableTable->item(j, k)->font());
+					font.setItalic(true);
+					teachersTimetableTable->item(j, k)->setFont(font);
+				}
+				if(!gt.rules.apdHash.value(act->id, QSet<ConstraintActivityPreferredDay*>()).isEmpty()){
+					QFont font(teachersTimetableTable->item(j, k)->font());
+					font.setUnderline(true);
+					teachersTimetableTable->item(j, k)->setFont(font);
+				}
+
 				//begin by Marco Vassura
 				// add colors (start)
 				if(USE_GUI_COLORS /*&& act->studentsNames.count()>0*/){
 					QBrush bg(stringToColor(act->subjectName+" "+act->studentsNames.join(", ")));
 					teachersTimetableTable->item(j, k)->setBackground(bg);
 					double brightness = bg.color().redF()*0.299 + bg.color().greenF()*0.587 + bg.color().blueF()*0.114;
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+					if (brightness<0.5)
+						teachersTimetableTable->item(j, k)->setForeground(QBrush(QColorConstants::White));
+					else
+						teachersTimetableTable->item(j, k)->setForeground(QBrush(QColorConstants::Black));
+#else
 					if (brightness<0.5)
 						teachersTimetableTable->item(j, k)->setForeground(QBrush(Qt::white));
 					else
 						teachersTimetableTable->item(j, k)->setForeground(QBrush(Qt::black));
+#endif
 				}
 				// add colors (end)
 				//end by Marco Vassura
-
-				while (nextJ < gt.rules.nHoursPerDay && ai == CachedSchedule::teachers_timetable_weekly[teacher][k][nextJ])
-					nextJ++;
 			}
 			else{
-				if(teacherNotAvailableDayHour[teacher][k][j]) {
-					if (PRINT_NOT_AVAILABLE_TIME_SLOTS)
-						s+="-x-";
-					while (nextJ < gt.rules.nHoursPerDay && teacherNotAvailableDayHour[teacher][k][nextJ])
-						nextJ++;
-				}
-				else if(breakDayHour[k][j]) {
-					if (PRINT_BREAK_TIME_SLOTS)
-						s+="-X-";
-					while (nextJ < gt.rules.nHoursPerDay && breakDayHour[k][nextJ])
-						nextJ++;
-				}
+				if(teacherNotAvailableDayHour[teacher][kk][jj] && PRINT_NOT_AVAILABLE_TIME_SLOTS)
+					s+="-x-";
+				else if(breakDayHour[kk][jj] && PRINT_BREAK_TIME_SLOTS)
+					s+="-X-";
 			}
 			teachersTimetableTable->item(j, k)->setText(s);
-
-			int rowspan = nextJ - j;
-			if (rowspan != teachersTimetableTable->rowSpan(j,k))
-				teachersTimetableTable->setSpan(j, k, rowspan, 1);
-
-			j = nextJ;
+			teachersTimetableTable->item(j, k)->setToolTip(longString);
 		}
 	}
 	//	for(int i=0; i<gt.rules.nHoursPerDay; i++) //added in version 3_9_16, on 16 Oct. 2004
 	//		teachersTimetableTable->adjustRow(i);
 
 	teachersTimetableTable->resizeRowsToContents();
-	
-	tableWidgetUpdateBug(teachersTimetableTable);
 	
 	detailActivity(teachersTimetableTable->currentItem());
 }
@@ -461,22 +717,22 @@ void TimetableViewTeachersDaysHorizontalForm::resizeEvent(QResizeEvent* event)
 }
 
 //begin by Marco Vassura
-QColor TimetableViewTeachersDaysHorizontalForm::stringToColor(QString s)
+//slightly modified by Liviu Lalescu on 2021-03-01
+QColor TimetableViewTeachersDaysHorizontalForm::stringToColor(const QString& s)
 {
-	// CRC-24 Based on RFC 2440 Section 6.1
-	unsigned long crc = 0xB704CEL;
-	int i;
-	QChar *data = s.data();
-	while (!data->isNull()) {
-		crc ^= (data->unicode() & 0xFF) << 16;
-		for (i = 0; i < 8; i++) {
+	// CRC-24 based on RFC 2440 Section 6.1
+	unsigned long int crc = 0xB704CEUL;
+	QByteArray ba=s.toUtf8();
+	for(char c : std::as_const(ba)){
+		unsigned char uc=(unsigned char)(c);
+		crc ^= (uc & 0xFF) << 16;
+		for (int i = 0; i < 8; i++) {
 			crc <<= 1;
-			if (crc & 0x1000000)
-				crc ^= 0x1864CFBL;
+			if (crc & 0x1000000UL)
+				crc ^= 0x1864CFBUL;
 		}
-		data++;
 	}
-	return QColor::fromRgb((int)(crc>>16), (int)((crc>>8) & 0xFF), (int)(crc & 0xFF));
+	return QColor::fromRgb(int((crc>>16) & 0xFF), int((crc>>8) & 0xFF), int(crc & 0xFF));
 }
 //end by Marco Vassura
 
@@ -488,21 +744,25 @@ void TimetableViewTeachersDaysHorizontalForm::currentItemChanged(QTableWidgetIte
 }
 
 void TimetableViewTeachersDaysHorizontalForm::detailActivity(QTableWidgetItem* item){
-	if(item==NULL){
+	if(item==nullptr){
 		detailsTextEdit->setPlainText(QString(""));
 		return;
 	}
 
-	if(item->row()>=gt.rules.nHoursPerDay || item->column()>=gt.rules.nDaysPerWeek){
+	bool realView=(gt.rules.mode==MORNINGS_AFTERNOONS && REAL_VIEW==true);
+	bool normalView=!realView;
+
+	if(item->row()>=(normalView?gt.rules.nHoursPerDay:gt.rules.nRealHoursPerDay) || item->column()>=(normalView?gt.rules.nDaysPerWeek:gt.rules.nRealDaysPerWeek)){
 		QMessageBox::warning(this, tr("FET warning"), tr("Timetable not available in view teachers timetable dialog - please generate a new timetable "
-		"or close the timetable view teachers dialog"));
+		 "or close the timetable view teachers dialog"));
 		return;
 	}
 
-	if(!CachedSchedule::isValid()){
+	if(!(students_schedule_ready && teachers_schedule_ready)){
 		QMessageBox::warning(this, tr("FET warning"), tr("Timetable not available in view teachers timetable dialog - please generate a new timetable"));
 		return;
 	}
+	assert(students_schedule_ready && teachers_schedule_ready);
 
 	if(gt.rules.nInternalRooms!=gt.rules.roomsList.count()){
 		QMessageBox::warning(this, tr("FET warning"), tr("Cannot display the timetable, because you added or removed some rooms. Please regenerate the timetable and then view it"));
@@ -531,19 +791,40 @@ void TimetableViewTeachersDaysHorizontalForm::detailActivity(QTableWidgetItem* i
 		int k=item->column();
 		s = "";
 		if(j>=0 && k>=0){
-			int ai=CachedSchedule::teachers_timetable_weekly[teacher][k][j]; //activity index
+			int jj;
+			if(normalView)
+				jj=j;
+			else
+				jj=j%gt.rules.nHoursPerDay;
+			assert(jj>=0);
+			
+			int kk;
+			if(normalView)
+				kk=k;
+			else
+				kk=2*k+j/gt.rules.nHoursPerDay;
+			assert(kk>=0);
+
+			int ai=teachers_timetable_weekly[teacher][kk][jj]; //activity index
 			//Activity* act=gt.rules.activitiesList.at(ai);
 			if(ai!=UNALLOCATED_ACTIVITY){
 				Activity* act=&gt.rules.internalActivitiesList[ai];
-				assert(act!=NULL);
-				//s += act->getDetailedDescriptionWithConstraints(gt.rules);
-				s += act->getDetailedDescription();
+				assert(act!=nullptr);
+				s += act->getDetailedDescriptionWithConstraints(gt.rules);
+				//s += act->getDetailedDescription(gt.rules);
 
-				//int r=rooms_timetable_weekly[teacher][k][j];
-				int r=CachedSchedule::getCachedSolution().rooms[ai];
+				int r=best_solution.rooms[ai];
 				if(r!=UNALLOCATED_SPACE && r!=UNSPECIFIED_ROOM){
 					s+="\n";
 					s+=tr("Room: %1").arg(gt.rules.internalRoomsList[r]->name);
+
+					if(gt.rules.internalRoomsList[r]->isVirtual==true){
+						QStringList tsl;
+						for(int i : std::as_const(best_solution.realRoomsList[ai]))
+							tsl.append(gt.rules.internalRoomsList[i]->name);
+						s+=QString(" (")+tsl.join(", ")+QString(")");
+					}
+
 					if(gt.rules.internalRoomsList[r]->building!=""){
 						s+="\n";
 						s+=tr("Building=%1").arg(gt.rules.internalRoomsList[r]->building);
@@ -551,15 +832,41 @@ void TimetableViewTeachersDaysHorizontalForm::detailActivity(QTableWidgetItem* i
 					s+="\n";
 					s+=tr("Capacity=%1").arg(gt.rules.internalRoomsList[r]->capacity);
 				}
-
-				s+=LockUnlock::getActivityLockDetailsString(act->id);
+				//added by Volker Dirr (start)
+				QString descr="";
+				QString t="";
+				if(idsOfPermanentlyLockedTime.contains(act->id)){
+					descr+=QCoreApplication::translate("TimetableViewForm", "permanently locked time", "refers to activity");
+					t=", ";
+				}
+				else if(idsOfLockedTime.contains(act->id)){
+					descr+=QCoreApplication::translate("TimetableViewForm", "locked time", "refers to activity");
+					t=", ";
+				}
+				if(idsOfPermanentlyLockedSpace.contains(act->id)){
+					descr+=t+QCoreApplication::translate("TimetableViewForm", "permanently locked space", "refers to activity");
+					t=", ";
+				}
+				else if(idsOfLockedSpace.contains(act->id)){
+					descr+=t+QCoreApplication::translate("TimetableViewForm", "locked space", "refers to activity");
+					t=", ";
+				}
+				if(!gt.rules.apdHash.value(act->id, QSet<ConstraintActivityPreferredDay*>()).isEmpty()){
+					descr+=t+QCoreApplication::translate("TimetableViewForm", "preferred day", "refers to activity");
+				}
+				if(descr!=""){
+					descr.prepend("\n(");
+					descr.append(")");
+				}
+				s+=descr;
+				//added by Volker Dirr (end)
 			}
 			else{
-				if(teacherNotAvailableDayHour[teacher][k][j]){
+				if(teacherNotAvailableDayHour[teacher][kk][jj]){
 					s+=tr("Teacher is not available 100% in this slot");
 					s+="\n";
 				}
-				if(breakDayHour[k][j]){
+				if(breakDayHour[kk][jj]){
 					s+=tr("Break with weight 100% in this slot");
 					s+="\n";
 				}
@@ -586,16 +893,17 @@ void TimetableViewTeachersDaysHorizontalForm::lockTimeSpace()
 			
 void TimetableViewTeachersDaysHorizontalForm::lock(bool lockTime, bool lockSpace)
 {
-	if(simulation_running){
+	if(generation_running || generation_running_multi){
 		QMessageBox::information(this, tr("FET information"),
-			tr("Allocation in course.\nPlease stop simulation before this."));
+			tr("Generation in progress. Please stop the generation before this."));
 		return;
 	}
 
-	if(!CachedSchedule::isValid()){
+	if(!(students_schedule_ready && teachers_schedule_ready)){
 		QMessageBox::warning(this, tr("FET warning"), tr("Timetable not available in view teachers timetable dialog - please generate a new timetable"));
 		return;
 	}
+	assert(students_schedule_ready && teachers_schedule_ready);
 
 	if(gt.rules.nInternalRooms!=gt.rules.roomsList.count()){
 		QMessageBox::warning(this, tr("FET warning"), tr("Cannot display the timetable, because you added or removed some rooms. Please regenerate the timetable and then view it"));
@@ -618,157 +926,340 @@ void TimetableViewTeachersDaysHorizontalForm::lock(bool lockTime, bool lockSpace
 		return;
 	}
 
-	const Solution* c=&CachedSchedule::getCachedSolution();
+	Solution* tc=&best_solution;
 	
 	bool report=false; //the messages are annoying
-	ErrorList errors;
 	
 	int addedT=0, unlockedT=0;
 	int addedS=0, unlockedS=0;
 
-	// speeding up loop
-	bool ruleWasAlreadyComputed = gt.rules.internalStructureComputed;
-	if (teachersTimetableTable->selectedItems().count() > 1)
-		gt.rules.internalStructureComputed = false;
+	bool realView=(gt.rules.mode==MORNINGS_AFTERNOONS && REAL_VIEW==true);
+	bool normalView=!realView;
 
 	//lock selected activities
-	for (const QTableWidgetItem *item : teachersTimetableTable->selectedItems()) {
-		int j = item->row();
-		int k = item->column();
-				int ai=CachedSchedule::teachers_timetable_weekly[i][k][j];
-				if(ai!=UNALLOCATED_ACTIVITY){
-					int a_tim=c->times[ai];
+	QSet<int> careAboutIndex;		//added by Volker Dirr. Needed, because of activities with duration > 1
+	careAboutIndex.clear();
+	for(int j=0; j<(normalView?gt.rules.nHoursPerDay:gt.rules.nRealHoursPerDay) && j<teachersTimetableTable->rowCount(); j++){
+		int jj;
+		if(normalView)
+			jj=j;
+		else
+			jj=j%gt.rules.nHoursPerDay;
+
+		for(int k=0; k<(normalView?gt.rules.nDaysPerWeek:gt.rules.nRealDaysPerWeek) && k<teachersTimetableTable->columnCount(); k++){
+			int kk;
+			if(normalView)
+				kk=k;
+			else
+				kk=2*k+j/gt.rules.nHoursPerDay;
+			
+			if(teachersTimetableTable->item(j, k)->isSelected()){
+				int ai=teachers_timetable_weekly[i][kk][jj];
+				if(ai!=UNALLOCATED_ACTIVITY && !careAboutIndex.contains(ai)){	//modified, because of activities with duration > 1
+					careAboutIndex.insert(ai);					//Needed, because of activities with duration > 1
+					int a_tim=tc->times[ai];
 					int hour=a_tim/gt.rules.nDaysPerWeek;
 					int day=a_tim%gt.rules.nDaysPerWeek;
-
-					const Activity* act=&gt.rules.internalActivitiesList[ai];
+					//Activity* act=gt.rules.activitiesList.at(ai);
+					Activity* act=&gt.rules.internalActivitiesList[ai];
 
 					if(lockTime){
-						TimeConstraint* ctr = LockUnlock::lockTime(&gt.rules, act->id, day, hour);
-						if (ctr != NULL) {
-							errors << ErrorCode(ErrorCode::Info, tr("Added the following constraint:")+"\n"+ctr->getDetailedDescription(gt.rules));
+						ConstraintActivityPreferredStartingTime* ctr=new ConstraintActivityPreferredStartingTime(100.0, act->id, day, hour, false);
+						bool t=gt.rules.addTimeConstraint(ctr);
+						QString s;
+						if(t){ //modified by Volker Dirr, so you can also unlock (start)
 							addedT++;
+							idsOfLockedTime.insert(act->id);
+							s+=tr("Added the following constraint:")+"\n"+ctr->getDetailedDescription(gt.rules);
 						}
 						else{
-							int nUnlocked = 0;
-							errors << LockUnlock::unlockTime(&gt.rules, act->id, nUnlocked);
-							unlockedT += nUnlocked;
-						}
-						if (errors.hasFatal())
-							break;
-					}
+							delete ctr;
+						
+							QList<TimeConstraint*> tmptc;
+							tmptc.clear();
+							int count=0;
+							for(ConstraintActivityPreferredStartingTime* c : gt.rules.apstHash.value(act->id, QSet<ConstraintActivityPreferredStartingTime*>())){
+								assert(c->activityId==act->id);
+								if(c->activityId==act->id && c->weightPercentage==100.0 && c->active && c->day>=0 && c->hour>=0){
+									count++;
+									if(c->permanentlyLocked){
+										if(idsOfLockedTime.contains(c->activityId) || !idsOfPermanentlyLockedTime.contains(c->activityId)){
+											QMessageBox::warning(this, tr("FET warning"), tr("Small problem detected")
+											 +"\n\n"+tr("A possible problem might be that you have 2 or more constraints of type activity preferred starting time with weight 100% related to activity id %1, please leave only one of them").arg(act->id)
+											 +"\n\n"+tr("A possible problem might be synchronization - so maybe try to close the timetable view dialog and open it again")
+											 +"\n\n"+tr("Please report possible bug")
+											 );
+										}
+										else{
+											s+=tr("Constraint %1 will not be removed, because it is permanently locked. If you want to unlock it you must go to the constraints menu.").arg("\n"+c->getDetailedDescription(gt.rules)+"\n");
+										}
+									}
+									else{
+										if(!idsOfLockedTime.contains(c->activityId) || idsOfPermanentlyLockedTime.contains(c->activityId)){
+											QMessageBox::warning(this, tr("FET warning"), tr("Small problem detected")
+											 +"\n\n"+tr("A possible problem might be that you have 2 or more constraints of type activity preferred starting time with weight 100% related to activity id %1, please leave only one of them").arg(act->id)
+											 +"\n\n"+tr("A possible problem might be synchronization - so maybe try to close the timetable view dialog and open it again")
+											 +"\n\n"+tr("Please report possible bug")
+											 );
+										}
+										else{
+											tmptc.append((TimeConstraint*)c);
+										}
+									}
+								}
+							}
+							if(count!=1)
+								QMessageBox::warning(this, tr("FET warning"), tr("You may have a problem, because FET expected to delete 1 constraint, but will delete %1 constraints").arg(tmptc.size()));
 
-					int ri=c->rooms[ai];
+							for(TimeConstraint* deltc : std::as_const(tmptc)){
+								s+=tr("The following constraint will be deleted:")+"\n"+deltc->getDetailedDescription(gt.rules)+"\n";
+								//gt.rules.removeTimeConstraint(deltc);
+								idsOfLockedTime.remove(act->id);
+								unlockedT++;
+								//delete deltc; - done by rules.removeTimeConstraint(...)
+							}
+							gt.rules.removeTimeConstraints(tmptc);
+							tmptc.clear();
+						}  //modified by Volker Dirr, so you can also unlock (end)
+						
+						if(report){
+							/*int k;
+							k=QMessageBox::information(this, tr("FET information"), s,
+							 tr("Skip information"), tr("See next"), QString(), 1, 0 );
+
+		 					if(k==0)
+								report=false;*/
+							QMessageBox::StandardButton k;
+							k=QMessageBox::information(this, tr("FET information"), s, QMessageBox::YesToAll | QMessageBox::Ok);
+							
+							if(k==QMessageBox::YesToAll)
+								report=false;
+						}
+					}
+					
+					int ri=tc->rooms[ai];
 					if(ri!=UNALLOCATED_SPACE && ri!=UNSPECIFIED_ROOM && lockSpace){
-						SpaceConstraint* ctr = LockUnlock::lockSpace(&gt.rules, act->id, gt.rules.internalRoomsList[ri]->name);
-						if (ctr != NULL) {
-							errors << ErrorCode(ErrorCode::Info, tr("Added the following constraint:")+"\n"+ctr->getDetailedDescription(gt.rules));
+						QStringList tl;
+						if(gt.rules.internalRoomsList[ri]->isVirtual==false)
+							assert(tc->realRoomsList[ai].isEmpty());
+						else
+							for(int rr : std::as_const(tc->realRoomsList[ai]))
+								tl.append(gt.rules.internalRoomsList[rr]->name);
+						
+						ConstraintActivityPreferredRoom* ctr=new ConstraintActivityPreferredRoom(100, act->id, (gt.rules.internalRoomsList[ri])->name, tl, false);
+						bool t=gt.rules.addSpaceConstraint(ctr);
+
+						QString s;
+						
+						if(t){ //modified by Volker Dirr, so you can also unlock (start)
 							addedS++;
+							idsOfLockedSpace.insert(act->id);
+							s+=tr("Added the following constraint:")+"\n"+ctr->getDetailedDescription(gt.rules);
 						}
 						else{
-							int nUnlocked = 0;
-							errors << LockUnlock::unlockSpace(&gt.rules, act->id, nUnlocked);
-							unlockedS += nUnlocked;
+							delete ctr;
+						
+							QList<SpaceConstraint*> tmpsc;
+							tmpsc.clear();
+							int count=0;
+
+							for(ConstraintActivityPreferredRoom* c : gt.rules.aprHash.value(act->id, QSet<ConstraintActivityPreferredRoom*>())){
+								assert(c->activityId==act->id);
+
+								if(c->activityId==act->id && c->weightPercentage==100.0 && c->active
+								 && (gt.rules.internalRoomsList[ri]->isVirtual==false
+								 || (gt.rules.internalRoomsList[ri]->isVirtual==true && !c->preferredRealRoomsNames.isEmpty()))){
+									count++;
+									if(c->permanentlyLocked){
+										if(idsOfLockedSpace.contains(c->activityId) || !idsOfPermanentlyLockedSpace.contains(c->activityId)){
+											QMessageBox::warning(this, tr("FET warning"), tr("Small problem detected")
+											 +"\n\n"+tr("A possible problem might be that you have 2 or more constraints of type activity preferred room with weight 100% related to activity id %1, please leave only one of them").arg(act->id)
+											 +"\n\n"+tr("A possible problem might be synchronization - so maybe try to close the timetable view dialog and open it again")
+											 +"\n\n"+tr("Please report possible bug")
+											 );
+										}
+										else{
+											s+=tr("Constraint %1 will not be removed, because it is permanently locked. If you want to unlock it you must go to the constraints menu.").arg("\n"+c->getDetailedDescription(gt.rules)+"\n");
+										}
+									}
+									else{
+										if(!idsOfLockedSpace.contains(c->activityId) || idsOfPermanentlyLockedSpace.contains(c->activityId)){
+											QMessageBox::warning(this, tr("FET warning"), tr("Small problem detected")
+											 +"\n\n"+tr("A possible problem might be that you have 2 or more constraints of type activity preferred room with weight 100% related to activity id %1, please leave only one of them").arg(act->id)
+											 +"\n\n"+tr("A possible problem might be synchronization - so maybe try to close the timetable view dialog and open it again")
+											 +"\n\n"+tr("Please report possible bug")
+											 );
+										}
+										else{
+											tmpsc.append((SpaceConstraint*)c);
+										}
+									}
+								}
+							}
+							if(count!=1)
+								QMessageBox::warning(this, tr("FET warning"), tr("You may have a problem, because FET expected to delete 1 constraint, but will delete %1 constraints").arg(tmpsc.size()));
+
+							for(SpaceConstraint* delsc : std::as_const(tmpsc)){
+								s+=tr("The following constraint will be deleted:")+"\n"+delsc->getDetailedDescription(gt.rules)+"\n";
+								//gt.rules.removeSpaceConstraint(delsc);
+								idsOfLockedSpace.remove(act->id);
+								unlockedS++;
+								//delete delsc; done by rules.removeSpaceConstraint(...)
+							}
+							gt.rules.removeSpaceConstraints(tmpsc);
+							tmpsc.clear();
+						}  //modified by Volker Dirr, so you can also unlock (end)
+						
+						if(report){
+							/*int k;
+							k=QMessageBox::information(this, tr("FET information"), s,
+							 tr("Skip information"), tr("See next"), QString(), 1, 0 );
+								
+							if(k==0)
+								report=false;*/
+							QMessageBox::StandardButton k;
+							k=QMessageBox::information(this, tr("FET information"), s, QMessageBox::YesToAll | QMessageBox::Ok);
+							
+							if(k==QMessageBox::YesToAll)
+								report=false;
 						}
-						if (errors.hasFatal())
-							break;
 					}
 				}
-	}
-	ErrorRenderer::renderErrorList(this, errors, report ? ErrorCode::Verbose : ErrorCode::Warning);
-
-	if (ruleWasAlreadyComputed && !gt.rules.internalStructureComputed) {
-		int nComputedItems = 0;
-		bool canceled = false;
-		gt.rules.computeInternalTimeConstraintList(nComputedItems, canceled);
-		gt.rules.internalStructureComputed = true;
+			}
+		}
 	}
 
 	QStringList added;
 	QStringList removed;
-	if(addedT>0){
-		if(FET_LANGUAGE=="en_US"){
+	if(FET_LANGUAGE=="en_US"){
+		if(addedT>0){
 			if(addedT==1)
 				added << QString("Added 1 locking time constraint.");
 			else
 				added << QString("Added %1 locking time constraints.").arg(addedT);
-		} else {
-			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking time constraint(s).",
-			 "See http://doc.qt.io/qt-5/i18n-plural-rules.html for advice on how to correctly translate this field."
-			 "Also, see http://doc.qt.io/qt-5/i18n-source-translation.html, section 'Handling Plurals'."
-			 "You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
-			 "(open these files with Qt Linguist and see the translation of this field).",
-#if QT_VERSION < 0x050000
-			 QCoreApplication::CodecForTr,
-#endif
-			 addedT);
 		}
-	}
-	if(addedS>0){
-		if(FET_LANGUAGE=="en_US"){
+		if(addedS>0){
 			if(addedS==1)
 				added << QString("Added 1 locking space constraint.");
 			else
 				added << QString("Added %1 locking space constraints.").arg(addedS);
-		} else {
-			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking space constraint(s).",
-			 "See http://doc.qt.io/qt-5/i18n-plural-rules.html for advice on how to correctly translate this field."
-			 "Also, see http://doc.qt.io/qt-5/i18n-source-translation.html, section 'Handling Plurals'."
-			 "You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
-			 "(open these files with Qt Linguist and see the translation of this field).",
-#if QT_VERSION < 0x050000
-			 QCoreApplication::CodecForTr,
-#endif
-			 addedS);
 		}
-	}
-	if(unlockedT>0){
-		if(FET_LANGUAGE=="en_US"){
+		if(unlockedT>0){
 			if(unlockedT==1)
 				removed << QString("Removed 1 locking time constraint.");
 			else
 				removed << QString("Removed %1 locking time constraints.").arg(unlockedT);
-		} else {
-			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking time constraint(s).",
-			 "See http://doc.qt.io/qt-5/i18n-plural-rules.html for advice on how to correctly translate this field."
-			 "Also, see http://doc.qt.io/qt-5/i18n-source-translation.html, section 'Handling Plurals'."
-			 "You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
-			 "(open these files with Qt Linguist and see the translation of this field).",
-#if QT_VERSION < 0x050000
-			 QCoreApplication::CodecForTr,
-#endif
-			 unlockedT);
 		}
-	}
-	if(unlockedS>0){
-		if(FET_LANGUAGE=="en_US"){
+		if(unlockedS>0){
 			if(unlockedS==1)
 				removed << QString("Removed 1 locking space constraint.");
 			else
 				removed << QString("Removed %1 locking space constraints.").arg(unlockedS);
-		} else {
-			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking space constraint(s).",
-			 "See http://doc.qt.io/qt-5/i18n-plural-rules.html for advice on how to correctly translate this field."
-			 "Also, see http://doc.qt.io/qt-5/i18n-source-translation.html, section 'Handling Plurals'."
-			 "You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
-			 "(open these files with Qt Linguist and see the translation of this field).",
-#if QT_VERSION < 0x050000
-			 QCoreApplication::CodecForTr,
-#endif
-			 unlockedS);
 		}
 	}
+	else{
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
+		if(addedT>0){
+			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking time constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).",
+			 addedT);
+		}
+		if(addedS>0){
+			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking space constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).",
+			 addedS);
+		}
+		if(unlockedT>0){
+			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking time constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).",
+			 unlockedT);
+		}
+		if(unlockedS>0){
+			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking space constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).",
+			 unlockedS);
+		}
+#else
+		if(addedT>0){
+			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking time constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).", QCoreApplication::UnicodeUTF8,
+			 addedT);
+		}
+		if(addedS>0){
+			added << QCoreApplication::translate("TimetableViewForm", "Added %n locking space constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).", QCoreApplication::UnicodeUTF8,
+			 addedS);
+		}
+		if(unlockedT>0){
+			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking time constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).", QCoreApplication::UnicodeUTF8,
+			 unlockedT);
+		}
+		if(unlockedS>0){
+			removed << QCoreApplication::translate("TimetableViewForm", "Removed %n locking space constraint(s).",
+			 "See https://doc.qt.io/qt-6/i18n-plural-rules.html for advice on how to correctly translate this field."
+			 " Also, see https://doc.qt.io/qt-6/i18n-source-translation.html, section 'Handle Plural Forms'."
+			 " You have two examples on how to translate this field in fet_en_GB.ts and in fet_ro.ts"
+			 " (open these files with Qt Linguist and see the translation of this field).", QCoreApplication::UnicodeUTF8,
+			 unlockedS);
+		}
+#endif
+	}
+	QString ad=added.join("\n");
+	QString re=removed.join("\n");
 	QStringList all;
-	if(!added.isEmpty())
-		all<<added.join("\n");
-	if(!removed.isEmpty())
-		all<<removed.join("\n");
+	if(!ad.isEmpty())
+		all<<ad;
+	if(!re.isEmpty())
+		all<<re;
 	QString s=all.join("\n\n");
 	if(s.isEmpty())
 		s=QCoreApplication::translate("TimetableViewForm", "No locking constraints added or removed.");
 	QMessageBox::information(this, tr("FET information"), s);
 
-	LockUnlock::assertIsUpdated(&gt.rules);
+	if(addedT>0 || addedS>0 || unlockedT>0 || unlockedS>0)
+		gt.rules.addUndoPoint(tr("Toggled lock/unlock a selection of activities in the"
+		  " timetable view teachers days horizontal dialog. The summary of the added/removed locking constraints is:\n\n%1").arg(s)+QString("\n"));
+
+////////// just for testing
+	QSet<int> backupLockedTime;
+	QSet<int> backupPermanentlyLockedTime;
+	QSet<int> backupLockedSpace;
+	QSet<int> backupPermanentlyLockedSpace;
+	
+	backupLockedTime=idsOfLockedTime;
+	backupPermanentlyLockedTime=idsOfPermanentlyLockedTime;
+	backupLockedSpace=idsOfLockedSpace;
+	backupPermanentlyLockedSpace=idsOfPermanentlyLockedSpace;
+	
+	LockUnlock::computeLockedUnlockedActivitiesTimeSpace(); //not needed, just for testing
+	
+	assert(backupLockedTime==idsOfLockedTime);
+	assert(backupPermanentlyLockedTime==idsOfPermanentlyLockedTime);
+	assert(backupLockedSpace==idsOfLockedSpace);
+	assert(backupPermanentlyLockedSpace==idsOfPermanentlyLockedSpace);
+///////////
 
 	LockUnlock::increaseCommunicationSpinBox();
 }
@@ -776,8 +1267,6 @@ void TimetableViewTeachersDaysHorizontalForm::lock(bool lockTime, bool lockSpace
 void TimetableViewTeachersDaysHorizontalForm::help()
 {
 	QString s="";
-	//s+=QCoreApplication::translate("TimetableViewForm", "You can drag sections to increase/decrease them.");
-	//s+="\n\n";
 	s+=QCoreApplication::translate("TimetableViewForm", "Lock/unlock: you can select one or more activities in the table and toggle lock/unlock in time, space or both.");
 	s+=" ";
 	s+=QCoreApplication::translate("TimetableViewForm", "There will be added or removed locking constraints for the selected activities (they can be unlocked only if they are not permanently locked).");
@@ -785,9 +1274,11 @@ void TimetableViewTeachersDaysHorizontalForm::help()
 	s+=QCoreApplication::translate("TimetableViewForm", "Locking time constraints are constraints of type activity preferred starting time. Locking space constraints are constraints of type"
 		" activity preferred room. You can see these constraints in the corresponding constraints dialogs. New locking constraints are added at the end of the list of constraints.");
 	s+="\n\n";
-	s+=QCoreApplication::translate("TimetableViewForm", "If a cell is (permanently) locked in time or space, it contains abbreviations to show that: PLT (permanently locked time), LT (locked time), "
-		"PLS (permanently locked space) or LS (locked space).", "Translate the abbreviations also. Make sure the abbreviations in your language are different between themselves "
-		"and the user can differentiate easily between them. These abbreviations may appear also in other places, please use the same abbreviations.");
+	s+=QCoreApplication::translate("TimetableViewForm", "A bold font cell means that the activity is locked in time, either permanently or not.");
+	s+=" ";
+	s+=QCoreApplication::translate("TimetableViewForm", "An italic font cell means that the activity is locked in space, either permanently or not.");
+	s+=" ";
+	s+=QCoreApplication::translate("TimetableViewForm", "An underlined font cell means that the activity has a preferred day constraint (with any weight).");
 
 	LongTextMessageBox::largeInformation(this, tr("FET help"), s);
 }

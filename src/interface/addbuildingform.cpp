@@ -2,8 +2,8 @@
                           addbuildingform.cpp  -  description
                              -------------------
     begin                : Feb 11 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,11 +17,6 @@
 
 #include "addbuildingform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
-
 #include <QMessageBox>
 
 AddBuildingForm::AddBuildingForm(QWidget* parent): QDialog(parent)
@@ -30,8 +25,8 @@ AddBuildingForm::AddBuildingForm(QWidget* parent): QDialog(parent)
 	
 	addBuildingPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addBuildingPushButton, SIGNAL(clicked()), this, SLOT(addBuilding()));
+	connect(addBuildingPushButton, &QPushButton::clicked, this, &AddBuildingForm::addBuilding);
+	connect(closePushButton, &QPushButton::clicked, this, &AddBuildingForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -58,6 +53,8 @@ void AddBuildingForm::addBuilding()
 	else{
 		QMessageBox::information(this, tr("Building insertion dialog"),
 			tr("Building added"));
+			
+		gt.rules.addUndoPoint(tr("Added the building %1.").arg(bu->name));
 	}
 
 	nameLineEdit->selectAll();

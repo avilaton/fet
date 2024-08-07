@@ -2,8 +2,8 @@
                           modifyroomform.cpp  -  description
                              -------------------
     begin                : Feb 12, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,10 +17,6 @@
 
 #include "modifyroomform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
 
 ModifyRoomForm::ModifyRoomForm(QWidget* parent, const QString& initialRoomName, const QString& initialRoomBuilding, int initialRoomCapacity): QDialog(parent)
@@ -29,8 +25,8 @@ ModifyRoomForm::ModifyRoomForm(QWidget* parent, const QString& initialRoomName, 
 	
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyRoomForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyRoomForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -72,6 +68,11 @@ ModifyRoomForm::~ModifyRoomForm()
 	saveFETDialogGeometry(this);
 }
 
+void ModifyRoomForm::cancel()
+{
+	this->close();
+}
+
 void ModifyRoomForm::ok()
 {
 	if(nameLineEdit->text().isEmpty()){
@@ -87,8 +88,13 @@ void ModifyRoomForm::ok()
 		return;
 	}
 	
-	bool t=gt.rules.modifyRoom(this->_initialRoomName, nameLineEdit->text()/*, typesComboBox->currentText()*/, buildingsComboBox->currentText(), capacitySpinBox->value());
+	QString od=tr("Name=%1\nBuilding=%2\nCapacity=%3").arg(this->_initialRoomName).arg(this->_initialRoomBuilding).arg(this->_initialRoomCapacity)+QString("\n");
+	
+	bool t=gt.rules.modifyRoom(this->_initialRoomName, nameLineEdit->text(), buildingsComboBox->currentText(), capacitySpinBox->value());
 	assert(t);
+
+	QString nd=tr("Name=%1\nBuilding=%2\nCapacity=%3").arg(nameLineEdit->text()).arg(buildingsComboBox->currentText()).arg(capacitySpinBox->value())+QString("\n");
+	gt.rules.addUndoPoint(tr("The room with description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
 	
 	this->close();
 }

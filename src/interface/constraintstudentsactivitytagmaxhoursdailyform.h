@@ -2,8 +2,8 @@
                           constraintstudentsactivitytagmaxhoursdailyform.h  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,21 +18,30 @@
 #ifndef CONSTRAINTSTUDENTSACTIVITYTAGMAXHOURSDAILYFORM_H
 #define CONSTRAINTSTUDENTSACTIVITYTAGMAXHOURSDAILYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintstudentsactivitytagmaxhoursdailyform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintStudentsActivityTagMaxHoursDailyForm : public TimeConstraintBaseDialog  {
+class ConstraintStudentsActivityTagMaxHoursDailyForm : public QDialog, Ui::ConstraintStudentsActivityTagMaxHoursDailyForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintStudentsActivityTagMaxHoursDailyForm(QWidget* parent);
 	~ConstraintStudentsActivityTagMaxHoursDailyForm();
 
+	bool filterOk(TimeConstraint* ctr);
 
-protected:
-	virtual bool filterOk(const TimeConstraint* ctr) const;
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+	
+	void help();
 
-	virtual void setHelp();
+	void filterChanged();
 };
 
 #endif

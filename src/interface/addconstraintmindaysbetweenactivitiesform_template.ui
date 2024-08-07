@@ -96,7 +96,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QListWidget" name="activitiesListWidget"/>
+        <widget class="QListWidget" name="allActivitiesListWidget"/>
        </item>
        <item>
         <widget class="QPushButton" name="addAllActivitiesPushButton">
@@ -180,8 +180,8 @@
      <item>
       <widget class="QCheckBox" name="consecutiveIfSameDayCheckBox">
        <property name="text">
-        <string comment="Keep translation short. Check how the dialog looks (dialog of add constraint min days between activities)">If activities on same day,
-force activities consecutive</string>
+        <string comment="Keep translation short. Check how the dialog looks (dialog of add constraint min days between activities)">If two activities are on the same day,
+make them consecutive</string>
        </property>
        <property name="checked">
         <bool>true</bool>
@@ -214,7 +214,7 @@ force activities consecutive</string>
         <enum>QFrame::Plain</enum>
        </property>
        <property name="text">
-        <string>Weight percentage (recommended 95.0% - 100.0%)</string>
+        <string>Weight percentage (recommended: 95.0% - 100.0%, allowed: 0.0% - 100.0%)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>

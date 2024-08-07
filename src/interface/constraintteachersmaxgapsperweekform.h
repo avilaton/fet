@@ -2,8 +2,8 @@
                           constraintteachersmaxgapsperweekform.h  -  description
                              -------------------
     begin                : July 6, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTTEACHERSMAXGAPSPERWEEKFORM_H
 #define CONSTRAINTTEACHERSMAXGAPSPERWEEKFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintteachersmaxgapsperweekform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTeachersMaxGapsPerWeekForm : public TimeConstraintBaseDialog  {
+class ConstraintTeachersMaxGapsPerWeekForm : public QDialog, Ui::ConstraintTeachersMaxGapsPerWeekForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintTeachersMaxGapsPerWeekForm(QWidget* parent);
 	~ConstraintTeachersMaxGapsPerWeekForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

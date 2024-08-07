@@ -2,8 +2,8 @@
                           modifyconstraintteachermaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachermaxhourscontinuouslyform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeacherMaxHoursContinuouslyForm::ModifyConstraintTeacherMaxHours
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMaxHoursContinuouslyForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMaxHoursContinuouslyForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -63,7 +62,7 @@ ModifyConstraintTeacherMaxHoursContinuouslyForm::~ModifyConstraintTeacherMaxHour
 
 void ModifyConstraintTeacherMaxHoursContinuouslyForm::updateMaxHoursSpinBox(){
 	maxHoursSpinBox->setMinimum(1);
-	maxHoursSpinBox->setMaximum(gt.rules.nHoursPerDay);	
+	maxHoursSpinBox->setMaximum(gt.rules.nHoursPerDay);
 }
 
 void ModifyConstraintTeacherMaxHoursContinuouslyForm::ok()
@@ -87,12 +86,22 @@ void ModifyConstraintTeacherMaxHoursContinuouslyForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxHoursContinuously=max_hours;
 	this->_ctr->teacherName=teacher_name;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeacherMaxHoursContinuouslyForm::cancel()
+{
 	this->close();
 }

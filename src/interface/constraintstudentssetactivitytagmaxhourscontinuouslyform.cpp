@@ -2,8 +2,8 @@
                           constraintstudentssetactivitytagmaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,30 +15,54 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintstudentssetactivitytagmaxhourscontinuouslyform.h"
 #include "addconstraintstudentssetactivitytagmaxhourscontinuouslyform.h"
 #include "modifyconstraintstudentssetactivitytagmaxhourscontinuouslyform.h"
 
-#include "teacherstudentsetsubjectactivitytag_filterwidget.h"
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-#include "centerwidgetonscreen.h"
-
-ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm_template", "Constraints students set activity tag max hours continuously"));
+	setupUi(this);
 
-	QString s = QCoreApplication::translate("ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm_template", "This constraint ensures that the specified students do not have more than max hours continuously of activities with the specified activity tag");
-	setInstructionText(s);
+	currentConstraintTextEdit->setReadOnly(true);
+	
+	modifyConstraintPushButton->setDefault(true);
 
-	TeacherStudentSetSubjectActivityTag_FilterWidget *filterWidget = new TeacherStudentSetSubjectActivityTag_FilterWidget(gt.rules);
-	filterWidget->setStudentSetsVisible(true);
-	filterWidget->setActivityTagsVisible(true);
-	setFilterWidget(filterWidget);
-	connect(filterWidget, &TeacherStudentSetSubjectActivityTag_FilterWidget::FilterChanged, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterChanged);
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::modifyConstraint);
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::modifyConstraint);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
+
+	QSize tmp2=studentsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp2);
+	QSize tmp4=activityTagsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp4);
+	
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
+	
+	activityTagsComboBox->clear();
+	activityTagsComboBox->addItem("");
+	for(ActivityTag* at : std::as_const(gt.rules.activityTagsList))
+		activityTagsComboBox->addItem(at->name);
+
 	this->filterChanged();
+
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterChanged);
 }
 
 ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::~ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm()
@@ -46,27 +70,129 @@ ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::~ConstraintStudentsSet
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterOk(const TimeConstraint* ctr) const
+bool ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type==CONSTRAINT_STUDENTS_SET_ACTIVITY_TAG_MAX_HOURS_CONTINUOUSLY){
 		ConstraintStudentsSetActivityTagMaxHoursContinuously* c=(ConstraintStudentsSetActivityTagMaxHoursContinuously*) ctr;
-		TeacherStudentSetSubjectActivityTag_FilterWidget *filter_widget = static_cast<TeacherStudentSetSubjectActivityTag_FilterWidget*>(getFilterWidget());
-		QString studentsName = filter_widget->studentsSet();
-		QString activityTagName = filter_widget->activityTag();
-		return (c->students==studentsName || studentsName.isEmpty())
+		return (c->students==studentsComboBox->currentText() || studentsComboBox->currentText()=="")
 		 &&
-		 (c->activityTagName==activityTagName || activityTagName.isEmpty());
+		 (c->activityTagName==activityTagsComboBox->currentText() || activityTagsComboBox->currentText()=="");
 	}
 	else
 		return false;
 }
 
-QDialog * ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::createAddDialog()
+void ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::filterChanged()
 {
-	return new AddConstraintStudentsSetActivityTagMaxHoursContinuouslyForm(this);
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(ctr->getDescription(gt.rules));
+		}
+	}
+	
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		this->constraintChanged(-1);
 }
 
-QDialog * ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::constraintChanged(int index)
 {
-	return new ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm(this, (ConstraintStudentsSetActivityTagMaxHoursContinuously*)ctr);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+		return;
+	}
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	currentConstraintTextEdit->setPlainText(ctr->getDetailedDescription(gt.rules));
+}
+
+void ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::addConstraint()
+{
+	AddConstraintStudentsSetActivityTagMaxHoursContinuouslyForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm form(this, (ConstraintStudentsSetActivityTagMaxHoursContinuously*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
+	s+="\n\n";
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
+
+	QString oc;
+
+	switch( LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 ) ){
+	case 0: // The user clicked the OK button or pressed Enter
+		oc=ctr->getDetailedDescription(gt.rules);
+
+		gt.rules.removeTimeConstraint(ctr);
+
+		gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+		
+		visibleConstraintsList.removeAt(i);
+		constraintsListWidget->setCurrentRow(-1);
+		item=constraintsListWidget->takeItem(i);
+		delete item;
+		
+		break;
+	case 1: // The user clicked the Cancel button or pressed Escape
+		break;
+	}
+	
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
 }

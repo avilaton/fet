@@ -101,9 +101,6 @@
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
        </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
-       </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
        </property>
@@ -138,7 +135,8 @@
         <enum>QFrame::Plain</enum>
        </property>
        <property name="text">
-        <string>Weight percentage (necessary: 100%)</string>
+        <string>Weight percentage
+(recommended: 0.0%-100.0%)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>

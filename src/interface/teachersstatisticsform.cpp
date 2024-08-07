@@ -2,8 +2,8 @@
                           teachersstatisticform.cpp  -  description
                              -------------------
     begin                : March 25, 2006
-    copyright            : (C) 2006 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2006 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,14 +15,14 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "centerwidgetonscreen.h"
-
 #include "teachersstatisticsform.h"
 
 #include "timetable_defs.h"
 #include "timetable.h"
 
 #include "fet.h"
+
+#include <Qt>
 
 #include <QString>
 #include <QStringList>
@@ -39,9 +39,11 @@ TeachersStatisticsForm::TeachersStatisticsForm(QWidget* parent): QDialog(parent)
 	
 	closeButton->setDefault(true);
 
-	connect(hideFullTeachersCheckBox, SIGNAL(toggled(bool)), this, SLOT(hideFullTeachersCheckBoxModified()));
+	connect(hideFullTeachersCheckBox, &QCheckBox::toggled, this, &TeachersStatisticsForm::hideFullTeachersCheckBoxModified);
 
-	connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closeButton, &QPushButton::clicked, this, &TeachersStatisticsForm::close);
+	
+	tableViewSetHighlightHeader(tableWidget);
 	
 	tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
 	tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -49,11 +51,11 @@ TeachersStatisticsForm::TeachersStatisticsForm(QWidget* parent): QDialog(parent)
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
-	QHash<QString, QSet<Activity*> > activitiesForTeacher;
+	QHash<QString, QSet<Activity*>> activitiesForTeacher;
 	
-	for(Activity* act : qAsConst(gt.rules.activitiesList))
+	for(Activity* act : std::as_const(gt.rules.activitiesList))
 		if(act->active)
-			for(const QString& teacherName : qAsConst(act->teachersNames)){
+			for(const QString& teacherName : std::as_const(act->teachersNames)){
 				QSet<Activity*> acts=activitiesForTeacher.value(teacherName, QSet<Activity*>());
 				acts.insert(act);
 				activitiesForTeacher.insert(teacherName, acts);
@@ -67,7 +69,7 @@ TeachersStatisticsForm::TeachersStatisticsForm(QWidget* parent): QDialog(parent)
 		
 		QSet<Activity*> acts=activitiesForTeacher.value(t->name, QSet<Activity*>());
 		
-		for(Activity* act : qAsConst(acts)){
+		for(Activity* act : std::as_const(acts)){
 			if(act->active){
 				nSubActivities++;
 				nHours+=act->duration;
@@ -101,7 +103,7 @@ void TeachersStatisticsForm::hideFullTeachersCheckBoxModified()
 	tableWidget->clear();
 	
 	int n_rows=0;
-	for(bool b : qAsConst(hideFullTeacher))
+	for(bool b : std::as_const(hideFullTeacher))
 		if(!(hideFullTeachersCheckBox->isChecked() && b))
 			n_rows++;
 

@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2013
-    copyright            : (C) 2013 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2013 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetmaxdaysperweekform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetMaxDaysPerWeekForm::AddConstraintStudentsSetMaxDaysPerWeekForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +28,8 @@ AddConstraintStudentsSetMaxDaysPerWeekForm::AddConstraintStudentsSetMaxDaysPerWe
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxDaysPerWeekForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxDaysPerWeekForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -52,24 +48,18 @@ AddConstraintStudentsSetMaxDaysPerWeekForm::~AddConstraintStudentsSetMaxDaysPerW
 
 void AddConstraintStudentsSetMaxDaysPerWeekForm::updateStudentsComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
-	maxDaysSpinBox->setMinimum(0);
+	maxDaysSpinBox->setMinimum(1);
 	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 	maxDaysSpinBox->setValue(gt.rules.nDaysPerWeek);
 }
 
-void AddConstraintStudentsSetMaxDaysPerWeekForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsSetMaxDaysPerWeekForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -89,7 +79,7 @@ void AddConstraintStudentsSetMaxDaysPerWeekForm::addCurrentConstraint()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -98,9 +88,12 @@ void AddConstraintStudentsSetMaxDaysPerWeekForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsSetMaxDaysPerWeek(weight, max_days, students_name);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>528</width>
-    <height>373</height>
+    <height>384</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,9 +40,6 @@
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
        </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
-       </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
        </property>
@@ -56,6 +53,13 @@
       <widget class="QPushButton" name="addConstraintPushButton">
        <property name="text">
         <string>Add constraint</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addConstraintsPushButton">
+       <property name="text">
+        <string>Add constraints</string>
        </property>
       </widget>
      </item>
@@ -176,9 +180,6 @@
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
        </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
-       </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
        </property>
@@ -211,9 +212,6 @@
        </property>
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
-       </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
        </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>

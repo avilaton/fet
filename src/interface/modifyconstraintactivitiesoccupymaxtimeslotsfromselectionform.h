@@ -2,8 +2,8 @@
                           modifyconstraintactivitiesoccupymaxtimeslotsfromselectionform.h  -  description
                              -------------------
     begin                : Sept 26, 2011
-    copyright            : (C) 2011 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2011 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -32,7 +32,7 @@ public:
 	ModifyConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm(QWidget* parent, ConstraintActivitiesOccupyMaxTimeSlotsFromSelection* ctr);
 	~ModifyConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm();
 
-	void updateActivitiesListWidget();
+	void colorItem(QTableWidgetItem* item);
 	
 	bool filterOk(Activity* act);
 
@@ -46,6 +46,13 @@ public slots:
 	void clear();
 
 	void ok();
+	void cancel();
+
+	void itemClicked(QTableWidgetItem* item);
+	void horizontalHeaderClicked(int col);
+	void verticalHeaderClicked(int row);
+	
+	void cellEntered(int row, int col);
 	
 	void setAllUnselected();
 	void setAllSelected();

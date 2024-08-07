@@ -2,8 +2,8 @@
                           modifyconstraintactivitiespreferredstartingtimesform.h  -  description
                              -------------------
     begin                : 11 Feb 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -33,17 +33,26 @@ public:
 	~ModifyConstraintActivitiesPreferredStartingTimesForm();
 
 	void updateTeachersComboBox();
-	void updateStudentsComboBox();
+	void updateStudentsComboBox(QWidget* parent);
 	void updateSubjectsComboBox();
 	void updateActivityTagsComboBox();
 
+	void colorItem(QTableWidgetItem* item);
+
 public slots:
 	void ok();
+	void cancel();
+	
+	void itemClicked(QTableWidgetItem* item);
+	void horizontalHeaderClicked(int col);
+	void verticalHeaderClicked(int row);
+	
+	void cellEntered(int row, int col);
 	
 	void setAllSlotsAllowed();
 	void setAllSlotsNotAllowed();
 
-	void on_durationCheckBox_toggled();
+	void durationCheckBox_toggled();
 };
 
 #endif

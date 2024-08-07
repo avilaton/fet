@@ -2,8 +2,8 @@
                           constraintstudentsminhoursdailyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,27 +15,51 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintstudentsminhoursdailyform.h"
 #include "addconstraintstudentsminhoursdailyform.h"
 #include "modifyconstraintstudentsminhoursdailyform.h"
 
 #include "helponstudentsminhoursdaily.h"
 
-#include "centerwidgetonscreen.h"
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-ConstraintStudentsMinHoursDailyForm::ConstraintStudentsMinHoursDailyForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintStudentsMinHoursDailyForm::ConstraintStudentsMinHoursDailyForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintStudentsMinHoursDailyForm_template", "Constraints students min hours daily"));
+	setupUi(this);
+	
+	if(gt.rules.mode!=MORNINGS_AFTERNOONS)
+		label->setText(tr("IMPORTANT: allow empty days for students is a nonstandard option. Only select it if your institution permits that"
+		 " and if a timetable with empty days for students exists. Otherwise do not select it, for a good performance of generation."
+		 " Press Help button for more information."));
+	else
+		label->setText(tr("If the user selects not allowed empty days, it is for real days (for the mornings-afternoons mode), also respecting minimum"
+		 " hours daily for FET days (half days) with allow empty FET days"));
 
-	QString s = QCoreApplication::translate("ConstraintStudentsMinHoursDailyForm_template", "IMPORTANT: allow empty days for students is a nonstandard option. Only select it if your institution permits that and if a timetable with empty days for students exists. Otherwise do not  select it, for a good performance of generation. Press Help button for more information.");
-	setInstructionText(s);
+	currentConstraintTextEdit->setReadOnly(true);
+	
+	modifyConstraintPushButton->setDefault(true);
 
-	s = HelpOnStudentsMinHoursDaily::getHelpText();
-	setHelpText(s);
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintStudentsMinHoursDailyForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsMinHoursDailyForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintStudentsMinHoursDailyForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsMinHoursDailyForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsMinHoursDailyForm::modifyConstraint);
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintStudentsMinHoursDailyForm::modifyConstraint);
+
+	connect(helpPushButton, &QPushButton::clicked, this, &ConstraintStudentsMinHoursDailyForm::help);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-	filterChanged();
+	
+	this->filterChanged();
 }
 
 ConstraintStudentsMinHoursDailyForm::~ConstraintStudentsMinHoursDailyForm()
@@ -43,7 +67,7 @@ ConstraintStudentsMinHoursDailyForm::~ConstraintStudentsMinHoursDailyForm()
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintStudentsMinHoursDailyForm::filterOk(const TimeConstraint* ctr) const
+bool ConstraintStudentsMinHoursDailyForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type==CONSTRAINT_STUDENTS_MIN_HOURS_DAILY)
 		return true;
@@ -51,13 +75,122 @@ bool ConstraintStudentsMinHoursDailyForm::filterOk(const TimeConstraint* ctr) co
 		return false;
 }
 
-QDialog * ConstraintStudentsMinHoursDailyForm::createAddDialog()
+void ConstraintStudentsMinHoursDailyForm::filterChanged()
 {
-	return new AddConstraintStudentsMinHoursDailyForm(this);
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(ctr->getDescription(gt.rules));
+		}
+	}
+
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		this->constraintChanged(-1);
 }
 
-QDialog * ConstraintStudentsMinHoursDailyForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintStudentsMinHoursDailyForm::constraintChanged(int index)
 {
-	return new ModifyConstraintStudentsMinHoursDailyForm(this, (ConstraintStudentsMinHoursDaily*)ctr);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+		return;
+	}
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	currentConstraintTextEdit->setPlainText(ctr->getDetailedDescription(gt.rules));
 }
 
+void ConstraintStudentsMinHoursDailyForm::addConstraint()
+{
+	AddConstraintStudentsMinHoursDailyForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintStudentsMinHoursDailyForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintStudentsMinHoursDailyForm form(this, (ConstraintStudentsMinHoursDaily*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintStudentsMinHoursDailyForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
+	s+="\n\n";
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
+
+	QString oc;
+
+	switch( LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 ) ){
+	case 0: // The user clicked the OK button or pressed Enter
+		oc=ctr->getDetailedDescription(gt.rules);
+
+		gt.rules.removeTimeConstraint(ctr);
+
+		gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+		
+		visibleConstraintsList.removeAt(i);
+		constraintsListWidget->setCurrentRow(-1);
+		item=constraintsListWidget->takeItem(i);
+		delete item;
+		
+		break;
+	case 1: // The user clicked the Cancel button or pressed Escape
+		break;
+	}
+	
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintStudentsMinHoursDailyForm::help()
+{
+	HelpOnStudentsMinHoursDaily::help(this);
+}

@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -15,15 +15,13 @@
  *                                                                         *
  ***************************************************************************/
 
+#include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
 #include "subjectsform.h"
+#include "studentsset.h"
+#include "teacher.h"
 #include "subject.h"
-#include "interface/editcommentsform.h"
-
-#include "timetableexport.h"
-
-#include "centerwidgetonscreen.h"
 
 #include <QInputDialog>
 
@@ -37,6 +35,13 @@
 #include <QObject>
 #include <QMetaObject>
 
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
+
 SubjectsForm::SubjectsForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
@@ -47,26 +52,28 @@ SubjectsForm::SubjectsForm(QWidget* parent): QDialog(parent)
 
 	subjectsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addSubjectPushButton, SIGNAL(clicked()), this, SLOT(addSubject()));
-	connect(removeSubjectPushButton, SIGNAL(clicked()), this, SLOT(removeSubject()));
-	connect(renameSubjectPushButton, SIGNAL(clicked()), this, SLOT(renameSubject()));
+	connect(closePushButton, &QPushButton::clicked, this, &SubjectsForm::close);
+	connect(addSubjectPushButton, &QPushButton::clicked, this, &SubjectsForm::addSubject);
+	connect(removeSubjectPushButton, &QPushButton::clicked, this, &SubjectsForm::removeSubject);
+	connect(renameSubjectPushButton, &QPushButton::clicked, this, &SubjectsForm::renameSubject);
 
-	connect(moveSubjectUpPushButton, SIGNAL(clicked()), this, SLOT(moveSubjectUp()));
-	connect(moveSubjectDownPushButton, SIGNAL(clicked()), this, SLOT(moveSubjectDown()));
+	connect(moveSubjectUpPushButton, &QPushButton::clicked, this, &SubjectsForm::moveSubjectUp);
+	connect(moveSubjectDownPushButton, &QPushButton::clicked, this, &SubjectsForm::moveSubjectDown);
 
-	connect(sortSubjectsPushButton, SIGNAL(clicked()), this, SLOT(sortSubjects()));
-	connect(subjectsListWidget, SIGNAL(currentRowChanged(int)), this, SLOT(subjectChanged(int)));
-	connect(activateSubjectPushButton, SIGNAL(clicked()), this, SLOT(activateSubject()));
-	connect(deactivateSubjectPushButton, SIGNAL(clicked()), this, SLOT(deactivateSubject()));
-	connect(subjectsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(renameSubject()));
+	connect(sortSubjectsPushButton, &QPushButton::clicked, this, &SubjectsForm::sortSubjects);
+	connect(subjectsListWidget, &QListWidget::currentRowChanged, this, &SubjectsForm::subjectChanged);
+	connect(activateSubjectPushButton, &QPushButton::clicked, this, &SubjectsForm::activateSubject);
+	connect(deactivateSubjectPushButton, &QPushButton::clicked, this, &SubjectsForm::deactivateSubject);
+	connect(subjectsListWidget, &QListWidget::itemDoubleClicked, this, &SubjectsForm::renameSubject);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &SubjectsForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &SubjectsForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &SubjectsForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
 	
@@ -85,11 +92,11 @@ SubjectsForm::~SubjectsForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
-bool SubjectsForm::addSubject()
+void SubjectsForm::addSubject()
 {
 	bool ok = false;
 	Subject* sbj=new Subject();
@@ -106,7 +113,8 @@ bool SubjectsForm::addSubject()
 		else{
 			subjectsListWidget->addItem(sbj->name);
 			subjectsListWidget->setCurrentRow(subjectsListWidget->count()-1);
-			return true;
+
+			gt.rules.addUndoPoint(tr("Added the subject %1.").arg(sbj->name));
 		}
 	}
 	else{
@@ -115,7 +123,6 @@ bool SubjectsForm::addSubject()
 		}
 		delete sbj;// user entered nothing or pressed Cancel
 	}
-	return false;
 }
 
 void SubjectsForm::removeSubject()
@@ -133,9 +140,13 @@ void SubjectsForm::removeSubject()
 		return;
 	}
 
+	/*if(QMessageBox::warning( this, tr("FET"),
+	 tr("Are you sure you want to delete this subject and all related activities and constraints?"),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
+		return;*/
 	if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete this subject and all related activities and constraints?"),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete this subject and all related activities and constraints?"),
+	 QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
 		return;
 
 	int tmp=gt.rules.removeSubject(text);
@@ -151,6 +162,8 @@ void SubjectsForm::removeSubject()
 			subjectsListWidget->setCurrentRow(i);
 		else
 			currentSubjectTextEdit->setPlainText(QString(""));
+
+		gt.rules.addUndoPoint(tr("Removed the subject %1.").arg(text));
 	}
 }
 
@@ -185,6 +198,8 @@ void SubjectsForm::renameSubject()
 			gt.rules.modifySubject(initialSubjectName, finalSubjectName);
 			subjectsListWidget->item(i)->setText(finalSubjectName);
 			subjectChanged(subjectsListWidget->currentRow());
+
+			gt.rules.addUndoPoint(tr("Renamed the subject from %1 to %2.").arg(initialSubjectName).arg(finalSubjectName));
 		}
 	}
 }
@@ -202,15 +217,26 @@ void SubjectsForm::moveSubjectUp()
 	QString s1=subjectsListWidget->item(i)->text();
 	QString s2=subjectsListWidget->item(i-1)->text();
 	
+	Subject* sbj1=gt.rules.subjectsList.at(i);
+	Subject* sbj2=gt.rules.subjectsList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	subjectsListWidget->item(i)->setText(s2);
 	subjectsListWidget->item(i-1)->setText(s1);
 	
-	gt.rules.subjectsList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.subjectsList[i]=sbj2;
+	gt.rules.subjectsList[i-1]=sbj1;
+	
+	gt.rules.addUndoPoint(tr("Moved the subject %1 up.").arg(s1));
 
 	subjectsListWidget->setCurrentRow(i-1);
+	subjectChanged(i-1);
 }
 
 void SubjectsForm::moveSubjectDown()
@@ -226,21 +252,34 @@ void SubjectsForm::moveSubjectDown()
 	QString s1=subjectsListWidget->item(i)->text();
 	QString s2=subjectsListWidget->item(i+1)->text();
 	
+	Subject* sbj1=gt.rules.subjectsList.at(i);
+	Subject* sbj2=gt.rules.subjectsList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	subjectsListWidget->item(i)->setText(s2);
 	subjectsListWidget->item(i+1)->setText(s1);
 	
-	gt.rules.subjectsList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.subjectsList[i]=sbj2;
+	gt.rules.subjectsList[i+1]=sbj1;
+
+	gt.rules.addUndoPoint(tr("Moved the subject %1 down.").arg(s1));
 
 	subjectsListWidget->setCurrentRow(i+1);
+	subjectChanged(i+1);
 }
 
 void SubjectsForm::sortSubjects()
 {
 	gt.rules.sortSubjectsAlphabetically();
 	
+	gt.rules.addUndoPoint(tr("Sorted the subjects."));
+
 	subjectsListWidget->clear();
 	for(int i=0; i<gt.rules.subjectsList.size(); i++){
 		Subject* sbj=gt.rules.subjectsList[i];
@@ -259,7 +298,7 @@ void SubjectsForm::subjectChanged(int index)
 	}
 	
 	Subject* sb=gt.rules.subjectsList.at(index);
-	assert(sb);
+	assert(sb!=nullptr);
 	QString s=sb->getDetailedDescriptionWithConstraints(gt.rules);
 	currentSubjectTextEdit->setPlainText(s);
 }
@@ -275,6 +314,9 @@ void SubjectsForm::activateSubject()
 	
 	int count=gt.rules.activateSubject(subjectName);
 	QMessageBox::information(this, tr("FET information"), tr("Activated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Activated the subject %1 (%2 activities).", "%2 is the number of activated activities").arg(subjectName).arg(count));
 }
 
 void SubjectsForm::deactivateSubject()
@@ -287,7 +329,10 @@ void SubjectsForm::deactivateSubject()
 	QString subjectName=subjectsListWidget->currentItem()->text();
 	
 	int count=gt.rules.deactivateSubject(subjectName);
-	QMessageBox::information(this, tr("FET information"), tr("De-activated a number of %1 activities").arg(count));
+	QMessageBox::information(this, tr("FET information"), tr("Deactivated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Deactivated subject %1 (%2 activities).", "%2 is the number of deactivated activities").arg(subjectName).arg(count));
 }
 
 void SubjectsForm::comments()
@@ -299,18 +344,178 @@ void SubjectsForm::comments()
 	}
 	
 	Subject* sbj=gt.rules.subjectsList[ind];
-	assert(sbj!=NULL);
+	assert(sbj!=nullptr);
 
-	EditCommentsForm dialog("SubjectCommentsDialog", this, tr("Subject comments"));
-	dialog.setComments(sbj->comments);
+	QDialog getCommentsDialog(this);
+	
+	getCommentsDialog.setWindowTitle(tr("Subject comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
 
-	int t=dialog.exec();
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(sbj->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("SubjectCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
 	
 	if(t==QDialog::Accepted){
-		sbj->comments=dialog.getComments();
+		QString oc=sbj->comments;
+
+		sbj->comments=commentsPT->toPlainText();
+	
+		gt.rules.addUndoPoint(tr("Changed the comments for the subject %1 from\n%2\nto\n%3.").arg(sbj->name).arg(oc).arg(sbj->comments));
+
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		subjectChanged(ind);
+	}
+}
+
+void SubjectsForm::longName()
+{
+	int ind=subjectsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected subject"));
+		return;
+	}
+	
+	Subject* sbj=gt.rules.subjectsList[ind];
+	assert(sbj!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Subject long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(sbj->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("SubjectLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=sbj->longName;
+	
+		sbj->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the subject %1 from\n%2\nto\n%3.").arg(sbj->name).arg(oln).arg(sbj->longName));
 	
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		subjectChanged(ind);
+	}
+}
+
+void SubjectsForm::code()
+{
+	int ind=subjectsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected subject"));
+		return;
+	}
+	
+	Subject* sbj=gt.rules.subjectsList[ind];
+	assert(sbj!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Subject code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(sbj->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("SubjectCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=sbj->code;
+	
+		sbj->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the subject %1 from\n%2\nto\n%3.").arg(sbj->name).arg(oc).arg(sbj->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		subjectChanged(ind);
 	}

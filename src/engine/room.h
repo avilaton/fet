@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,13 +20,21 @@
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QString>
 #include <QList>
+#include <QStringList>
 
 class Room;
 class Rules;
 
 typedef QList<Room*> RoomsList;
+
+class QDataStream;
+
+QDataStream& operator<<(QDataStream& stream, const Room& rm);
+QDataStream& operator>>(QDataStream& stream, Room& rm);
 
 /**
 This class represents a room
@@ -37,32 +45,41 @@ class Room{ /*classroom :-)*/
 	Q_DECLARE_TR_FUNCTIONS(Room)
 
 public:
+	bool isVirtual; //If it is virtual, it has a list of sets of real rooms. Suggested by math.
+
 	QString name;
+	QString longName;
+	QString code;
 	int capacity;
 	
 	/**
-	If empty string, it is ignored
+	If empty string, it is ignored.
 	*/
 	QString building;
 	
 	QString comments;
 	
+	QList<QStringList> realRoomsSetsList; //Not internal. Contains the rooms' names.
+	
 	/**
-	Internal. If -1, it is ignored
+	Internal. If -1, it is ignored.
 	*/
 	int buildingIndex;
+
+	QList<QList<int>> rrsl; //Internal. Contains the rooms' indices.
 
 	Room();
 	~Room();
 	
-	void computeInternalStructure(const Rules &r);
+	void computeInternalStructure(Rules& r);
+	void computeInternalStructureRealRoomsSetsList(Rules& r);
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
-bool roomsAscending(const Room* r1, const Room* r2);
+int roomsAscending(const Room* r1, const Room* r2);
 
 #endif

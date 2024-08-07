@@ -2,8 +2,8 @@
                           studentsstatisticform.cpp  -  description
                              -------------------
     begin                : March 25, 2006
-    copyright            : (C) 2006 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2006 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -24,6 +24,10 @@
 
 #include "messageboxes.h"
 
+#include "longtextmessagebox.h"
+
+#include <Qt>
+
 #include <QString>
 #include <QStringList>
 
@@ -31,14 +35,13 @@
 
 #include <QProgressDialog>
 
-#include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
-
 #include <QMessageBox>
 #include <QApplication>
 
 #include <QHeaderView>
 #include <QTableWidget>
+
+extern QApplication* pqapplication;
 
 StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 {
@@ -46,7 +49,9 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	
 	closeButton->setDefault(true);
 
-	connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closeButton, &QPushButton::clicked, this, &StudentsStatisticsForm::close);
+
+	tableViewSetHighlightHeader(tableWidget);
 
 	tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
 	tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -54,11 +59,11 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
-	connect(showYearsCheckBox, SIGNAL(toggled(bool)), this, SLOT(checkBoxesModified()));
-	connect(showGroupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(checkBoxesModified()));
-	connect(showSubgroupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(checkBoxesModified()));
+	connect(showYearsCheckBox, &QCheckBox::toggled, this, &StudentsStatisticsForm::checkBoxesModified);
+	connect(showGroupsCheckBox, &QCheckBox::toggled, this, &StudentsStatisticsForm::checkBoxesModified);
+	connect(showSubgroupsCheckBox, &QCheckBox::toggled, this, &StudentsStatisticsForm::checkBoxesModified);
 
-	connect(showCompleteStructureCheckBox, SIGNAL(toggled(bool)), this, SLOT(checkBoxesModified()));
+	connect(showCompleteStructureCheckBox, &QCheckBox::toggled, this, &StudentsStatisticsForm::checkBoxesModified);
 	
 	//2014-12-18
 	QSet<StudentsYear*> allYears;
@@ -69,21 +74,21 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	QHash<QString, StudentsGroup*> groupsHash;
 	QHash<QString, StudentsSubgroup*> subgroupsHash;
 	
-	QHash<StudentsYear*, QSet<Activity*> > activitiesForYear;
-	QHash<StudentsGroup*, QSet<Activity*> > activitiesForGroup;
-	QHash<StudentsSubgroup*, QSet<Activity*> > activitiesForSubgroup;
+	QHash<StudentsYear*, QSet<Activity*>> activitiesForYear;
+	QHash<StudentsGroup*, QSet<Activity*>> activitiesForGroup;
+	QHash<StudentsSubgroup*, QSet<Activity*>> activitiesForSubgroup;
 	
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 		yearsHash.insert(year->name, year);
 		
 		allYears.insert(year);
 		
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			groupsHash.insert(group->name, group);
 			
 			allGroups.insert(group);
 			
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 				subgroupsHash.insert(subgroup->name, subgroup);
 
 				allSubgroups.insert(subgroup);
@@ -92,9 +97,9 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	}
 	
 	QString warnings=QString("");
-	for(Activity* act : qAsConst(gt.rules.activitiesList))
+	for(Activity* act : std::as_const(gt.rules.activitiesList))
 		if(act->active){
-			for(const QString& sts : qAsConst(act->studentsNames)){
+			for(const QString& sts : std::as_const(act->studentsNames)){
 				if(yearsHash.contains(sts)){
 					StudentsYear* year=yearsHash.value(sts);
 	
@@ -117,26 +122,26 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 					activitiesForSubgroup.insert(subgroup, acts);
 				}
 				else
-					warnings+=tr("Students set %1 from activity with id %2 is inexistent in the students list. Please correct this.").arg(sts).arg(act->id)+QString("\n");
+					warnings+=tr("Students set %1 from activity with id %2 is nonexistent in the students list. Please correct this.").arg(sts).arg(act->id)+QString("\n");
 			}
 		}
 	if(!warnings.isEmpty())
 		FetMessage::warning(this, tr("FET warning"), warnings);
 	
 	//phase 1a
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 		QSet<Activity*> actsYear=activitiesForYear.value(year, QSet<Activity*>());
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			QSet<Activity*> actsGroup=activitiesForGroup.value(group, QSet<Activity*>());
 			actsGroup.unite(actsYear);
 			activitiesForGroup.insert(group, actsGroup);
 		}
 	}
 	//phase 1b
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			QSet<Activity*> actsGroup=activitiesForGroup.value(group, QSet<Activity*>());
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 				QSet<Activity*> actsSubgroup=activitiesForSubgroup.value(subgroup, QSet<Activity*>());
 				actsSubgroup.unite(actsGroup);
 				activitiesForSubgroup.insert(subgroup, actsSubgroup);
@@ -144,10 +149,10 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 		}
 	}
 	//phase 2a
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			QSet<Activity*> actsGroup=activitiesForGroup.value(group, QSet<Activity*>());
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 				QSet<Activity*> actsSubgroup=activitiesForSubgroup.value(subgroup, QSet<Activity*>());
 				actsGroup.unite(actsSubgroup);
 			}
@@ -155,9 +160,9 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 		}
 	}
 	//phase 2b
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 		QSet<Activity*> actsYear=activitiesForYear.value(year, QSet<Activity*>());
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			QSet<Activity*> actsGroup=activitiesForGroup.value(group, QSet<Activity*>());
 			actsYear.unite(actsGroup);
 		}
@@ -167,10 +172,10 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	allActivities.clear();
 	allHours.clear();
 	
-	for(StudentsYear* year : qAsConst(allYears)){
+	for(StudentsYear* year : std::as_const(allYears)){
 		QSet<Activity*> acts=activitiesForYear.value(year, QSet<Activity*>());
 		int n=0, d=0;
-		for(Activity* act : qAsConst(acts)){
+		for(Activity* act : std::as_const(acts)){
 			n++;
 			d+=act->duration;
 		}
@@ -180,10 +185,10 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 		allHours.insert(year->name, d);
 	}
 	
-	for(StudentsGroup* group : qAsConst(allGroups)){
+	for(StudentsGroup* group : std::as_const(allGroups)){
 		QSet<Activity*> acts=activitiesForGroup.value(group, QSet<Activity*>());
 		int n=0, d=0;
-		for(Activity* act : qAsConst(acts)){
+		for(Activity* act : std::as_const(acts)){
 			n++;
 			d+=act->duration;
 		}
@@ -193,10 +198,10 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 		allHours.insert(group->name, d);
 	}
 
-	for(StudentsSubgroup* subgroup : qAsConst(allSubgroups)){
+	for(StudentsSubgroup* subgroup : std::as_const(allSubgroups)){
 		QSet<Activity*> acts=activitiesForSubgroup.value(subgroup, QSet<Activity*>());
 		int n=0, d=0;
-		for(Activity* act : qAsConst(acts)){
+		for(Activity* act : std::as_const(acts)){
 			n++;
 			d+=act->duration;
 		}
@@ -207,6 +212,8 @@ StudentsStatisticsForm::StudentsStatisticsForm(QWidget* parent): QDialog(parent)
 	}
 	
 	checkBoxesModified();
+
+	connect(helpPushButton, &QPushButton::clicked, this, &StudentsStatisticsForm::helpPushButton_clicked);
 }
 
 StudentsStatisticsForm::~StudentsStatisticsForm()
@@ -222,7 +229,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 
 	setOfStudents.clear();
 	int nStudentsSets=0;
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 		bool sy=true;
 		if(!complete){
 			if(setOfStudents.contains(year->name))
@@ -232,7 +239,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 		}
 		if(showYearsCheckBox->isChecked() && sy)
 			nStudentsSets++;
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			bool sg=true;
 			if(!complete){
 				if(setOfStudents.contains(group->name))
@@ -242,7 +249,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 			}
 			if(showGroupsCheckBox->isChecked() && sg)
 				nStudentsSets++;
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 				bool ss=true;
 				if(!complete){
 					if(setOfStudents.contains(subgroup->name))
@@ -270,7 +277,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 	setOfStudents.clear();
 	
 	int currentStudentsSet=-1;
-	for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 		bool sy=true;
 		if(!complete){
 			if(setOfStudents.contains(year->name))
@@ -283,8 +290,8 @@ void StudentsStatisticsForm::checkBoxesModified()
 			currentStudentsSet++;
 			insertStudentsSet(year, currentStudentsSet);
 		}
-				
-		for(StudentsGroup* group : qAsConst(year->groupsList)){
+		
+		for(StudentsGroup* group : std::as_const(year->groupsList)){
 			bool sg=true;
 			if(!complete){
 				if(setOfStudents.contains(group->name))
@@ -298,7 +305,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 				insertStudentsSet(group, currentStudentsSet);
 			}
 			
-			for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+			for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 				bool ss=true;
 				if(!complete){
 					if(setOfStudents.contains(subgroup->name))
@@ -311,7 +318,7 @@ void StudentsStatisticsForm::checkBoxesModified()
 					currentStudentsSet++;
 					insertStudentsSet(subgroup, currentStudentsSet);
 				}
-			}	
+			}
 		}
 	}
 	
@@ -319,22 +326,22 @@ void StudentsStatisticsForm::checkBoxesModified()
 	tableWidget->resizeRowsToContents();
 }
 
-void StudentsStatisticsForm::insertStudentsSet(StudentsSet* set, int row)
+void StudentsStatisticsForm::insertStudentsSet(StudentsSet* studentsSet, int row)
 {
-	QTableWidgetItem* newItem=new QTableWidgetItem(set->name);
+	QTableWidgetItem* newItem=new QTableWidgetItem(studentsSet->name);
 	newItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 	tableWidget->setItem(row, 0, newItem);
 
 	int nSubActivities=0;
 	int nHours=0;
 	
-	if(allHours.contains(set->name))
-		nHours=allHours.value(set->name);
+	if(allHours.contains(studentsSet->name))
+		nHours=allHours.value(studentsSet->name);
 	else
 		assert(0);
 		
-	if(allActivities.contains(set->name))
-		nSubActivities=allActivities.value(set->name);
+	if(allActivities.contains(studentsSet->name))
+		nSubActivities=allActivities.value(studentsSet->name);
 	else
 		assert(0);
 		
@@ -347,7 +354,7 @@ void StudentsStatisticsForm::insertStudentsSet(StudentsSet* set, int row)
 	tableWidget->setItem(row, 2, newItem);
 }
 
-void StudentsStatisticsForm::on_helpPushButton_clicked()
+void StudentsStatisticsForm::helpPushButton_clicked()
 {
 	QString s;
 	

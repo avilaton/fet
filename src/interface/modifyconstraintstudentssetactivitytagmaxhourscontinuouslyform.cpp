@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetactivitytagmaxhourscontinuouslyform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,9 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssetactivitytagmaxhourscontinuouslyform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm(QWidget* parent, ConstraintStudentsSetActivityTagMaxHoursContinuously* ctr): QDialog(parent)
 {
@@ -31,8 +26,8 @@ ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ModifyConstraint
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -46,7 +41,7 @@ ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ModifyConstraint
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 	updateActivityTagsComboBox();
 
 	maxHoursSpinBox->setMinimum(1);
@@ -59,27 +54,33 @@ ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::~ModifyConstrain
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->students, true);
+void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->students);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->students);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->students);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::updateActivityTagsComboBox()
 {
 	activityTagsComboBox->clear();
-	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* s=gt.rules.activityTagsList[i];
-		activityTagsComboBox->addItem(s->name);
+	int j=-1;
+	for(int i=0; i<gt.rules.activityTagsList.count(); i++){
+		ActivityTag* at=gt.rules.activityTagsList.at(i);
+		activityTagsComboBox->addItem(at->name);
+		if(at->name==this->_ctr->activityTagName)
+			j=i;
 	}
-	activityTagsComboBox->setCurrentText(this->_ctr->activityTagName);
+	assert(j>=0);
+	activityTagsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->students);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->students);
 		return;
 	}
 
@@ -94,7 +95,7 @@ void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ok()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET warning"),
 			tr("Invalid students set"));
 		return;
@@ -107,13 +108,23 @@ void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->students=students_name;
 	this->_ctr->activityTagName=activityTagName;
 	this->_ctr->maxHoursContinuously=maxHoursSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetActivityTagMaxHoursContinuouslyForm::cancel()
+{
 	this->close();
 }

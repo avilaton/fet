@@ -2,8 +2,8 @@
                           addconstraintstudentssetearlymaxbeginningsatsecondhourform.cpp  -  description
                              -------------------
     begin                : July 18, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetearlymaxbeginningsatsecondhourform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +28,8 @@ AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::AddConstraintStudent
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -41,13 +37,11 @@ AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::AddConstraintStudent
 	QSize tmp2=studentsComboBox->minimumSizeHint();
 	Q_UNUSED(tmp2);
 	
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
+	populateStudentsComboBox(studentsComboBox);
 
 	maxBeginningsSpinBox->setMinimum(0);
 	maxBeginningsSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 	maxBeginningsSpinBox->setValue(0);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::~AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm()
@@ -55,13 +49,9 @@ AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::~AddConstraintStuden
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -79,7 +69,7 @@ void AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::addCurrentConst
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -88,9 +78,12 @@ void AddConstraintStudentsSetEarlyMaxBeginningsAtSecondHourForm::addCurrentConst
 	ctr=new ConstraintStudentsSetEarlyMaxBeginningsAtSecondHour(weight, maxBeginningsSpinBox->value(), students_name);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

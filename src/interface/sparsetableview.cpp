@@ -1,8 +1,8 @@
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                       sparsetableview.cpp  -  description
                              -------------------
@@ -29,6 +29,10 @@
 
 #include <QSize>
 
+//#include <QString>
+//#include <QColor>
+//#include <QPalette>
+
 SparseTableView::SparseTableView() : QTableView()
 {
 	this->setModel(&model);
@@ -44,27 +48,31 @@ void SparseTableView::resizeToFit()
 	QHash<int, int> columnSizes;
 	QHash<int, int> rowSizes;
 	
-	QHashIterator<QPair<int, int>, QString> i(model.items);
-	while(i.hasNext()){
-		i.next();
+	QHash<QPair<int, int>, QString>::const_iterator i=model.items.constBegin();
+	while(i!=model.items.constEnd()){
+		const QPair<int, int>& pair=i.key();
 		
-		QPair<int, int> pair=i.key();
+		if(!this->isRowHidden(pair.first) && !this->isColumnHidden(pair.second)){
+			//QString str=i.value();
+			
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+			QAbstractItemDelegate* delegate=this->itemDelegateForIndex(model.index(pair.first, pair.second));
+#else
+			QAbstractItemDelegate* delegate=this->itemDelegate(model.index(pair.first, pair.second));
+#endif
+			
+			//QSize size=delegate->sizeHint(this->viewOptions(), model.index(pair.first, pair.second));
+			QStyleOptionViewItem option;
+			option.initFrom(this);
+			QSize size=delegate->sizeHint(option, model.index(pair.first, pair.second));
+			
+			if(size.width() > columnSizes.value(pair.second, 0))
+				columnSizes.insert(pair.second, size.width());
+			if(size.height() > rowSizes.value(pair.first, 0))
+				rowSizes.insert(pair.first, size.height());
+		}
 		
-		if(this->isRowHidden(pair.first))
-			continue;
-		if(this->isColumnHidden(pair.second))
-			continue;
-		
-		QString str=i.value();
-		
-		QAbstractItemDelegate* delegate=this->itemDelegate(model.index(pair.first, pair.second));
-		
-		QSize size=delegate->sizeHint(this->viewOptions(), model.index(pair.first, pair.second));
-		
-		if(size.width() > columnSizes.value(pair.second, 0))
-			columnSizes.insert(pair.second, size.width());
-		if(size.height() > rowSizes.value(pair.first, 0))
-			rowSizes.insert(pair.first, size.height());
+		i++;
 	}
 	
 	horizontalSizesUntruncated.clear();
@@ -75,14 +83,14 @@ void SparseTableView::resizeToFit()
 			k++;
 		if(k<this->horizontalHeader()->sectionSizeHint(i))
 			k=this->horizontalHeader()->sectionSizeHint(i);
-			
+		
 		//not too wide
 		horizontalSizesUntruncated.append(k);
 		
 		if(k>maxHorizontalHeaderSectionSize()){
 			k=maxHorizontalHeaderSectionSize();
 		}
-			
+		
 		this->horizontalHeader()->resizeSection(i, k);
 	}
 

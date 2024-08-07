@@ -2,8 +2,8 @@
                           modifybuildingform.cpp  -  description
                              -------------------
     begin                : Feb 11, 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,6 @@
  ***************************************************************************/
 
 #include "modifybuildingform.h"
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 
 #include <QMessageBox>
 
@@ -29,8 +25,8 @@ ModifyBuildingForm::ModifyBuildingForm(QWidget* parent, const QString& initialBu
 	
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyBuildingForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyBuildingForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -47,6 +43,11 @@ ModifyBuildingForm::~ModifyBuildingForm()
 	saveFETDialogGeometry(this);
 }
 
+void ModifyBuildingForm::cancel()
+{
+	this->close();
+}
+
 void ModifyBuildingForm::ok()
 {
 	if(nameLineEdit->text().isEmpty()){
@@ -60,6 +61,8 @@ void ModifyBuildingForm::ok()
 	
 	bool t=gt.rules.modifyBuilding(this->_initialBuildingName, nameLineEdit->text());
 	assert(t);
+	
+	gt.rules.addUndoPoint(tr("Modified the building %1 to %2.").arg(this->_initialBuildingName).arg(nameLineEdit->text()));
 	
 	this->close();
 }

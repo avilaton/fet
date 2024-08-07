@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2009 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -18,21 +18,20 @@
 //REFERENCES:
 //
 //		Hints from Ted Jensen's Tutorial on Pointers and Arrays in C -
-//			- Chapter 9: Pointers and Dynamic Allocation of Memory - improvement so that the elements of a matrix are in a contiguous memory location.
+//			- Chapter 9: Pointers and Dynamic Allocation of Memory - improvement so that the elements of a matrix are in a contiguous memory location:
+//			-> https://pdos.csail.mit.edu/6.828/2014/readings/pointers.pdf)
 //
 //		Hints from C++ FAQ LITE by Marshall Cline -
-//			- Section [13] - Operator overloading, article [13.12] - advice about the () operator for matrices.
+//			- Section [13] - Operator overloading, article [13.12] - advice about the () operator for matrices:
+//			-> http://parashift.com/c++-faq-lite/
 //
 //		You may find more information on the FET documentation web page, https://lalescu.ro/liviu/fet/doc/
 
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include <cassert>
+#include "timetable_defs.h"
 
-/**
- * @brief Matrix3D is a simple 3D vector class with proper resource deallocation
- */
 template <typename T>
 class Matrix3D
 {
@@ -48,42 +47,12 @@ public:
 	Matrix3D();
 	~Matrix3D();
 
-	/**
-	 * @brief clear all matrix contents and size
-	 */
 	void clear();
-	/**
-	 * @brief change the matrix size, DESTROYING original content
-	 * @param _d1 the new size for the first dimension
-	 * @param _d2 the new size for the second dimension
-	 * @param _d3 the new size for the third dimension
-	 */
 	void resize(int _d1, int _d2, int _d3);
 	T** operator[](int i);
-	const T * const * operator[](int i) const;
 	T& operator()(int i, int j, int k);
-	const T& operator()(int i, int j, int k) const;
-
-	/**
-	 * @brief getD1 the size of the first dimension
-	 * @return the current size of first (main) dimension of 3-D matrix
-	 */
-	int getD1() const;
-	/**
-	 * @brief getD2 the size of the second dimension
-	 * @return the current size of second dimension of 3-D matrix
-	 */
-	int getD2() const;
-	/**
-	 * @brief getD3 the size of the third dimension
-	 * @return the current size of third dimension of 3-D matrix
-	 */
-	int getD3() const;
 };
 
-/**
- * @brief Matrix2D is a simple 2D vector class with proper resource deallocation
- */
 template <typename T>
 class Matrix2D
 {
@@ -98,36 +67,12 @@ public:
 	Matrix2D();
 	~Matrix2D();
 
-	/**
-	 * @brief clear all matrix contents and size
-	 */
 	void clear();
-	/**
-	 * @brief change the matrix size, DESTROYING original content
-	 * @param _d1 the new size for the first dimension
-	 * @param _d2 the new size for the second dimension
-	 */
 	void resize(int _d1, int _d2);
 	T* operator[](int i);
-	const T* operator[](int i) const;
 	T& operator()(int i, int j);
-	const T& operator()(int i, int j) const;
-
-	/**
-	 * @brief getD1 the size of the first dimension
-	 * @return the current size of first (main) dimension of 3-D matrix
-	 */
-	int getD1() const;
-	/**
-	 * @brief getD2 the size of the second dimension
-	 * @return the current size of second dimension of 3-D matrix
-	 */
-	int getD2() const;
 };
 
-/**
- * @brief Matrix1D is a simple vector class with proper resource deallocation
- */
 template <typename T>
 class Matrix1D
 {
@@ -140,28 +85,18 @@ public:
 	Matrix1D();
 	~Matrix1D();
 
-	/**
-	 * @brief clear all matrix contents and size
-	 */
 	void clear();
-	/**
-	 * @brief change the matrix size, DESTROYING original content
-	 * @param _d1 the new dimension size
-	 */
 	void resize(int _d1);
 	T& operator[](int i);
-	const T& operator[](int i) const;
-	/**
-	 * @brief getD1 the current matrix dimension
-	 * @return the current 1-D matrix size
-	 */
-	int getD1() const;
+	//T& operator()(int i);
 };
 
 
 template <typename T> Matrix3D<T>::Matrix3D()
-	: d1(-1), d2(-1), d3(-1), a(NULL), content(NULL)
 {
+	d1=d2=d3=-1;
+	a=nullptr;
+	content=nullptr;
 }
 
 template <typename T> Matrix3D<T>::~Matrix3D()
@@ -171,19 +106,12 @@ template <typename T> Matrix3D<T>::~Matrix3D()
 
 template <typename T> void Matrix3D<T>::clear()
 {
-	if(a != NULL){
-		assert(d1>0 && d2>0 && d3>0);
-		
+	if(d1>0 && d2>0 && d3>0){
 		for(int i=0; i<d1; i++)
 			delete[] a[i];
-		delete[]a;
-		a = NULL;
-	}
-	if (content != NULL) {
-		assert(d1>0 && d2>0 && d3>0);
-
+		delete[] a;
+		
 		delete[] content;
-		content = NULL;
 	}
 	d1=d2=d3=-1;
 }
@@ -207,7 +135,7 @@ template <typename T> void Matrix3D<T>::resize(int _d1, int _d2, int _d3)
 		for(int i=0; i<d1; i++){
 			a[i]=new T*[d2];
 			for(int j=0; j<d2; j++)
-				a[i][j]=content+(i*d2+j)*d3;
+				a[i][j]=content+i*d2*d3+j*d3;
 		}
 	}
 }
@@ -217,40 +145,18 @@ template <typename T> inline T** Matrix3D<T>::operator[](int i)
 	return a[i];
 }
 
-template <typename T> inline const T * const * Matrix3D<T>::operator[](int i) const
-{
-	return a[i];
-}
-
 template <typename T> inline T& Matrix3D<T>::operator()(int i, int j, int k)
 {
+	//return content[i*d2*d3+j*d3+k];
 	return content[(i*d2+j)*d3+k];
-}
-
-template <typename T> inline const T& Matrix3D<T>::operator()(int i, int j, int k) const
-{
-	return content[(i*d2+j)*d3+k];
-}
-
-template <typename T> int Matrix3D<T>::getD1() const
-{
-	return d1;
-}
-
-template <typename T> int Matrix3D<T>::getD2() const
-{
-	return d2;
-}
-
-template <typename T> int Matrix3D<T>::getD3() const
-{
-	return d3;
 }
 
 
 template <typename T> Matrix2D<T>::Matrix2D()
-	: d1(-1), d2(-1), a(NULL), content(NULL)
 {
+	d1=d2=-1;
+	a=nullptr;
+	content=nullptr;
 }
 
 template <typename T> Matrix2D<T>::~Matrix2D()
@@ -260,16 +166,10 @@ template <typename T> Matrix2D<T>::~Matrix2D()
 
 template <typename T> void Matrix2D<T>::clear()
 {
-	if(a != NULL){
-		assert(d1>0 && d2>0);
-		
+	if(d1>0 && d2>0){
 		delete[] a;
-		a = NULL;
-	}
-	if (content != NULL) {
-		assert(d1>0 && d2>0);
+		
 		delete[] content;
-		content = NULL;
 	}
 	d1=d2=-1;
 }
@@ -299,30 +199,16 @@ template <typename T> inline T* Matrix2D<T>::operator[](int i)
 	return a[i];
 }
 
-template <typename T> inline const T& Matrix2D<T>::operator()(int i, int j) const
-{
-	return content[i*d2+j];
-}
-
 template <typename T> inline T& Matrix2D<T>::operator()(int i, int j)
 {
 	return content[i*d2+j];
 }
 
-template <typename T> int Matrix2D<T>::getD1() const
-{
-	return d1;
-}
-
-template <typename T> int Matrix2D<T>::getD2() const
-{
-	return d2;
-}
-
 
 template <typename T> Matrix1D<T>::Matrix1D()
-	: d1(-1), a(NULL)
 {
+	d1=-1;
+	a=nullptr;
 }
 
 template <typename T> Matrix1D<T>::~Matrix1D()
@@ -332,10 +218,8 @@ template <typename T> Matrix1D<T>::~Matrix1D()
 
 template <typename T> void Matrix1D<T>::clear()
 {
-	if(a != NULL){
-		assert(d1>0);
+	if(d1>0){
 		delete[] a;
-		a = NULL;
 	}
 	d1=-1;
 }
@@ -356,19 +240,14 @@ template <typename T> void Matrix1D<T>::resize(int _d1)
 	}
 }
 
-template <typename T> inline const T& Matrix1D<T>::operator[](int i) const
-{
-	return a[i];
-}
-
 template <typename T> inline T& Matrix1D<T>::operator[](int i)
 {
 	return a[i];
 }
 
-template <typename T> int Matrix1D<T>::getD1() const
+/*template <typename T> inline T& Matrix1D<T>::operator()(int i)
 {
-	return d1;
-}
+	return a[i];
+}*/
 
 #endif

@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxbuildingchangesperweekform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetmaxbuildingchangesperweekform.h"
-#include "spaceconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::AddConstraintStudentsSetMaxBuildingChangesPerWeekForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +27,8 @@ AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::AddConstraintStudentsSetM
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -55,18 +50,12 @@ AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::~AddConstraintStudentsSet
 
 void AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::updateStudentsSetComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
-}
-
-void AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::constraintChanged()
-{
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::addCurrentConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -79,7 +68,7 @@ void AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::addCurrentConstraint
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -88,9 +77,12 @@ void AddConstraintStudentsSetMaxBuildingChangesPerWeekForm::addCurrentConstraint
 	ctr=new ConstraintStudentsSetMaxBuildingChangesPerWeek(weight, students_name, maxChangesSpinBox->value());
 
 	bool tmp2=gt.rules.addSpaceConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

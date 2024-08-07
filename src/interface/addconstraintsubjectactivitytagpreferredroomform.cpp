@@ -3,7 +3,7 @@
                              -------------------
     begin                : 18 Aug 2007
     copyright            : (C) 2007 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,10 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintsubjectactivitytagpreferredroomform.h"
-#include "spaceconstraint.h"
 
 AddConstraintSubjectActivityTagPreferredRoomForm::AddConstraintSubjectActivityTagPreferredRoomForm(QWidget* parent): QDialog(parent)
 {
@@ -29,8 +27,8 @@ AddConstraintSubjectActivityTagPreferredRoomForm::AddConstraintSubjectActivityTa
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintSubjectActivityTagPreferredRoomForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintSubjectActivityTagPreferredRoomForm::addConstraint);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -82,7 +80,7 @@ void AddConstraintSubjectActivityTagPreferredRoomForm::updateRoomsComboBox()
 
 void AddConstraintSubjectActivityTagPreferredRoomForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -125,10 +123,12 @@ void AddConstraintSubjectActivityTagPreferredRoomForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - error ?"));
+			tr("Constraint NOT added - error?"));
 		delete ctr;
 	}
 }

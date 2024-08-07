@@ -2,8 +2,8 @@
                           constraintmaxdaysbetweenactivitiesform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,31 +15,84 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintmaxdaysbetweenactivitiesform.h"
 #include "addconstraintmaxdaysbetweenactivitiesform.h"
 #include "modifyconstraintmaxdaysbetweenactivitiesform.h"
 
-#include "teacherstudentsetsubjectactivitytag_filterwidget.h"
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-#include "centerwidgetonscreen.h"
-
-ConstraintMaxDaysBetweenActivitiesForm::ConstraintMaxDaysBetweenActivitiesForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintMaxDaysBetweenActivitiesForm::ConstraintMaxDaysBetweenActivitiesForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintMaxDaysBetweenActivitiesForm_template", "Constraints max days between activities"));
+	setupUi(this);
+	
+	if(gt.rules.mode!=MORNINGS_AFTERNOONS)
+		instructionsLabel->setEnabled(false);
 
-	setHelp();
+	currentConstraintTextEdit->setReadOnly(true);
+	
+	modifyConstraintPushButton->setDefault(true);
 
-	TeacherStudentSetSubjectActivityTag_FilterWidget *filterWidget = new TeacherStudentSetSubjectActivityTag_FilterWidget(gt.rules);
-	filterWidget->setTeachersVisible(true);
-	filterWidget->setStudentSetsVisible(true);
-	filterWidget->setSubjectsVisible(true);
-	filterWidget->setActivityTagsVisible(true);
-	setFilterWidget(filterWidget);
-	connect(filterWidget, &TeacherStudentSetSubjectActivityTag_FilterWidget::FilterChanged, this, &ConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintMaxDaysBetweenActivitiesForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintMaxDaysBetweenActivitiesForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintMaxDaysBetweenActivitiesForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintMaxDaysBetweenActivitiesForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintMaxDaysBetweenActivitiesForm::modifyConstraint);
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintMaxDaysBetweenActivitiesForm::modifyConstraint);
+
+	connect(helpPushButton, &QPushButton::clicked, this, &ConstraintMaxDaysBetweenActivitiesForm::help);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
+
+	QSize tmp1=teachersComboBox->minimumSizeHint();
+	Q_UNUSED(tmp1);
+	QSize tmp2=studentsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp2);
+	QSize tmp3=subjectsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp3);
+	QSize tmp4=activityTagsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp4);
+	
+/////////////
+	teachersComboBox->addItem("");
+	for(int i=0; i<gt.rules.teachersList.size(); i++){
+		Teacher* tch=gt.rules.teachersList[i];
+		teachersComboBox->addItem(tch->name);
+	}
+	teachersComboBox->setCurrentIndex(0);
+
+	subjectsComboBox->addItem("");
+	for(int i=0; i<gt.rules.subjectsList.size(); i++){
+		Subject* sb=gt.rules.subjectsList[i];
+		subjectsComboBox->addItem(sb->name);
+	}
+	subjectsComboBox->setCurrentIndex(0);
+
+	activityTagsComboBox->addItem("");
+	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
+		ActivityTag* st=gt.rules.activityTagsList[i];
+		activityTagsComboBox->addItem(st->name);
+	}
+	activityTagsComboBox->setCurrentIndex(0);
+
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
+	studentsComboBox->setCurrentIndex(0);
+///////////////
+
 	this->filterChanged();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintMaxDaysBetweenActivitiesForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintMaxDaysBetweenActivitiesForm::filterChanged);
 }
 
 ConstraintMaxDaysBetweenActivitiesForm::~ConstraintMaxDaysBetweenActivitiesForm()
@@ -47,37 +100,197 @@ ConstraintMaxDaysBetweenActivitiesForm::~ConstraintMaxDaysBetweenActivitiesForm(
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintMaxDaysBetweenActivitiesForm::filterOk(const TimeConstraint* ctr) const
+bool ConstraintMaxDaysBetweenActivitiesForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type!=CONSTRAINT_MAX_DAYS_BETWEEN_ACTIVITIES)
 		return false;
 		
-	const ConstraintMaxDaysBetweenActivities* c=(const ConstraintMaxDaysBetweenActivities*) ctr;
-	QSet<const Activity *> activities;
-	for(int id : qAsConst(c->activitiesId)){
-		for(const Activity* a : qAsConst(gt.rules.activitiesList)) {
-			if(a->id==id) {
-				activities << a;
-				break;
+	ConstraintMaxDaysBetweenActivities* c=(ConstraintMaxDaysBetweenActivities*) ctr;
+	
+	QString tn=teachersComboBox->currentText();
+	QString sbn=subjectsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
+	QString stn=studentsComboBox->currentText();
+	
+	if(tn=="" && sbn=="" && atn=="" && stn=="")
+		return true;
+	
+	bool foundTeacher=false, foundStudents=false, foundSubject=false, foundActivityTag=false;
+		
+	for(int i=0; i<c->n_activities; i++){
+		int id=c->activitiesIds[i];
+		/*Activity* act=nullptr;
+		for(Activity* a : std::as_const(gt.rules.activitiesList))
+			if(a->id==id)
+				act=a;*/
+		Activity* act=gt.rules.activitiesPointerHash.value(id, nullptr);
+		
+		if(act!=nullptr){
+			//teacher
+			if(tn!=""){
+				bool ok2=false;
+				for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
+					if(*it == tn){
+						ok2=true;
+						break;
+					}
+				if(ok2)
+					foundTeacher=true;
 			}
+			else
+				foundTeacher=true;
+
+			//subject
+			if(sbn!="" && sbn!=act->subjectName)
+				;
+			else
+				foundSubject=true;
+		
+			//activity tag
+			if(atn!="" && !act->activityTagsNames.contains(atn))
+				;
+			else
+				foundActivityTag=true;
+		
+			//students
+			if(stn!=""){
+				bool ok2=false;
+				for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
+					if(*it == stn){
+						ok2=true;
+						break;
+				}
+				if(ok2)
+					foundStudents=true;
+			}
+			else
+				foundStudents=true;
 		}
 	}
-
-	TeacherStudentSetSubjectActivityTag_FilterWidget *filter_widget = static_cast<TeacherStudentSetSubjectActivityTag_FilterWidget*>(getFilterWidget());
-	return filter_widget->filterActivitySet(activities);
+	
+	if(foundTeacher && foundStudents && foundSubject && foundActivityTag)
+		return true;
+	else
+		return false;
 }
 
-QDialog * ConstraintMaxDaysBetweenActivitiesForm::createAddDialog()
+void ConstraintMaxDaysBetweenActivitiesForm::filterChanged()
 {
-	return new AddConstraintMaxDaysBetweenActivitiesForm(this);
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(ctr->getDescription(gt.rules));
+		}
+	}
+	
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		constraintChanged(-1);
 }
 
-QDialog * ConstraintMaxDaysBetweenActivitiesForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintMaxDaysBetweenActivitiesForm::constraintChanged(int index)
 {
-	return new ModifyConstraintMaxDaysBetweenActivitiesForm(this, (ConstraintMaxDaysBetweenActivities*)ctr);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+	
+		return;
+	}
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	currentConstraintTextEdit->setPlainText(ctr->getDetailedDescription(gt.rules));
 }
 
-void ConstraintMaxDaysBetweenActivitiesForm::setHelp()
+void ConstraintMaxDaysBetweenActivitiesForm::addConstraint()
+{
+	AddConstraintMaxDaysBetweenActivitiesForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintMaxDaysBetweenActivitiesForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintMaxDaysBetweenActivitiesForm form(this, (ConstraintMaxDaysBetweenActivities*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintMaxDaysBetweenActivitiesForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
+	s+="\n\n";
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
+
+	QString oc;
+
+	switch( LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 ) ){
+	case 0: // The user clicked the OK button or pressed Enter
+		oc=ctr->getDetailedDescription(gt.rules);
+
+		gt.rules.removeTimeConstraint(ctr);
+
+		gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+		
+		visibleConstraintsList.removeAt(i);
+		constraintsListWidget->setCurrentRow(-1);
+		item=constraintsListWidget->takeItem(i);
+		delete item;
+
+		break;
+	case 1: // The user clicked the Cancel button or pressed Escape
+		break;
+	}
+	
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintMaxDaysBetweenActivitiesForm::help()
 {
 	QString s;
 	
@@ -86,7 +299,7 @@ void ConstraintMaxDaysBetweenActivitiesForm::setHelp()
 	s+=tr("This constraint was suggested for the following situation: a user needed that activities A1, A2 and A3 to be in consecutive days"
 	 " (like: A1 on Tuesday, A2 on Wednesday and A3 on Thursday. So, they must be in 3 consecutive days). This is simple: add a constraint"
 	 " max days between activities for A1, A2 and A3, with max 2 days between them. It is supposed that these activities are constrained"
-	 " not to be in the same day by a constraint min days between activities.");
+	 " not to be on the same day by a constraint min days between activities.");
 	s+="\n\n";
 	s+=tr("So, the general situation: this constraint ensures that between each pair from the selected activities, the distance in days is at most the selected value."
 	" Distance = 1 day between a pair A1 and A2 means that A1 and A2 are in consecutive days (like Thursday and Friday)."
@@ -95,5 +308,5 @@ void ConstraintMaxDaysBetweenActivitiesForm::setHelp()
 	s+=tr("Another example: teacher T wants to ensure that his activities take place in at most 4 consecutive days (so, from Monday to Thursday or from"
 	" Tuesday to Friday). Then, add all his activities and max days between them = 3.");
 
-	setHelpText(s);
+	LongTextMessageBox::largeInformation(this, tr("FET help"), s);
 }

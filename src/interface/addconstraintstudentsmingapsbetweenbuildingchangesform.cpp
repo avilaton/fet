@@ -2,8 +2,8 @@
                           addconstraintstudentsmingapsbetweenbuildingchangesform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,10 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsmingapsbetweenbuildingchangesform.h"
-#include "spaceconstraint.h"
 
 AddConstraintStudentsMinGapsBetweenBuildingChangesForm::AddConstraintStudentsMinGapsBetweenBuildingChangesForm(QWidget* parent): QDialog(parent)
 {
@@ -29,17 +27,15 @@ AddConstraintStudentsMinGapsBetweenBuildingChangesForm::AddConstraintStudentsMin
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMinGapsBetweenBuildingChangesForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMinGapsBetweenBuildingChangesForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	minGapsSpinBox->setMinimum(1);
 	minGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	minGapsSpinBox->setValue(1);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsMinGapsBetweenBuildingChangesForm::~AddConstraintStudentsMinGapsBetweenBuildingChangesForm()
@@ -47,13 +43,9 @@ AddConstraintStudentsMinGapsBetweenBuildingChangesForm::~AddConstraintStudentsMi
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsMinGapsBetweenBuildingChangesForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMinGapsBetweenBuildingChangesForm::addCurrentConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -67,9 +59,12 @@ void AddConstraintStudentsMinGapsBetweenBuildingChangesForm::addCurrentConstrain
 	ctr=new ConstraintStudentsMinGapsBetweenBuildingChanges(weight, minGapsSpinBox->value());
 
 	bool tmp2=gt.rules.addSpaceConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

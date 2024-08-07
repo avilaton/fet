@@ -6,8 +6,8 @@ File activity.cpp
                           activity.cpp  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -19,20 +19,184 @@ File activity.cpp
  *                                                                         *
  ***************************************************************************/
 
+#include "timetable_defs.h"
 #include "activity.h"
 #include "rules.h"
-#include "groupactivitiesininitialorderitem.h"
 
-Activity::Activity() :
-	duration(0),
-	totalDuration(0),
-	id(-1),
-	activityGroupId(0),
-	nTotalStudents(0),
-	computeNTotalStudents(false),
-	active(false),
-	subjectIndex(-1)
+#include <QSet>
+
+#include <QDataStream>
+
+QDataStream& operator<<(QDataStream& stream, const Activity& act)
 {
+	stream<<act.comments;
+	stream<<act.teachersNames;
+	stream<<act.subjectName;
+	stream<<act.activityTagsNames;
+	stream<<act.studentsNames;
+	stream<<act.duration;
+	stream<<act.totalDuration;
+	stream<<act.id;
+	stream<<act.activityGroupId;
+	stream<<act.nTotalStudents;
+	stream<<act.computeNTotalStudents;
+	stream<<act.active;
+
+	return stream;
+}
+
+QDataStream& operator>>(QDataStream& stream, Activity& act)
+{
+	stream>>act.comments;
+	stream>>act.teachersNames;
+	stream>>act.subjectName;
+	stream>>act.activityTagsNames;
+	stream>>act.studentsNames;
+	stream>>act.duration;
+	stream>>act.totalDuration;
+	stream>>act.id;
+	stream>>act.activityGroupId;
+	stream>>act.nTotalStudents;
+	stream>>act.computeNTotalStudents;
+	stream>>act.active;
+
+	return stream;
+}
+
+QDataStream& operator<<(QDataStream& stream, const GroupActivitiesInInitialOrderItem& gaio)
+{
+	stream<<gaio.active;
+	stream<<gaio.comments;
+	stream<<gaio.ids;
+
+	return stream;
+}
+
+QDataStream& operator>>(QDataStream& stream, GroupActivitiesInInitialOrderItem& gaio)
+{
+	stream>>gaio.active;
+	stream>>gaio.comments;
+	stream>>gaio.ids;
+
+	return stream;
+}
+
+QString getActivityDetailedDescription(Rules& r, int id); //Implemented in timeconstraint.cpp
+
+GroupActivitiesInInitialOrderItem::GroupActivitiesInInitialOrderItem()
+{
+	active=true;
+	comments=QString("");
+}
+
+GroupActivitiesInInitialOrderItem::~GroupActivitiesInInitialOrderItem()
+{
+}
+
+void GroupActivitiesInInitialOrderItem::removeUseless(Rules& r)
+{
+	QList<int> tmpList;
+	
+	for(int id : std::as_const(ids)){
+		Activity* act=r.activitiesPointerHash.value(id, nullptr);
+		if(act!=nullptr)
+			tmpList.append(id);
+	}
+	
+	ids=tmpList;
+	
+	r.internalStructureComputed=false;
+}
+
+void GroupActivitiesInInitialOrderItem::recomputeActivitiesSet(){
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+	idsSet=QSet<int>(ids.constBegin(), ids.constEnd());
+#else
+	idsSet=ids.toSet();
+#endif
+}
+
+QString GroupActivitiesInInitialOrderItem::getXmlDescription(Rules& r)
+{
+	Q_UNUSED(r);
+
+	QString s;
+
+	s+="<GroupActivitiesInInitialOrder>\n";
+	s+="	<Number_of_Activities>"+QString::number(ids.count())+"</Number_of_Activities>\n";
+	for(int id : std::as_const(ids))
+		s+=QString("	<Activity_Id>")+CustomFETString::number(id)+QString("</Activity_Id>\n");
+
+	s+="	<Active>";
+	if(this->active==true)
+		s+="true";
+	else
+		s+="false";
+	s+="</Active>\n";
+
+	s+="	<Comments>"+protect(comments)+"</Comments>\n";
+
+	s+="</GroupActivitiesInInitialOrder>\n";
+	
+	return s;
+}
+
+QString GroupActivitiesInInitialOrderItem::getDescription(Rules& r)
+{
+	Q_UNUSED(r);
+
+	QString begin=QString("");
+	if(!active)
+		begin="X - ";
+
+	QString s=tr("Group activities in the initial order item");
+	s+=QString(", ");
+	s+=tr("NA:%1", "Number of activities").arg(ids.count());
+	for(int id : std::as_const(ids))
+		s+=QString(", ")+tr("Id:%1", "Id of activity").arg(id);
+
+	QString end=QString("");
+	if(!comments.isEmpty())
+		end=", "+tr("C: %1", "Comments").arg(comments);
+
+	return begin+s+end;
+}
+
+QString GroupActivitiesInInitialOrderItem::getDetailedDescription(Rules& r)
+{
+	QString s=tr("Timetable generation option"); s+=QString("\n");
+	s+=tr("Group activities in the initial order item"); s+=QString("\n");
+	s+=tr("Number of activities=%1").arg(ids.count()); s+=QString("\n");
+	for(int id : std::as_const(ids)){
+		s+=tr("Activity with id=%1 (%2)", "%1 is the id, %2 is the detailed description of the activity")
+		 .arg(id)
+		 .arg(getActivityDetailedDescription(r, id));
+		s+=QString("\n");
+	}
+
+	//Not active?
+	QString activeYesNo;
+	if(this->active==true)
+		activeYesNo=tr("yes");
+	else
+		activeYesNo=tr("no");
+	if(!active){
+		s+=tr("Active group activities in the initial order item=%1", "Represents a yes/no value, if a 'group activities in initial order' item is active or not, %1 is yes or no").arg(activeYesNo);
+		s+="\n";
+	}
+
+	//Has comments?
+	if(!comments.isEmpty()){
+		s+=tr("Comments=%1").arg(comments);
+		s+="\n";
+	}
+	
+	return s;
+}
+
+Activity::Activity()
+{
+	comments=QString("");
 }
 
 /*Activity::Activity(
@@ -66,7 +230,7 @@ Activity::Activity() :
 		this->nTotalStudents=0;
 		for(QStringList::Iterator it=this->studentsNames.begin(); it!=this->studentsNames.end(); it++){
 			StudentsSet* ss=r.searchStudentsSet(*it);
-			assert(ss!=NULL);
+			assert(ss!=nullptr);
 			this->nTotalStudents += ss->numberOfStudents;
 		}
 	}
@@ -76,7 +240,9 @@ Activity::Activity() :
 	}
 }*/
 
-Activity::Activity(int _id,
+Activity::Activity(
+	Rules& r,
+	int _id,
 	int _activityGroupId,
 	const QStringList& _teachersNames,
 	const QString& _subjectName,
@@ -87,27 +253,33 @@ Activity::Activity(int _id,
 	bool _active,
 	bool _computeNTotalStudents,
 	int _nTotalStudents,
-	int _computedNumberOfStudents) :
-		teachersNames(_teachersNames),
-		subjectName(_subjectName),
-		activityTagsNames(_activityTagsNames),
-		studentsNames(_studentsNames),
-		duration(_duration),
-		totalDuration(_totalDuration),
-		id(_id),
-		activityGroupId(_activityGroupId),
-		computeNTotalStudents(_computeNTotalStudents),
-		active(_active),
-		subjectIndex(-1)
+	int _computedNumberOfStudents)
 {
+	Q_UNUSED(r);
+	//Q_UNUSED(_nTotalStudents);
+
+	comments=QString("");
+
+	this->id=_id;
+	this->activityGroupId=_activityGroupId;
+	this->teachersNames = _teachersNames;
+	this->subjectName = _subjectName;
+	this->activityTagsNames = _activityTagsNames;
+	this->studentsNames = _studentsNames;
+	this->duration=_duration;
+	this->totalDuration=_totalDuration;
+	this->active=_active;
+	this->computeNTotalStudents=_computeNTotalStudents;
+	
+	//assert(_computeNTotalStudents);
 	if(_computeNTotalStudents)
 		assert(_nTotalStudents==-1);
 	else
 		assert(_nTotalStudents==_computedNumberOfStudents);
-	nTotalStudents = _computedNumberOfStudents;
+	this->nTotalStudents=_computedNumberOfStudents;
 }
 
-bool Activity::operator==(const Activity& a) const
+bool Activity::operator==(const Activity& a)
 {
 	if(this->teachersNames != a.teachersNames)
 		return false;
@@ -124,7 +296,7 @@ bool Activity::operator==(const Activity& a) const
 	return true;
 }
 
-bool Activity::hasTeacher(const QString& teacherName) const
+bool Activity::searchTeacher(const QString& teacherName)
 {
 	return this->teachersNames.indexOf(teacherName)!=-1;
 }
@@ -149,7 +321,7 @@ void Activity::renameTeacher(const QString& initialTeacherName, const QString& f
 	assert(t<=1);
 }
 
-bool Activity::hasStudents(const QString& studentsName) const
+bool Activity::searchStudents(const QString& studentsName)
 {
 	return this->studentsNames.indexOf(studentsName)!=-1;
 }
@@ -164,7 +336,7 @@ bool Activity::removeStudents(Rules& r, const QString& studentsName, int nStuden
 
 	if(t>0 && this->computeNTotalStudents==true){
 		/*StudentsSet* s=r.searchStudentsSet(studentsName);
-		assert(s!=NULL);
+		assert(s!=nullptr);
 		this->nTotalStudents-=s->numberOfStudents;*/
 		this->nTotalStudents-=t*nStudents;
 		assert(this->nTotalStudents>=0);
@@ -182,11 +354,11 @@ void Activity::renameStudents(Rules& r, const QString& initialStudentsName, cons
 		if((*it)==initialStudentsName){
 			/*if(this->computeNTotalStudents==true){
 				StudentsSet* s=r.searchStudentsSet(initialStudentsName);
-				assert(s!=NULL);
+				assert(s!=nullptr);
 				this->nTotalStudents-=s->numberOfStudents;
 				
 				StudentsSet* s2=r.searchStudentsSet(finalStudentsName);
-				assert(s2!=NULL);
+				assert(s2!=nullptr);
 				this->nTotalStudents+=s2->numberOfStudents;
 				
 				assert(this->nTotalStudents>=0);
@@ -207,7 +379,7 @@ void Activity::renameStudents(Rules& r, const QString& initialStudentsName, cons
 	assert(t<=1);
 }
 
-void Activity::computeInternalStructure(const Rules& r)
+void Activity::computeInternalStructure(Rules& r)
 {
 	//the internal subgroups list must be computed before entering here.
 
@@ -215,7 +387,7 @@ void Activity::computeInternalStructure(const Rules& r)
 	//this->nTeachers=0;
 	this->iTeachersList.clear();
 	QSet<int> iTeachersSet;
-	for(QStringList::ConstIterator it=this->teachersNames.begin(); it!=this->teachersNames.end(); it++){
+	for(QStringList::const_iterator it=this->teachersNames.constBegin(); it!=this->teachersNames.constEnd(); it++){
 		int tmp=r.teachersHash.value(*it, -1);
 		/*for(tmp=0; tmp<r.nInternalTeachers; tmp++){
 			if(r.internalTeachersList[tmp]->name == (*it))
@@ -236,7 +408,7 @@ void Activity::computeInternalStructure(const Rules& r)
 
 	//activity tags
 	this->iActivityTagsSet.clear();
-	for(const QString& tag : qAsConst(this->activityTagsNames)){
+	for(const QString& tag : std::as_const(this->activityTagsNames)){
 		assert(tag!="");
 		int index=r.activityTagsHash.value(tag, -1); //r.searchActivityTag(tag);
 		assert(index>=0);
@@ -245,13 +417,13 @@ void Activity::computeInternalStructure(const Rules& r)
 	}
 	//this->activityTagIndex = r.searchActivityTag(this->activityTagName);
 
-	//students	
+	//students
 	//this->nSubgroups=0;
 	this->iSubgroupsList.clear();
 	QSet<int> iSubgroupsSet;
-	for(QStringList::ConstIterator it=this->studentsNames.begin(); it!=this->studentsNames.end(); it++){
-		StudentsSet* ss=r.studentsHash.value(*it, NULL); //r.searchAugmentedStudentsSet(*it);
-		assert(ss);
+	for(QStringList::const_iterator it=this->studentsNames.constBegin(); it!=this->studentsNames.constEnd(); it++){
+		StudentsSet* ss=r.studentsHash.value(*it, nullptr); //r.searchAugmentedStudentsSet(*it);
+		assert(ss!=nullptr);
 		if(ss->type==STUDENTS_SUBGROUP){
 			int tmp;
 			/*for(tmp=0; tmp<r.nInternalSubgroups; tmp++)
@@ -349,19 +521,21 @@ void Activity::computeInternalStructure(const Rules& r)
 	}
 }
 
-QString Activity::getXmlDescription() const
+QString Activity::getXmlDescription(Rules& r)
 {
+	Q_UNUSED(r);
+
 	QString s="<Activity>\n";
 
-	for(QStringList::ConstIterator it=this->teachersNames.begin(); it!=this->teachersNames.end(); it++)
+	for(QStringList::const_iterator it=this->teachersNames.constBegin(); it!=this->teachersNames.constEnd(); it++)
 		s+="	<Teacher>" + protect(*it) + "</Teacher>\n";
 
 	s+="	<Subject>" + protect(this->subjectName) + "</Subject>\n";
 
-	for(const QString& tag : qAsConst(this->activityTagsNames))
+	for(const QString& tag : std::as_const(this->activityTagsNames))
 		s+="	<Activity_Tag>" + protect(tag) + "</Activity_Tag>\n";
 
-	for(QStringList::ConstIterator it=this->studentsNames.begin(); it!=this->studentsNames.end(); it++)
+	for(QStringList::const_iterator it=this->studentsNames.constBegin(); it!=this->studentsNames.constEnd(); it++)
 		s+="	<Students>" + protect(*it) + "</Students>\n";
 
 	s+="	<Duration>"+CustomFETString::number(this->duration)+"</Duration>\n";
@@ -386,10 +560,12 @@ QString Activity::getXmlDescription() const
 	return s;
 }
 
-QString Activity::getDescription() const
+QString Activity::getDescription(Rules& r)
 {
 	const int INDENT=4;
 
+	Q_UNUSED(r);
+	
 	bool _indent;
 	if(this->isSplit() && this->id!=this->activityGroupId)
 		_indent=true;
@@ -487,8 +663,10 @@ QString Activity::getDescription() const
 	return s;
 }
 
-QString Activity::getDetailedDescription() const
+QString Activity::getDetailedDescription(Rules& r)
 {
+	Q_UNUSED(r);
+
 	QString s;
 
 	s=tr("Activity:");
@@ -502,6 +680,15 @@ QString Activity::getDetailedDescription() const
 		s+="\n";
 	}
 
+	if(!this->isSplit()){
+		s+=tr("Component number=%1 (single component activity)", "The split index of this (sub)activity, which will always be equal to 1").arg(this->componentNumber());
+		s+="\n";
+	}
+	else{
+		s+=tr("Component number=%1 (in a larger split activity)", "The split index of this subactivity in the larger split activity").arg(this->componentNumber());
+		s+="\n";
+	}
+	
 	//Dur, TD
 	s+=tr("Duration=%1").arg(CustomFETString::number(this->duration));
 	s+="\n";
@@ -514,15 +701,16 @@ QString Activity::getDetailedDescription() const
 		s+=tr("No teachers for this activity");
 		s+="\n";
 	}
-	else
-		for(QStringList::ConstIterator it=this->teachersNames.begin(); it!=this->teachersNames.end(); it++){
+	else{
+		for(QStringList::const_iterator it=this->teachersNames.constBegin(); it!=this->teachersNames.constEnd(); it++){
 			s+=tr("Teacher=%1").arg(*it);
 			s+="\n";
 		}
+	}
 
 	s+=tr("Subject=%1").arg(this->subjectName);
 	s+="\n";
-	for(const QString& tag : qAsConst(this->activityTagsNames)){
+	for(const QString& tag : std::as_const(this->activityTagsNames)){
 		assert(tag!="");
 		s+=tr("Activity tag=%1").arg(tag);
 		s+="\n";
@@ -532,25 +720,21 @@ QString Activity::getDetailedDescription() const
 		s+=tr("No students sets for this activity");
 		s+="\n";
 	}
-	else
-		for(QStringList::ConstIterator it=this->studentsNames.begin(); it!=this->studentsNames.end(); it++){
-			s += tr("Students=%1").arg(*it);
+	else{
+		for(QStringList::const_iterator it=this->studentsNames.constBegin(); it!=this->studentsNames.constEnd(); it++){
+			s+=tr("Students=%1").arg(*it);
 			s+="\n";
 		}
-		
+	}
+	
 	if(this->computeNTotalStudents==true){
-		/*int nStud=0;
-		for(QStringList::Iterator it=this->studentsNames.begin(); it!=this->studentsNames.end(); it++){
-			StudentsSet* ss=r.searchStudentsSet(*it);
-			nStud += ss->numberOfStudents;
-		}*/
-		int nStud=this->nTotalStudents;
-		s+=tr("Total number of students=%1").arg(nStud);
+		s+=tr("Total number of students=%1").arg(this->nTotalStudents);
+		s+=" ("+tr("computed", "Computed means that the total number of students was computed for the activity, from the number of students of the constituent students sets")+")";
 		s+="\n";
 	}
 	else{
 		s+=tr("Total number of students=%1").arg(this->nTotalStudents);
-		s+=" ("+tr("specified", "Specified means that the total number of students was specified separately for the activity")+")";
+		s+=" ("+tr("specified", "Specified means that the total number of students was specified for the activity")+")";
 		s+="\n";
 	}
 	
@@ -561,7 +745,7 @@ QString Activity::getDetailedDescription() const
 	else
 		activeYesNo=tr("no");
 	if(!active){
-		s+=tr("Active=%1", "Represents a boolean value, if activity is active or not, %1 is yes or no").arg(activeYesNo);
+		s+=tr("Active activity=%1", "Represents a yes/no value, if an activity is active or not, %1 is yes or no").arg(activeYesNo);
 		s+="\n";
 	}
 
@@ -574,15 +758,15 @@ QString Activity::getDetailedDescription() const
 	return s;
 }
 
-QString Activity::getDetailedDescriptionWithConstraints(const Rules &r) const
+QString Activity::getDetailedDescriptionWithConstraints(Rules& r)
 {
-	QString s=this->getDetailedDescription();
+	QString s=this->getDetailedDescription(r);
 
 	s+="--------------------------------------------------\n";
 	s+=tr("Time constraints directly related to this activity:");
 	s+="\n";
-	for(TimeConstraintsList::const_iterator it = r.timeConstraintsList.constBegin(); it != r.timeConstraintsList.constEnd(); ++it){
-		const TimeConstraint *c = *it;
+	for(int i=0; i<r.timeConstraintsList.size(); i++){
+		TimeConstraint* c=r.timeConstraintsList[i];
 		if(c->isRelatedToActivity(r, this)){
 			s+="\n";
 			s+=c->getDetailedDescription(r);
@@ -592,8 +776,8 @@ QString Activity::getDetailedDescriptionWithConstraints(const Rules &r) const
 	s+="--------------------------------------------------\n";
 	s+=tr("Space constraints directly related to this activity:");
 	s+="\n";
-	for(SpaceConstraintsList::const_iterator it = r.spaceConstraintsList.constBegin(); it != r.spaceConstraintsList.constEnd(); ++it){
-		const SpaceConstraint *c = *it;
+	for(int i=0; i<r.spaceConstraintsList.size(); i++){
+		SpaceConstraint* c=r.spaceConstraintsList[i];
 		if(c->isRelatedToActivity(this)){
 			s+="\n";
 			s+=c->getDetailedDescription(r);
@@ -604,10 +788,9 @@ QString Activity::getDetailedDescriptionWithConstraints(const Rules &r) const
 	if(r.groupActivitiesInInitialOrderList.count()>0){
 		s+=tr("Timetable generation options directly related to this activity:");
 		s+="\n";
-		for(GroupActivitiesInInitialOrderList::ConstIterator it = r.groupActivitiesInInitialOrderList.constBegin();
-			it != r.groupActivitiesInInitialOrderList.constEnd(); ++it){
-			const GroupActivitiesInInitialOrderItem* item = *it;
-			if(item->ids.contains(id)){
+		for(int i=0; i<r.groupActivitiesInInitialOrderList.count(); i++){
+			GroupActivitiesInInitialOrderItem* item=r.groupActivitiesInInitialOrderList[i];
+			if(item->idsSet.contains(id)){
 				s+="\n";
 				s+=item->getDetailedDescription(r);
 			}
@@ -618,17 +801,26 @@ QString Activity::getDetailedDescriptionWithConstraints(const Rules &r) const
 	return s;
 }
 
-bool Activity::isSplit() const
+bool Activity::isSplit()
 {
 	return this->totalDuration != this->duration;
 }
 
-bool Activity::representsComponentNumber(int index) const
+bool Activity::representsComponentNumber(int index)
 {
 	if(this->activityGroupId==0)
 		return index==1;
+		//return false;
 		
 	//assert(this->activityGroupId>0);
 	
 	return index == (this->id - this->activityGroupId + 1);
+}
+
+int Activity::componentNumber()
+{
+	if(this->activityGroupId==0)
+		return 1;
+	
+	return this->id - this->activityGroupId + 1;
 }

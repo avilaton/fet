@@ -2,8 +2,8 @@
                           addconstraintstudentsmaxgapsperdayform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsmaxgapsperdayform.h"
 #include "timeconstraint.h"
@@ -29,8 +28,8 @@ AddConstraintStudentsMaxGapsPerDayForm::AddConstraintStudentsMaxGapsPerDayForm(Q
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxGapsPerDayForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxGapsPerDayForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -38,8 +37,6 @@ AddConstraintStudentsMaxGapsPerDayForm::AddConstraintStudentsMaxGapsPerDayForm(Q
 	maxGapsSpinBox->setMinimum(0);
 	maxGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	maxGapsSpinBox->setValue(1);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsMaxGapsPerDayForm::~AddConstraintStudentsMaxGapsPerDayForm()
@@ -47,13 +44,9 @@ AddConstraintStudentsMaxGapsPerDayForm::~AddConstraintStudentsMaxGapsPerDayForm(
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsMaxGapsPerDayForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMaxGapsPerDayForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -72,9 +65,12 @@ void AddConstraintStudentsMaxGapsPerDayForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsMaxGapsPerDay(weight, maxGapsSpinBox->value());
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

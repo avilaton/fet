@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxhoursdailyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetmaxhoursdailyform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetMaxHoursDailyForm::AddConstraintStudentsSetMaxHoursDailyForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +28,8 @@ AddConstraintStudentsSetMaxHoursDailyForm::AddConstraintStudentsSetMaxHoursDaily
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxHoursDailyForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxHoursDailyForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -55,18 +51,12 @@ AddConstraintStudentsSetMaxHoursDailyForm::~AddConstraintStudentsSetMaxHoursDail
 
 void AddConstraintStudentsSetMaxHoursDailyForm::updateStudentsSetComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
-}
-
-void AddConstraintStudentsSetMaxHoursDailyForm::constraintChanged()
-{
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetMaxHoursDailyForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -77,11 +67,20 @@ void AddConstraintStudentsSetMaxHoursDailyForm::addCurrentConstraint()
 		return;
 	}
 
+	if(weight<100.0){
+		int t=QMessageBox::warning(this, tr("FET warning"),
+			tr("You selected a weight less than 100%. The generation algorithm is not perfectly optimized to work with such weights (even"
+			 " if in practice it might work well). It is recommended to work only with 100% weights for these constraints. Are you sure you want to continue?"),
+			 QMessageBox::Yes | QMessageBox::Cancel);
+		if(t==QMessageBox::Cancel)
+			return;
+	}
+
 	int maxHours=maxHoursSpinBox->value();
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -90,9 +89,12 @@ void AddConstraintStudentsSetMaxHoursDailyForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsSetMaxHoursDaily(weight, maxHours, students_name);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

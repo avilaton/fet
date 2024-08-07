@@ -6,8 +6,8 @@ File timeconstraint.h
                           timeconstraint.h  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -24,12 +24,13 @@ File timeconstraint.h
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QString>
 #include <QList>
 #include <QStringList>
 
-#include "errorcode.h"
-#include "conflictinfo.h"
+#include <QSet>
 
 class Rules;
 class Solution;
@@ -40,11 +41,14 @@ class Subject;
 class ActivityTag;
 class StudentsSet;
 
-class QXmlStreamReader;
-class XmlLog;
+class FakeString;
+
+class QWidget;
 
 typedef QList<TimeConstraint*> TimeConstraintsList;
 
+//If you change any of these const int-s, you need to update the const QString FET_DATA_FORMAT_VERSION from timetable_defs.cpp to a new value,
+//because of the disk history feature.
 const int CONSTRAINT_GENERIC_TIME										=0;
 
 const int CONSTRAINT_BASIC_COMPULSORY_TIME								=1;
@@ -144,12 +148,237 @@ const int CONSTRAINT_STUDENTS_MIN_RESTING_HOURS							=74;
 //2018-06-13
 const int CONSTRAINT_TWO_ACTIVITIES_ORDERED_IF_SAME_DAY					=75;
 
-const int CONSTRAINT_TEACHER_MIN_CONTINUOUS_GAP_IN_INTERVAL             =201;
-const int CONSTRAINT_TEACHERS_MIN_CONTINUOUS_GAP_IN_INTERVAL            =202;
-const int CONSTRAINT_STUDENTSSET_MIN_CONTINUOUS_GAP_IN_INTERVAL         =203;
-const int CONSTRAINT_STUDENTS_MIN_CONTINUOUS_GAP_IN_INTERVAL            =204;
+//2019-06-08
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS	=76;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS		=77;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS			=78;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS		=79;
 
-QString getActivityDetailedDescription(const Rules &r, int id);
+const int CONSTRAINT_ACTIVITY_TAGS_NOT_OVERLAPPING						=80;
+
+const int CONSTRAINT_ACTIVITIES_OCCUPY_MIN_TIME_SLOTS_FROM_SELECTION	=81;
+const int CONSTRAINT_ACTIVITIES_MIN_SIMULTANEOUS_IN_SELECTED_TIME_SLOTS	=82;
+
+const int CONSTRAINT_TEACHERS_ACTIVITY_TAG_MIN_HOURS_DAILY				=83;
+const int CONSTRAINT_TEACHER_ACTIVITY_TAG_MIN_HOURS_DAILY				=84;
+const int CONSTRAINT_STUDENTS_ACTIVITY_TAG_MIN_HOURS_DAILY				=85;
+const int CONSTRAINT_STUDENTS_SET_ACTIVITY_TAG_MIN_HOURS_DAILY			=86;
+
+const int CONSTRAINT_ACTIVITY_ENDS_TEACHERS_DAY							=87;
+const int CONSTRAINT_ACTIVITIES_END_TEACHERS_DAY						=88;
+
+//Begin for mornings-afternoons
+const int CONSTRAINT_TEACHERS_MAX_HOURS_DAILY_REAL_DAYS					=89;
+const int CONSTRAINT_TEACHER_MAX_REAL_DAYS_PER_WEEK						=90;
+const int CONSTRAINT_TEACHER_MAX_HOURS_DAILY_REAL_DAYS					=91;
+
+const int CONSTRAINT_STUDENTS_MAX_HOURS_DAILY_REAL_DAYS					=92;
+const int CONSTRAINT_STUDENTS_SET_MAX_HOURS_DAILY_REAL_DAYS				=93;
+
+const int CONSTRAINT_TEACHERS_MAX_REAL_DAYS_PER_WEEK					=94;
+
+const int CONSTRAINT_TEACHERS_MIN_REAL_DAYS_PER_WEEK					=95;
+const int CONSTRAINT_TEACHER_MIN_REAL_DAYS_PER_WEEK						=96;
+
+const int CONSTRAINT_TEACHERS_ACTIVITY_TAG_MAX_HOURS_DAILY_REAL_DAYS	=97;
+const int CONSTRAINT_TEACHER_ACTIVITY_TAG_MAX_HOURS_DAILY_REAL_DAYS		=98;
+const int CONSTRAINT_STUDENTS_ACTIVITY_TAG_MAX_HOURS_DAILY_REAL_DAYS	=99;
+const int CONSTRAINT_STUDENTS_SET_ACTIVITY_TAG_MAX_HOURS_DAILY_REAL_DAYS=100;
+
+const int CONSTRAINT_TEACHER_MAX_AFTERNOONS_PER_WEEK					=101;
+const int CONSTRAINT_TEACHERS_MAX_AFTERNOONS_PER_WEEK					=102;
+const int CONSTRAINT_TEACHER_MAX_MORNINGS_PER_WEEK						=103;
+const int CONSTRAINT_TEACHERS_MAX_MORNINGS_PER_WEEK						=104;
+
+const int CONSTRAINT_TEACHER_MAX_TWO_ACTIVITY_TAGS_PER_DAY_FROM_N1N2N3	=105;
+const int CONSTRAINT_TEACHERS_MAX_TWO_ACTIVITY_TAGS_PER_DAY_FROM_N1N2N3	=106;
+
+const int CONSTRAINT_TEACHERS_MIN_MORNINGS_PER_WEEK						=107;
+const int CONSTRAINT_TEACHER_MIN_MORNINGS_PER_WEEK						=108;
+const int CONSTRAINT_TEACHERS_MIN_AFTERNOONS_PER_WEEK					=109;
+const int CONSTRAINT_TEACHER_MIN_AFTERNOONS_PER_WEEK					=110;
+
+const int CONSTRAINT_TEACHER_MAX_TWO_CONSECUTIVE_MORNINGS				=111;
+const int CONSTRAINT_TEACHERS_MAX_TWO_CONSECUTIVE_MORNINGS				=112;
+const int CONSTRAINT_TEACHER_MAX_TWO_CONSECUTIVE_AFTERNOONS				=113;
+const int CONSTRAINT_TEACHERS_MAX_TWO_CONSECUTIVE_AFTERNOONS			=114;
+
+//Added in FET Algeria and Morocco on 2018-11-02
+const int CONSTRAINT_TEACHERS_MAX_GAPS_PER_REAL_DAY						=115;
+const int CONSTRAINT_TEACHER_MAX_GAPS_PER_REAL_DAY						=116;
+const int CONSTRAINT_STUDENTS_MAX_GAPS_PER_REAL_DAY						=117;
+const int CONSTRAINT_STUDENTS_SET_MAX_GAPS_PER_REAL_DAY					=118;
+
+//2019-07-03
+const int CONSTRAINT_TEACHERS_MIN_HOURS_DAILY_REAL_DAYS					=119;
+const int CONSTRAINT_TEACHER_MIN_HOURS_DAILY_REAL_DAYS					=120;
+
+//2019-08-18 - for Said213
+const int CONSTRAINT_TEACHERS_AFTERNOONS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR		=121;
+const int CONSTRAINT_TEACHER_AFTERNOONS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR			=122;
+
+const int CONSTRAINT_TEACHERS_MIN_HOURS_PER_MORNING						=123;
+const int CONSTRAINT_TEACHER_MIN_HOURS_PER_MORNING						=124;
+
+const int CONSTRAINT_TEACHER_MAX_SPAN_PER_REAL_DAY						=125;
+const int CONSTRAINT_TEACHERS_MAX_SPAN_PER_REAL_DAY						=126;
+const int CONSTRAINT_STUDENTS_SET_MAX_SPAN_PER_REAL_DAY					=127;
+const int CONSTRAINT_STUDENTS_MAX_SPAN_PER_REAL_DAY						=128;
+
+const int CONSTRAINT_TEACHER_MORNING_INTERVAL_MAX_DAYS_PER_WEEK			=129;
+const int CONSTRAINT_TEACHERS_MORNING_INTERVAL_MAX_DAYS_PER_WEEK		=130;
+
+const int CONSTRAINT_TEACHER_AFTERNOON_INTERVAL_MAX_DAYS_PER_WEEK		=131;
+const int CONSTRAINT_TEACHERS_AFTERNOON_INTERVAL_MAX_DAYS_PER_WEEK		=132;
+
+const int CONSTRAINT_STUDENTS_MIN_HOURS_PER_MORNING						=133;
+const int CONSTRAINT_STUDENTS_SET_MIN_HOURS_PER_MORNING					=134;
+
+const int CONSTRAINT_TEACHER_MAX_ZERO_GAPS_PER_AFTERNOON				=135;
+const int CONSTRAINT_TEACHERS_MAX_ZERO_GAPS_PER_AFTERNOON				=136;
+
+const int CONSTRAINT_STUDENTS_SET_MAX_AFTERNOONS_PER_WEEK				=137;
+const int CONSTRAINT_STUDENTS_MAX_AFTERNOONS_PER_WEEK					=138;
+const int CONSTRAINT_STUDENTS_SET_MAX_MORNINGS_PER_WEEK					=139;
+const int CONSTRAINT_STUDENTS_MAX_MORNINGS_PER_WEEK						=140;
+
+const int CONSTRAINT_STUDENTS_MIN_MORNINGS_PER_WEEK						=141;
+const int CONSTRAINT_STUDENTS_SET_MIN_MORNINGS_PER_WEEK					=142;
+const int CONSTRAINT_STUDENTS_MIN_AFTERNOONS_PER_WEEK					=143;
+const int CONSTRAINT_STUDENTS_SET_MIN_AFTERNOONS_PER_WEEK				=144;
+
+const int CONSTRAINT_STUDENTS_SET_MORNING_INTERVAL_MAX_DAYS_PER_WEEK	=145;
+const int CONSTRAINT_STUDENTS_MORNING_INTERVAL_MAX_DAYS_PER_WEEK		=146;
+const int CONSTRAINT_STUDENTS_SET_AFTERNOON_INTERVAL_MAX_DAYS_PER_WEEK	=147;
+const int CONSTRAINT_STUDENTS_AFTERNOON_INTERVAL_MAX_DAYS_PER_WEEK		=148;
+
+const int CONSTRAINT_TEACHER_MAX_HOURS_PER_ALL_AFTERNOONS				=149;
+const int CONSTRAINT_TEACHERS_MAX_HOURS_PER_ALL_AFTERNOONS				=150;
+
+const int CONSTRAINT_STUDENTS_SET_MAX_HOURS_PER_ALL_AFTERNOONS			=151;
+const int CONSTRAINT_STUDENTS_MAX_HOURS_PER_ALL_AFTERNOONS				=152;
+
+const int CONSTRAINT_TEACHER_MIN_RESTING_HOURS_BETWEEN_MORNING_AND_AFTERNOON		=153;
+const int CONSTRAINT_TEACHERS_MIN_RESTING_HOURS_BETWEEN_MORNING_AND_AFTERNOON		=154;
+const int CONSTRAINT_STUDENTS_SET_MIN_RESTING_HOURS_BETWEEN_MORNING_AND_AFTERNOON	=155;
+const int CONSTRAINT_STUDENTS_MIN_RESTING_HOURS_BETWEEN_MORNING_AND_AFTERNOON		=156;
+
+//2020-07-24 - for lakhdarbe
+const int CONSTRAINT_STUDENTS_SET_AFTERNOONS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR	=157;
+const int CONSTRAINT_STUDENTS_AFTERNOONS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR		=158;
+
+//Added in FET Algeria and Morocco on 2020-07-29
+const int CONSTRAINT_TEACHERS_MAX_GAPS_PER_WEEK_FOR_REAL_DAYS						=159;
+const int CONSTRAINT_TEACHER_MAX_GAPS_PER_WEEK_FOR_REAL_DAYS						=160;
+const int CONSTRAINT_STUDENTS_MAX_GAPS_PER_WEEK_FOR_REAL_DAYS						=161;
+const int CONSTRAINT_STUDENTS_SET_MAX_GAPS_PER_WEEK_FOR_REAL_DAYS					=162;
+
+const int CONSTRAINT_STUDENTS_SET_MAX_REAL_DAYS_PER_WEEK				=163;
+const int CONSTRAINT_STUDENTS_MAX_REAL_DAYS_PER_WEEK					=164;
+//End for mornings-afternoons
+
+//For block-planning mode
+const int CONSTRAINT_MAX_TOTAL_ACTIVITIES_FROM_SET_IN_SELECTED_TIME_SLOTS			=165;
+
+const int CONSTRAINT_MAX_GAPS_BETWEEN_ACTIVITIES									=166;
+
+//For the terms mode
+const int CONSTRAINT_ACTIVITIES_MAX_IN_A_TERM							=167;
+const int CONSTRAINT_ACTIVITIES_OCCUPY_MAX_TERMS						=168;
+
+//Begin for mornings-afternoons - 2021-08-12
+const int CONSTRAINT_TEACHERS_MAX_GAPS_PER_MORNING_AND_AFTERNOON					=169;
+const int CONSTRAINT_TEACHER_MAX_GAPS_PER_MORNING_AND_AFTERNOON						=170;
+
+const int CONSTRAINT_TEACHERS_MORNINGS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR			=171;
+const int CONSTRAINT_TEACHER_MORNINGS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR			=172;
+const int CONSTRAINT_STUDENTS_SET_MORNINGS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR		=173;
+const int CONSTRAINT_STUDENTS_MORNINGS_EARLY_MAX_BEGINNINGS_AT_SECOND_HOUR			=174;
+//End   for mornings-afternoons
+
+const int CONSTRAINT_TWO_SETS_OF_ACTIVITIES_ORDERED									=175;
+
+//Begin for mornings-afternoons - 2021-09-26
+const int CONSTRAINT_TEACHERS_MAX_THREE_CONSECUTIVE_DAYS							=176;
+const int CONSTRAINT_TEACHER_MAX_THREE_CONSECUTIVE_DAYS								=177;
+//End   for mornings-afternoons - 2021-09-26
+
+//2021-12-15
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ACTIVITY_TAG						=178;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ACTIVITY_TAG							=179;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ACTIVITY_TAG							=180;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ACTIVITY_TAG							=181;
+
+//Begin for mornings-afternoons - 2022-02-15
+const int CONSTRAINT_STUDENTS_MAX_THREE_CONSECUTIVE_DAYS							=182;
+const int CONSTRAINT_STUDENTS_SET_MAX_THREE_CONSECUTIVE_DAYS						=183;
+//End   for mornings-afternoons - 2021-02-15
+
+//Begin for mornings-afternoons - 2022-05-14
+const int CONSTRAINT_MIN_HALF_DAYS_BETWEEN_ACTIVITIES								=184;
+//End   for mornings-afternoons - 2022-05-14
+
+const int CONSTRAINT_ACTIVITY_PREFERRED_DAY											=185;
+
+//Begin for terms - 2022-05-20
+const int CONSTRAINT_ACTIVITIES_MIN_IN_A_TERM										=186;
+const int CONSTRAINT_MAX_TERMS_BETWEEN_ACTIVITIES									=187;
+//End   for terms - 2022-05-20
+
+const int CONSTRAINT_STUDENTS_SET_MAX_TWO_ACTIVITY_TAGS_PER_DAY_FROM_N1N2N3			=188;
+const int CONSTRAINT_STUDENTS_MAX_TWO_ACTIVITY_TAGS_PER_DAY_FROM_N1N2N3				=189;
+
+const int CONSTRAINT_TEACHER_MAX_TWO_ACTIVITY_TAGS_PER_REAL_DAY_FROM_N1N2N3			=190;
+const int CONSTRAINT_TEACHERS_MAX_TWO_ACTIVITY_TAGS_PER_REAL_DAY_FROM_N1N2N3		=191;
+const int CONSTRAINT_STUDENTS_SET_MAX_TWO_ACTIVITY_TAGS_PER_REAL_DAY_FROM_N1N2N3	=192;
+const int CONSTRAINT_STUDENTS_MAX_TWO_ACTIVITY_TAGS_PER_REAL_DAY_FROM_N1N2N3		=193;
+
+//Begin for mornings-afternoons - 2022-07-31
+const int CONSTRAINT_MAX_HALF_DAYS_BETWEEN_ACTIVITIES								=194;
+//End   for mornings-afternoons - 2022-07-31
+
+const int CONSTRAINT_ACTIVITY_BEGINS_STUDENTS_DAY									=195;
+const int CONSTRAINT_ACTIVITIES_BEGIN_STUDENTS_DAY									=196;
+const int CONSTRAINT_ACTIVITY_BEGINS_TEACHERS_DAY									=197;
+const int CONSTRAINT_ACTIVITIES_BEGIN_TEACHERS_DAY									=198;
+
+const int CONSTRAINT_TEACHERS_MIN_HOURS_PER_AFTERNOON								=199;
+const int CONSTRAINT_TEACHER_MIN_HOURS_PER_AFTERNOON								=200;
+const int CONSTRAINT_STUDENTS_MIN_HOURS_PER_AFTERNOON								=201;
+const int CONSTRAINT_STUDENTS_SET_MIN_HOURS_PER_AFTERNOON							=202;
+
+const int CONSTRAINT_ACTIVITIES_MAX_HOURLY_SPAN										=203;
+
+const int CONSTRAINT_TEACHERS_MAX_HOURS_DAILY_IN_INTERVAL							=204;
+const int CONSTRAINT_TEACHER_MAX_HOURS_DAILY_IN_INTERVAL							=205;
+const int CONSTRAINT_STUDENTS_MAX_HOURS_DAILY_IN_INTERVAL							=206;
+const int CONSTRAINT_STUDENTS_SET_MAX_HOURS_DAILY_IN_INTERVAL						=207;
+
+//2024-03-15
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_PER_REAL_DAY	=208;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_PER_REAL_DAY		=209;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_PER_REAL_DAY		=210;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_PER_REAL_DAY		=211;
+
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ACTIVITY_TAG_PER_REAL_DAY					=212;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ACTIVITY_TAG_PER_REAL_DAY						=213;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ACTIVITY_TAG_PER_REAL_DAY							=214;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ACTIVITY_TAG_PER_REAL_DAY						=215;
+
+//2024-05-18
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_BETWEEN_MORNING_AND_AFTERNOON	=216;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_BETWEEN_MORNING_AND_AFTERNOON		=217;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_BETWEEN_MORNING_AND_AFTERNOON		=218;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ORDERED_PAIR_OF_ACTIVITY_TAGS_BETWEEN_MORNING_AND_AFTERNOON		=219;
+
+const int CONSTRAINT_STUDENTS_SET_MIN_GAPS_BETWEEN_ACTIVITY_TAG_BETWEEN_MORNING_AND_AFTERNOON					=220;
+const int CONSTRAINT_STUDENTS_MIN_GAPS_BETWEEN_ACTIVITY_TAG_BETWEEN_MORNING_AND_AFTERNOON						=221;
+const int CONSTRAINT_TEACHER_MIN_GAPS_BETWEEN_ACTIVITY_TAG_BETWEEN_MORNING_AND_AFTERNOON						=222;
+const int CONSTRAINT_TEACHERS_MIN_GAPS_BETWEEN_ACTIVITY_TAG_BETWEEN_MORNING_AND_AFTERNOON						=223;
+
+class QDataStream;
+
+QString getActivityDetailedDescription(Rules& r, int id);
 
 /**
 This class represents a time constraint
@@ -159,107 +388,107 @@ class TimeConstraint{
 
 public:
 	/**
-	Specifies the type of this constraint (using the above constants).
-	*/
-	const int type;
-
-	bool active;
-
-	/**
 	The percentage weight of this constraint, 100% compulsory, 0% non-compulsory
 	*/
 	double weightPercentage;
 	
+	bool active;
+	
 	QString comments;
+
+	/**
+	Specifies the type of this constraint (using the above constants).
+	*/
+	int type;
+
+	/**
+	True for mandatory constraints, false for non-mandatory constraints.
+	*/
+	//bool compulsory;
 
 	/**
 	Dummy constructor - needed for the static array of constraints.
 	Any other use should be avoided.
 	*/
-	TimeConstraint(int type);
-
+	TimeConstraint();
+	
 	virtual ~TimeConstraint()=0;
 
 	/**
-	DEPRECATED COMMENT
+	DEPRECATED COMMENT BELOW:
 	Constructor - please note that the maximum allowed weight is 100.0
 	The reason: unallocated activities must have very big conflict weight,
-	and any other restrictions must have much more lower weight,
+	and any other constraints must have much more lower weight,
 	so that the timetable can evolve when starting with uninitialized activities.
 	*/
-	TimeConstraint(int type, double wp);
+	TimeConstraint(double wp);
+
+	bool canBeUsedInOfficialMode();
+	bool canBeUsedInMorningsAfternoonsMode();
+	bool canBeUsedInBlockPlanningMode();
+	bool canBeUsedInTermsMode();
 
 	/**
 	The function that calculates the fitness of a solution, according to this
-	constraint. We need the rules to compute this fitness factor.
-	If conflictInfo!=NULL,
-	it appends the conflicts weight and a text explaining where this restriction is broken.
+	constraint. We need the solution to compute this fitness factor.
+	If conflictsString!=nullptr, it will be initialized with a text explaining
+	where this constraint is broken.
 	*/
-	virtual double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL)=0;
+	virtual double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr)=0;
 
 	/**
 	Returns an XML description of this constraint
 	*/
-	virtual QString getXmlDescription(const Rules& r) const = 0;
+	virtual QString getXmlDescription(Rules& r)=0;
 
 	/**
 	Computes the internal structure for this constraint.
 	
-	It returns ErrorCode::isError() if the constraint is an activity related
+	It returns false if the constraint is an activity related
 	one and it depends on only inactive activities.
 	*/
-	virtual ErrorCode computeInternalStructure(const Rules& r)=0;
+	virtual bool computeInternalStructure(QWidget* parent, Rules& r)=0;
 	
-	virtual bool hasInactiveActivities(const Rules& r) const = 0;
+	virtual bool hasInactiveActivities(Rules& r)=0;
 
 	/**
 	Returns a small description string for this constraint
 	*/
-	virtual QString getDescription(const Rules& r) const = 0;
+	virtual QString getDescription(Rules& r)=0;
 
 	/**
 	Returns a detailed description string for this constraint
 	*/
-	virtual QString getDetailedDescription(const Rules& r) const = 0;
+	virtual QString getDetailedDescription(Rules& r)=0;
 	
 	/**
 	Returns true if this constraint is related to this activity
 	*/
-	virtual bool isRelatedToActivity(const Rules& r, const Activity* a) const = 0;
+	virtual bool isRelatedToActivity(Rules& r, Activity* a)=0;
 
 	/**
 	Returns true if this constraint is related to this teacher
 	*/
-	virtual bool isRelatedToTeacher(const Teacher* t) const = 0;
+	virtual bool isRelatedToTeacher(Teacher* t)=0;
 
 	/**
 	Returns true if this constraint is related to this subject
 	*/
-	virtual bool isRelatedToSubject(const Subject* s) const = 0;
+	virtual bool isRelatedToSubject(Subject* s)=0;
 
 	/**
 	Returns true if this constraint is related to this activity tag
 	*/
-	virtual bool isRelatedToActivityTag(const ActivityTag* s) const = 0;
+	virtual bool isRelatedToActivityTag(ActivityTag* s)=0;
 
 	/**
 	Returns true if this constraint is related to this students set
 	*/
-	virtual bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const = 0;
+	virtual bool isRelatedToStudentsSet(Rules& r, StudentsSet* s)=0;
 	
-	virtual bool hasWrongDayOrHour(const Rules& r) const=0;
-	virtual bool canRepairWrongDayOrHour(const Rules& r) const=0;
+	virtual bool hasWrongDayOrHour(Rules& r)=0;
+	virtual bool canRepairWrongDayOrHour(Rules& r)=0;
 	virtual bool repairWrongDayOrHour(Rules& r)=0;
-
-	/**
-	 * @brief readXmlBasicTags read constraints common tags from XML stream
-	 * This means properties: active, weight percentage and comments.
-	 * @param xmlReader The Xml stream source. It must point to a start tag element
-	 * @param log registers workarounds for old tags
-	 * @return true if current tag was successfully parsed. If tag is unknown returns false.
-	 */
-	bool readXmlBasicTags(QXmlStreamReader& xmlReader, XmlLog &log);
-	bool readXmlObsoleteBasicTags(QXmlStreamReader& xmlReader, XmlLog &log);
 };
 
 /**
@@ -274,30 +503,30 @@ public:
 
 	ConstraintBasicCompulsoryTime(double wp);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 	
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -320,32 +549,32 @@ public:
 
 	ConstraintTeacherNotAvailableTimes();
 
-	ConstraintTeacherNotAvailableTimes(double wp, const QString& tn, QList<int> d, QList<int> h);
+	ConstraintTeacherNotAvailableTimes(double wp, const QString& tn, const QList<int>& d, const QList<int>& h);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -362,38 +591,38 @@ public:
 	QString students;
 
 	/**
-	The subgroups involved in this restriction
+	The subgroups involved in this constraint
 	*/
 	QList<int> iSubgroupsList;
 
 	ConstraintStudentsSetNotAvailableTimes();
 
-	ConstraintStudentsSetNotAvailableTimes(double wp, const QString& sn, QList<int> d, QList<int> h);
+	ConstraintStudentsSetNotAvailableTimes(double wp, const QString& sn, const QList<int>& d, const QList<int>& h);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -407,10 +636,12 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
-	//int activitiesId[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_TIME];
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_TIME];
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of activities involved in this constraint - internal structure
@@ -432,32 +663,34 @@ public:
 	//ConstraintActivitiesSameStartingTime(double wp, int n_act, const int act[]);
 	ConstraintActivitiesSameStartingTime(double wp, int n_act, const QList<int>& act);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules& r);
-
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	void recomputeActivitiesSet();
 
-	bool isRelatedToSubject(const Subject* s) const;
-
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -477,10 +710,12 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
-	//int activitiesId[MAX_CONSTRAINT_ACTIVITIES_NOT_OVERLAPPING];
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_ACTIVITIES_NOT_OVERLAPPING];
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of activities involved in this constraint - internal structure
@@ -501,32 +736,76 @@ public:
 	*/
 	ConstraintActivitiesNotOverlapping(double wp, int n_act, const QList<int>& act);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules &r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivityTagsNotOverlapping: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivityTagsNotOverlapping)
+
+public:
+	QStringList activityTagsNames;
+	
+	//internal
+	QList<int> activityTagsIndices;
+	
+	QList<QList<int>> activitiesIndicesLists;
+
+	ConstraintActivityTagsNotOverlapping();
+
+	ConstraintActivityTagsNotOverlapping(double wp, const QStringList& atl);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -547,10 +826,12 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
-	//int activitiesId[MAX_CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES];
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES];
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of minimum days between each 2 activities
@@ -574,42 +855,43 @@ public:
 
 	/**
 	Constructor, using:
-	the weight, the number of activities and the list of activities.
+	the weight, consecutive if on the same day, the number of activities, the list of activities, and the min number of days.
 	*/
-	//ConstraintMinDaysBetweenActivities(double wp, bool adjacentIfBroken, int n_act, const int act[], int n);
-	ConstraintMinDaysBetweenActivities(double wp, bool adjacentIfBroken, int n_act, const QList<int>& act, int n);
+	ConstraintMinDaysBetweenActivities(double wp, bool cisd, int n_act, const QList<int>& act, int n);
 
 	/**
 	Comparison operator - to be sure that we do not introduce duplicates
 	*/
 	bool operator==(ConstraintMinDaysBetweenActivities& c);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules &r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -623,9 +905,11 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of maximum days between each 2 activities
@@ -648,36 +932,110 @@ public:
 
 	/**
 	Constructor, using:
-	the weight, the number of activities and the list of activities.
+	the weight, the number of activities, the list of activities, and the max number of days.
 	*/
 	ConstraintMaxDaysBetweenActivities(double wp, int n_act, const QList<int>& act, int n);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules &r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesMaxHourlySpan: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesMaxHourlySpan)
+
+public:
+	/**
+	The number of activities involved in this constraint
+	*/
+	int n_activities;
+
+	/**
+	The activities involved in this constraint (id-s)
+	*/
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	/**
+	The number of maximum hourly span of each pair of 2 activities
+	*/
+	int maxHourlySpan;
+
+	//internal structure (redundant)
+
+	/**
+	The number of activities involved in this constraint - internal structure
+	*/
+	int _n_activities;
+
+	/**
+	The activities involved in this constraint (index in the rules) - internal structure
+	*/
+	QList<int> _activities;
+
+	ConstraintActivitiesMaxHourlySpan();
+
+	/**
+	Constructor, using:
+	the weight, the number of activities, the list of activities, and the max hourly span.
+	*/
+	ConstraintActivitiesMaxHourlySpan(double wp, int n_act, const QList<int>& act, int n);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -691,9 +1049,11 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of minimum gaps between each 2 activities, if on the same day
@@ -716,44 +1076,115 @@ public:
 
 	/**
 	Constructor, using:
-	the weight, the number of activities and the list of activities.
+	the weight, the number of activities, the list of activities, and the min number of gaps.
 	*/
 	//ConstraintMinGapsBetweenActivities(double wp, int n_act, const int act[], int ngaps);
 	ConstraintMinGapsBetweenActivities(double wp, int n_act, const QList<int>& actList, int ngaps);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules &r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
-/**
-This is a constraint, aimed at obtaining timetables
-which do not allow more than X hours in a day for any teacher
-*/
+class ConstraintMaxGapsBetweenActivities: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintMaxGapsBetweenActivities)
+
+public:
+	/**
+	The number of activities involved in this constraint
+	*/
+	int n_activities;
+
+	/**
+	The activities involved in this constraint (id-s)
+	*/
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	/**
+	The number of maximum gaps between each 2 activities, if on the same day
+	*/
+	int maxGaps;
+
+	//internal structure (redundant)
+
+	/**
+	The number of activities involved in this constraint - internal structure
+	*/
+	int _n_activities;
+
+	/**
+	The activities involved in this constraint (index in the rules) - internal structure
+	*/
+	QList<int> _activities;
+
+	ConstraintMaxGapsBetweenActivities();
+
+	/**
+	Constructor, using:
+	the weight, the number of activities, the list of activities, and the max number of gaps.
+	*/
+	//ConstraintMaxGapsBetweenActivities(double wp, int n_act, const int act[], int ngaps);
+	ConstraintMaxGapsBetweenActivities(double wp, int n_act, const QList<int>& actList, int ngaps);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
 class ConstraintTeachersMaxHoursDaily: public TimeConstraint{
 	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxHoursDaily)
 
@@ -767,30 +1198,30 @@ public:
 
 	ConstraintTeachersMaxHoursDaily(double wp, int maxhours);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -811,30 +1242,218 @@ public:
 
 	ConstraintTeacherMaxHoursDaily(double wp, int maxhours, const QString& teacher);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxHoursDailyInInterval: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxHoursDailyInInterval)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+	
+	int startHour;
+	int endHour;
+	
+	QString teacherName;
+	
+	int teacher_ID;
+
+	ConstraintTeacherMaxHoursDailyInInterval();
+
+	ConstraintTeacherMaxHoursDailyInInterval(double wp, int maxhours, const QString& teacher, int sh, int eh);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxHoursDailyInInterval: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxHoursDailyInInterval)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+	
+	int startHour;
+	int endHour;
+	
+	ConstraintTeachersMaxHoursDailyInInterval();
+
+	ConstraintTeachersMaxHoursDailyInInterval(double wp, int maxhours, int sh, int eh);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxHoursDailyInInterval: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxHoursDailyInInterval)
+
+public:
+	int maxHoursDaily;
+
+	/**
+	The students set name
+	*/
+	QString students;
+
+	//internal variables
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	int startHour;
+	int endHour;
+
+	ConstraintStudentsSetMaxHoursDailyInInterval();
+
+	ConstraintStudentsSetMaxHoursDailyInInterval(double wp, int maxnh, const QString& s, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxHoursDailyInInterval: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxHoursDailyInInterval)
+
+public:
+	int maxHoursDaily;
+
+	int startHour;
+	int endHour;
+
+	ConstraintStudentsMaxHoursDailyInInterval();
+
+	ConstraintStudentsMaxHoursDailyInInterval(double wp, int maxnh, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -855,30 +1474,30 @@ public:
 
 	ConstraintTeachersMaxHoursContinuously(double wp, int maxhours);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -899,30 +1518,30 @@ public:
 
 	ConstraintTeacherMaxHoursContinuously(double wp, int maxhours, const QString& teacher);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -945,30 +1564,30 @@ public:
 
 	ConstraintTeachersActivityTagMaxHoursContinuously(double wp, int maxhours, const QString& activityTag);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -995,30 +1614,30 @@ public:
 
 	ConstraintTeacherActivityTagMaxHoursContinuously(double wp, int maxhours, const QString& teacher, const QString& activityTag);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1049,32 +1668,32 @@ public:
 
 	ConstraintTeacherMaxDaysPerWeek();
 
-	ConstraintTeacherMaxDaysPerWeek(double wp, int maxnd, QString t);
+	ConstraintTeacherMaxDaysPerWeek(double wp, int maxnd, const QString& t);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1091,30 +1710,30 @@ public:
 
 	ConstraintTeachersMaxDaysPerWeek(double wp, int maxnd);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1138,30 +1757,30 @@ public:
 
 	ConstraintTeacherMinDaysPerWeek(double wp, int mindays, const QString& t);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1175,30 +1794,30 @@ public:
 
 	ConstraintTeachersMinDaysPerWeek(double wp, int mindays);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1216,32 +1835,32 @@ public:
 
 	ConstraintBreakTimes();
 
-	ConstraintBreakTimes(double wp, QList<int> d, QList<int> h);
+	ConstraintBreakTimes(double wp, const QList<int>& d, const QList<int>& h);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1261,30 +1880,30 @@ public:
 
 	ConstraintStudentsMaxGapsPerWeek(double wp, int mg);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1318,32 +1937,32 @@ public:
 
 	ConstraintStudentsSetMaxGapsPerWeek();
 
-	ConstraintStudentsSetMaxGapsPerWeek(double wp, int mg, const QString& st );
+	ConstraintStudentsSetMaxGapsPerWeek(double wp, int mg, const QString& st);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1351,36 +1970,36 @@ class ConstraintTeachersMaxGapsPerWeek: public TimeConstraint{
 	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxGapsPerWeek)
 
 public:
-	int maxGaps;	
+	int maxGaps;
 
 	ConstraintTeachersMaxGapsPerWeek();
 
 	ConstraintTeachersMaxGapsPerWeek(double wp, int maxGaps);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1396,32 +2015,32 @@ public:
 
 	ConstraintTeacherMaxGapsPerWeek();
 
-	ConstraintTeacherMaxGapsPerWeek(double wp, QString tn, int maxGaps);
+	ConstraintTeacherMaxGapsPerWeek(double wp, const QString& tn, int maxGaps);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1429,36 +2048,36 @@ class ConstraintTeachersMaxGapsPerDay: public TimeConstraint{
 	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxGapsPerDay)
 
 public:
-	int maxGaps;	
+	int maxGaps;
 
 	ConstraintTeachersMaxGapsPerDay();
 
 	ConstraintTeachersMaxGapsPerDay(double wp, int maxGaps);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1474,32 +2093,110 @@ public:
 
 	ConstraintTeacherMaxGapsPerDay();
 
-	ConstraintTeacherMaxGapsPerDay(double wp, QString tn, int maxGaps);
+	ConstraintTeacherMaxGapsPerDay(double wp, const QString& tn, int maxGaps);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxGapsPerMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxGapsPerMorningAndAfternoon)
+
+public:
+	int maxGaps;
+
+	ConstraintTeachersMaxGapsPerMorningAndAfternoon();
+
+	ConstraintTeachersMaxGapsPerMorningAndAfternoon(double wp, int maxGaps);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxGapsPerMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxGapsPerMorningAndAfternoon)
+
+public:
+	int maxGaps;
+	
+	QString teacherName;
+	
+	int teacherIndex;
+
+	ConstraintTeacherMaxGapsPerMorningAndAfternoon();
+
+	ConstraintTeacherMaxGapsPerMorningAndAfternoon(double wp, const QString& tn, int maxGaps);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1522,30 +2219,30 @@ public:
 
 	ConstraintStudentsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1561,12 +2258,12 @@ public:
 	QString students;
 
 	/**
-	The number of subgroups involved in this restriction
+	The number of subgroups involved in this constraint
 	*/
 	//int nSubgroups;
 
 	/**
-	The subgroups involved in this restriction
+	The subgroups involved in this constraint
 	*/
 	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
 	QList<int> iSubgroupsList;
@@ -1575,30 +2272,30 @@ public:
 
 	ConstraintStudentsSetEarlyMaxBeginningsAtSecondHour(double wp, int mBSH, const QString& students);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1612,30 +2309,30 @@ public:
 
 	ConstraintStudentsMaxHoursDaily(double wp, int maxnh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1665,32 +2362,32 @@ public:
 
 	ConstraintStudentsSetMaxHoursDaily();
 
-	ConstraintStudentsSetMaxHoursDaily(double wp, int maxnh, QString s);
+	ConstraintStudentsSetMaxHoursDaily(double wp, int maxnh, const QString& s);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1704,30 +2401,30 @@ public:
 
 	ConstraintStudentsMaxHoursContinuously(double wp, int maxnh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1757,32 +2454,32 @@ public:
 
 	ConstraintStudentsSetMaxHoursContinuously();
 
-	ConstraintStudentsSetMaxHoursContinuously(double wp, int maxnh, QString s);
+	ConstraintStudentsSetMaxHoursContinuously(double wp, int maxnh, const QString& s);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1802,30 +2499,30 @@ public:
 
 	ConstraintStudentsActivityTagMaxHoursContinuously(double wp, int maxnh, const QString& activityTag);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1863,30 +2560,30 @@ public:
 
 	ConstraintStudentsSetActivityTagMaxHoursContinuously(double wp, int maxnh, const QString& s, const QString& activityTag);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1902,30 +2599,30 @@ public:
 
 	ConstraintStudentsMinHoursDaily(double wp, int minnh, bool _allowEmptyDays);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -1957,32 +2654,32 @@ public:
 
 	ConstraintStudentsSetMinHoursDaily();
 
-	ConstraintStudentsSetMinHoursDaily(double wp, int minnh, QString s, bool _allowEmptyDays);
+	ConstraintStudentsSetMinHoursDaily(double wp, int minnh, const QString& s, bool _allowEmptyDays);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2027,32 +2724,32 @@ public:
 	/**
 	Comparison operator - to be sure that we do not introduce duplicates
 	*/
-	bool operator==(ConstraintActivityPreferredStartingTime& c);
+	bool operator==(const ConstraintActivityPreferredStartingTime& c);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2096,32 +2793,32 @@ public:
 	ConstraintActivityPreferredTimeSlots();
 
 	//ConstraintActivityPreferredTimeSlots(double wp, int actId, int nPT, int d[], int h[]);
-	ConstraintActivityPreferredTimeSlots(double wp, int actId, int nPT_L, QList<int> d_L, QList<int> h_L);
+	ConstraintActivityPreferredTimeSlots(double wp, int actId, int nPT_L, const QList<int>& d_L, const QList<int>& h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2160,32 +2857,32 @@ public:
 	ConstraintActivityPreferredStartingTimes();
 
 	//ConstraintActivityPreferredStartingTimes(double wp, int actId, int nPT, int d[], int h[]);
-	ConstraintActivityPreferredStartingTimes(double wp, int actId, int nPT_L, QList<int> d_L, QList<int> h_L);
+	ConstraintActivityPreferredStartingTimes(double wp, int actId, int nPT_L, const QList<int>& d_L, const QList<int>& h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2250,40 +2947,39 @@ public:
 	The indices of the activities in the rules (from 0 to rules.nActivities-1)
 	These are indices in the internal list -> Rules::internalActivitiesList
 	*/
-	//int p_activitiesIndices[MAX_ACTIVITIES];
 	QList<int> p_activitiesIndices;
 
 	ConstraintActivitiesPreferredTimeSlots();
 
-	//ConstraintActivitiesPreferredTimeSlots(double wp, QString te,
-	//	QString st, QString su, QString sut, int nPT, int d[], int h[]);
-	ConstraintActivitiesPreferredTimeSlots(double wp, QString te,
-		QString st, QString su, QString sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
+	//ConstraintActivitiesPreferredTimeSlots(double wp, const QString& te,
+	//	const QString& st, const QString& su, const QString& sut, int nPT, int d[], int h[]);
+	ConstraintActivitiesPreferredTimeSlots(double wp, const QString& te,
+		const QString& st, const QString& su, const QString& sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2343,40 +3039,39 @@ public:
 	The indices of the activities in the rules (from 0 to rules.nActivities-1)
 	These are indices in the internal list -> Rules::internalActivitiesList
 	*/
-	//int p_activitiesIndices[MAX_ACTIVITIES];
 	QList<int> p_activitiesIndices;
 
 	ConstraintSubactivitiesPreferredTimeSlots();
 
-	//ConstraintSubactivitiesPreferredTimeSlots(double wp, int compNo, QString te,
-	//	QString st, QString su, QString sut, int nPT, int d[], int h[]);
-	ConstraintSubactivitiesPreferredTimeSlots(double wp, int compNo, QString te,
-		QString st, QString su, QString sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
+	//ConstraintSubactivitiesPreferredTimeSlots(double wp, int compNo, const QString& te,
+	//	const QString& st, const QString& su, const QString& sut, int nPT, int d[], int h[]);
+	ConstraintSubactivitiesPreferredTimeSlots(double wp, int compNo, const QString& te,
+		const QString& st, const QString& su, const QString& sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2434,40 +3129,39 @@ public:
 	The indices of the activities in the rules (from 0 to rules.nActivities-1)
 	These are indices in the internal list -> Rules::internalActivitiesList
 	*/
-	//int activitiesIndices[MAX_ACTIVITIES];
 	QList<int> activitiesIndices;
 
 	ConstraintActivitiesPreferredStartingTimes();
 
-	//ConstraintActivitiesPreferredStartingTimes(double wp, QString te,
-	//	QString st, QString su, QString sut, int nPT, int d[], int h[]);
-	ConstraintActivitiesPreferredStartingTimes(double wp, QString te,
-		QString st, QString su, QString sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
+	//ConstraintActivitiesPreferredStartingTimes(double wp, const QString& te,
+	//	const QString& st, const QString& su, const QString& sut, int nPT, int d[], int h[]);
+	ConstraintActivitiesPreferredStartingTimes(double wp, const QString& te,
+		const QString& st, const QString& su, const QString& sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2527,38 +3221,37 @@ public:
 	The indices of the activities in the rules (from 0 to rules.nActivities-1)
 	These are indices in the internal list -> Rules::internalActivitiesList
 	*/
-	//int activitiesIndices[MAX_ACTIVITIES];
 	QList<int> activitiesIndices;
 
 	ConstraintSubactivitiesPreferredStartingTimes();
 
-	ConstraintSubactivitiesPreferredStartingTimes(double wp, int compNo, QString te,
-		QString st, QString su, QString sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
+	ConstraintSubactivitiesPreferredStartingTimes(double wp, int compNo, const QString& te,
+		const QString& st, const QString& su, const QString& sut, int dur, int nPT_L, QList<int> d_L, QList<int> h_L);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2572,10 +3265,12 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
-	//int activitiesId[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_HOUR];
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_HOUR];
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of activities involved in this constraint - internal structure
@@ -2597,33 +3292,34 @@ public:
 	//ConstraintActivitiesSameStartingHour(double wp, int n_act, const int act[]);
 	ConstraintActivitiesSameStartingHour(double wp, int n_act, const QList<int>& act);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules& r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
 
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool isRelatedToSubject(const Subject* s) const;
-
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
-	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
-
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2637,10 +3333,12 @@ public:
 	int n_activities;
 
 	/**
-	The activities involved in this constraint (id)
+	The activities involved in this constraint (id-s)
 	*/
-	QList<int> activitiesId;
-	//int activitiesId[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_DAY];
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_ACTIVITIES_SAME_STARTING_DAY];
+
+	QSet<int> activitiesIdsSet;
 
 	/**
 	The number of activities involved in this constraint - internal structure
@@ -2662,32 +3360,34 @@ public:
 	//ConstraintActivitiesSameStartingDay(double wp, int n_act, const int act[]);
 	ConstraintActivitiesSameStartingDay(double wp, int n_act, const QList<int>& act);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules& r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2720,30 +3420,30 @@ public:
 
 	ConstraintTwoActivitiesConsecutive(double wp, int firstActId, int secondActId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2776,30 +3476,30 @@ public:
 
 	ConstraintTwoActivitiesGrouped(double wp, int firstActId, int secondActId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2836,30 +3536,30 @@ public:
 
 	ConstraintThreeActivitiesGrouped(double wp, int firstActId, int secondActId, int thirdActId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2892,30 +3592,82 @@ public:
 
 	ConstraintTwoActivitiesOrdered(double wp, int firstActId, int secondActId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTwoSetsOfActivitiesOrdered: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTwoSetsOfActivitiesOrdered)
+
+public:
+	QList<int> firstActivitiesIdsList;
+
+	QList<int> secondActivitiesIdsList;
+
+	QSet<int> firstActivitiesIdsSet;
+
+	QSet<int> secondActivitiesIdsSet;
+
+	//internal variables
+	QList<int> firstActivitiesIndicesList;
+
+	QList<int> secondActivitiesIndicesList;
+
+	ConstraintTwoSetsOfActivitiesOrdered();
+
+	ConstraintTwoSetsOfActivitiesOrdered(double wp, const QList<int>& firstActsIds, const QList<int>& secondActsIds);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSets();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2948,30 +3700,30 @@ public:
 
 	ConstraintTwoActivitiesOrderedIfSameDay(double wp, int firstActId, int secondActId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -2994,30 +3746,30 @@ public:
 
 	ConstraintActivityEndsStudentsDay(double wp, int actId);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3036,30 +3788,30 @@ public:
 
 	ConstraintTeachersMinHoursDaily(double wp, int minhours, bool _allowEmptyDays);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3082,30 +3834,30 @@ public:
 
 	ConstraintTeacherMinHoursDaily(double wp, int minhours, const QString& teacher, bool _allowEmptyDays);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3134,32 +3886,32 @@ public:
 
 	ConstraintTeacherIntervalMaxDaysPerWeek();
 
-	ConstraintTeacherIntervalMaxDaysPerWeek(double wp, int maxnd, QString tn, int sh, int eh);
+	ConstraintTeacherIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& tn, int sh, int eh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3180,30 +3932,30 @@ public:
 
 	ConstraintTeachersIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3239,32 +3991,32 @@ public:
 
 	ConstraintStudentsSetIntervalMaxDaysPerWeek();
 
-	ConstraintStudentsSetIntervalMaxDaysPerWeek(double wp, int maxnd, QString sn, int sh, int eh);
+	ConstraintStudentsSetIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& sn, int sh, int eh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3285,30 +4037,30 @@ public:
 
 	ConstraintStudentsIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3348,37 +4100,152 @@ public:
 	The indices of the activities in the rules (from 0 to rules.nActivities-1)
 	These are indices in the internal list -> Rules::internalActivitiesList
 	*/
-	//int activitiesIndices[MAX_ACTIVITIES];
 	QList<int> activitiesIndices;
 
 	ConstraintActivitiesEndStudentsDay();
 
-	ConstraintActivitiesEndStudentsDay(double wp, QString te, QString st, QString su, QString sut);
+	ConstraintActivitiesEndStudentsDay(double wp, const QString& te, const QString& st, const QString& su, const QString& sut);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivityEndsTeachersDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivityEndsTeachersDay)
+
+public:
+	/**
+	Activity id
+	*/
+	int activityId;
+
+	//internal variables
+	/**
+	The index of the activity in the rules (from 0 to rules.nActivities-1) - it is not the id of the activity
+	*/
+	int activityIndex;
+
+	ConstraintActivityEndsTeachersDay();
+
+	ConstraintActivityEndsTeachersDay(double wp, int actId);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesEndTeachersDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesEndTeachersDay)
+
+public:
+	/**
+	The teacher. If void, all teachers.
+	*/
+	QString teacherName;
+
+	/**
+	The students. If void, all students.
+	*/
+	QString studentsName;
+
+	/**
+	The subject. If void, all subjects.
+	*/
+	QString subjectName;
+
+	/**
+	The activity tag. If void, all activity tags.
+	*/
+	QString activityTagName;
+	
+	
+	//internal data
+
+	/**
+	The number of activities which are represented by the subject, teacher and students requirements.
+	*/
+	int nActivities;
+	
+	/**
+	The indices of the activities in the rules (from 0 to rules.nActivities-1)
+	These are indices in the internal list -> Rules::internalActivitiesList
+	*/
+	//int activitiesIndices[MAX_ACTIVITIES];
+	QList<int> activitiesIndices;
+
+	ConstraintActivitiesEndTeachersDay();
+
+	ConstraintActivitiesEndTeachersDay(double wp, const QString& te, const QString& st, const QString& su, const QString& sut);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3401,30 +4268,30 @@ public:
 
 	ConstraintTeachersActivityTagMaxHoursDaily(double wp, int maxhours, const QString& activityTag);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3451,30 +4318,30 @@ public:
 
 	ConstraintTeacherActivityTagMaxHoursDaily(double wp, int maxhours, const QString& teacher, const QString& activityTag);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3494,30 +4361,30 @@ public:
 
 	ConstraintStudentsActivityTagMaxHoursDaily(double wp, int maxnh, const QString& activityTag);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3555,30 +4422,238 @@ public:
 
 	ConstraintStudentsSetActivityTagMaxHoursDaily(double wp, int maxnh, const QString& s, const QString& activityTag);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersActivityTagMinHoursDaily: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersActivityTagMinHoursDaily)
+
+public:
+	/**
+	The minimum hours daily
+	*/
+	int minHoursDaily;
+	
+	bool allowEmptyDays;
+	
+	QString activityTagName;
+	
+	int activityTagIndex;
+	
+	QList<int> canonicalTeachersList;
+
+	ConstraintTeachersActivityTagMinHoursDaily();
+
+	ConstraintTeachersActivityTagMinHoursDaily(double wp, int minhours, bool allowemptydays, const QString& activityTag);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherActivityTagMinHoursDaily: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherActivityTagMinHoursDaily)
+
+public:
+	/**
+	The minimum hours daily
+	*/
+	int minHoursDaily;
+	
+	bool allowEmptyDays;
+	
+	QString teacherName;
+	
+	QString activityTagName;
+	
+	int teacher_ID;
+
+	int activityTagIndex;
+	
+	QList<int> canonicalTeachersList;
+
+	ConstraintTeacherActivityTagMinHoursDaily();
+
+	ConstraintTeacherActivityTagMinHoursDaily(double wp, int minhours, bool allowemptydays, const QString& teacher, const QString& activityTag);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsActivityTagMinHoursDaily: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsActivityTagMinHoursDaily)
+
+public:
+	int minHoursDaily;
+	
+	bool allowEmptyDays;
+	
+	QString activityTagName;
+	
+	int activityTagIndex;
+	
+	QList<int> canonicalSubgroupsList;
+
+	ConstraintStudentsActivityTagMinHoursDaily();
+
+	ConstraintStudentsActivityTagMinHoursDaily(double wp, int maxnh, bool allowEmptyDays, const QString& activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetActivityTagMinHoursDaily: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetActivityTagMinHoursDaily)
+
+public:
+	int minHoursDaily;
+	
+	bool allowEmptyDays;
+
+	/**
+	The students set name
+	*/
+	QString students;
+	
+	QString activityTagName;
+
+	//internal variables
+	
+	int activityTagIndex;
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+	
+	QList<int> canonicalSubgroupsList;
+
+	ConstraintStudentsSetActivityTagMinHoursDaily();
+
+	ConstraintStudentsSetActivityTagMinHoursDaily(double wp, int minnh, bool allowEmptyDays, const QString& s, const QString& activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3592,30 +4667,30 @@ public:
 
 	ConstraintStudentsMaxGapsPerDay(double wp, int mg);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3644,32 +4719,32 @@ public:
 
 	ConstraintStudentsSetMaxGapsPerDay();
 
-	ConstraintStudentsSetMaxGapsPerDay(double wp, int mg, const QString& st );
+	ConstraintStudentsSetMaxGapsPerDay(double wp, int mg, const QString& st);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3678,6 +4753,8 @@ class ConstraintActivitiesOccupyMaxTimeSlotsFromSelection: public TimeConstraint
 
 public:
 	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
 	
 	QList<int> selectedDays;
 	QList<int> selectedHours;
@@ -3689,34 +4766,87 @@ public:
 
 	ConstraintActivitiesOccupyMaxTimeSlotsFromSelection();
 
-	ConstraintActivitiesOccupyMaxTimeSlotsFromSelection(double wp, QList<int> a_L, QList<int> d_L, QList<int> h_L, int max_slots);
+	ConstraintActivitiesOccupyMaxTimeSlotsFromSelection(double wp, const QList<int>& a_L, const QList<int>& d_L, const QList<int>& h_L, int max_slots);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules& r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesOccupyMinTimeSlotsFromSelection: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesOccupyMinTimeSlotsFromSelection)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+	
+	QList<int> selectedDays;
+	QList<int> selectedHours;
+	
+	int minOccupiedTimeSlots;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintActivitiesOccupyMinTimeSlotsFromSelection();
+
+	ConstraintActivitiesOccupyMinTimeSlotsFromSelection(double wp, const QList<int>& a_L, const QList<int>& d_L, const QList<int>& h_L, int min_slots);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3725,6 +4855,8 @@ class ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots: public TimeConstra
 
 public:
 	QList<int> activitiesIds;
+	
+	QSet<int> activitiesIdsSet;
 	
 	QList<int> selectedDays;
 	QList<int> selectedHours;
@@ -3736,34 +4868,236 @@ public:
 
 	ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots();
 
-	ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots(double wp, QList<int> a_L, QList<int> d_L, QList<int> h_L, int max_simultaneous);
+	ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots(double wp, const QList<int>& a_L, const QList<int>& d_L, const QList<int>& h_L, int max_simultaneous);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
 	void removeUseless(Rules& r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesMinSimultaneousInSelectedTimeSlots: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesMinSimultaneousInSelectedTimeSlots)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+	
+	QList<int> selectedDays;
+	QList<int> selectedHours;
+	
+	int minSimultaneous;
+	
+	bool allowEmptySlots;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintActivitiesMinSimultaneousInSelectedTimeSlots();
+
+	ConstraintActivitiesMinSimultaneousInSelectedTimeSlots(double wp, const QList<int>& a_L, const QList<int>& d_L, const QList<int>& h_L, int min_simultaneous, bool allow_empty_slots);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	QList<int> selectedDays;
+	QList<int> selectedHours;
+
+	int maxActivities;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots();
+
+	ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots(double wp, const QList<int>& a_L, const QList<int>& d_L, const QList<int>& h_L, int max_activities);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesMaxInATerm: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesMaxInATerm)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	int maxActivitiesInATerm;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintActivitiesMaxInATerm();
+
+	ConstraintActivitiesMaxInATerm(double wp, const QList<int>& a_L, int max_acts);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesOccupyMaxTerms: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesOccupyMaxTerms)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	int maxOccupiedTerms;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintActivitiesOccupyMaxTerms();
+
+	ConstraintActivitiesOccupyMaxTerms(double wp, const QList<int>& a_L, int max_occupied);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3795,32 +5129,32 @@ public:
 
 	ConstraintStudentsSetMaxDaysPerWeek();
 
-	ConstraintStudentsSetMaxDaysPerWeek(double wp, int maxnd, QString sn);
+	ConstraintStudentsSetMaxDaysPerWeek(double wp, int maxnd, const QString& sn);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3837,30 +5171,30 @@ public:
 
 	ConstraintStudentsMaxDaysPerWeek(double wp, int maxnd);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3873,38 +5207,40 @@ public:
 	*/
 	int maxSpanPerDay;
 	
+	bool allowOneDayExceptionPlusOne;
+	
 	QString teacherName;
 	
 	int teacher_ID;
 
 	ConstraintTeacherMaxSpanPerDay();
 
-	ConstraintTeacherMaxSpanPerDay(double wp, int maxspan, const QString& teacher);
+	ConstraintTeacherMaxSpanPerDay(double wp, int maxspan, bool except, const QString& teacher);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3917,34 +5253,36 @@ public:
 	*/
 	int maxSpanPerDay;
 	
+	bool allowOneDayExceptionPlusOne;
+
 	ConstraintTeachersMaxSpanPerDay();
 
-	ConstraintTeachersMaxSpanPerDay(double wp, int maxspan);
+	ConstraintTeachersMaxSpanPerDay(double wp, int maxspan, bool except);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -3964,30 +5302,30 @@ public:
 
 	ConstraintTeacherMinRestingHours(double wp, int minrestinghours, bool circ, const QString& teacher);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -4003,30 +5341,30 @@ public:
 
 	ConstraintTeachersMinRestingHours(double wp, int minrestinghours, bool circ);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -4055,32 +5393,32 @@ public:
 
 	ConstraintStudentsSetMaxSpanPerDay();
 
-	ConstraintStudentsSetMaxSpanPerDay(double wp, int maxspan, QString sn);
+	ConstraintStudentsSetMaxSpanPerDay(double wp, int maxspan, const QString& sn);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -4094,30 +5432,30 @@ public:
 
 	ConstraintStudentsMaxSpanPerDay(double wp, int maxspan);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -4148,32 +5486,32 @@ public:
 
 	ConstraintStudentsSetMinRestingHours();
 
-	ConstraintStudentsSetMinRestingHours(double wp, int minrestinghours, bool circ, QString sn);
+	ConstraintStudentsSetMinRestingHours(double wp, int minrestinghours, bool circ, const QString& sn);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
@@ -4189,203 +5527,6731 @@ public:
 
 	ConstraintStudentsMinRestingHours(double wp, int minrestinghours, bool circ);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	bool hasInactiveActivities(Rules& r);
 
-	QString getXmlDescription(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 	
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 	
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
-class ConstraintTeacherMinContinuousGapInInterval: public TimeConstraint{
-	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinContinuousGapInInterval)
+class ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags)
 
 public:
-	int minGapDuration;
-	int startHour;
-	int endHour;
+	int minGaps;
+
+	QString students;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags();
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags(double wp, const QString& _students, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags();
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags();
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags(double wp, const QString& _teacher, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags();
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinGapsBetweenActivityTag: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenActivityTag)
+
+public:
+	int minGaps;
+
+	QString students;
+	
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _activityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenActivityTag();
+
+	ConstraintStudentsSetMinGapsBetweenActivityTag(double wp, const QString& _students, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenActivityTag: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenActivityTag)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _activityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenActivityTag();
+
+	ConstraintStudentsMinGapsBetweenActivityTag(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenActivityTag: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenActivityTag)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString activityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenActivityTag();
+
+	ConstraintTeacherMinGapsBetweenActivityTag(double wp, const QString& _teacher, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenActivityTag: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenActivityTag)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenActivityTag();
+
+	ConstraintTeachersMinGapsBetweenActivityTag(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay)
+
+public:
+	int minGaps;
+
+	QString students;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay();
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay(double wp, const QString& _students, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay();
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay();
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay(double wp, const QString& _teacher, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay();
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay)
+
+public:
+	int minGaps;
+
+	QString students;
+	
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _activityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay();
+
+	ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay(double wp, const QString& _students, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenActivityTagPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenActivityTagPerRealDay)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _activityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenActivityTagPerRealDay();
+
+	ConstraintStudentsMinGapsBetweenActivityTagPerRealDay(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenActivityTagPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenActivityTagPerRealDay)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString activityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenActivityTagPerRealDay();
+
+	ConstraintTeacherMinGapsBetweenActivityTagPerRealDay(double wp, const QString& _teacher, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenActivityTagPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenActivityTagPerRealDay)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenActivityTagPerRealDay();
+
+	ConstraintTeachersMinGapsBetweenActivityTagPerRealDay(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString students;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon();
+
+	ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon(double wp, const QString& _students, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon();
+
+	ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon();
+
+	ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon(double wp, const QString& _teacher, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString firstActivityTag;
+	QString secondActivityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _firstActivityTagIndex;
+	int _secondActivityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon();
+
+	ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon(double wp, int _minGaps, const QString& _firstActivityTag, const QString& _secondActivityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString students;
+	
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+	
+	int _activityTagIndex;
+
+	ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon();
+
+	ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon(double wp, const QString& _students, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalSubgroupsList;
+
+	int _activityTagIndex;
+
+	ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon();
+
+	ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString teacher;
+	
+	QString activityTag;
+
+	//internal variables
+	
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon();
+
+	ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon(double wp, const QString& _teacher, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon)
+
+public:
+	int minGaps;
+
+	QString activityTag;
+
+	//internal variables
+
+	QList<int> canonicalTeachersList;
+
+	int _activityTagIndex;
+
+	ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon();
+
+	ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon(double wp, int _minGaps, const QString& _activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//Begin for mornings-afternoons
+class ConstraintTeachersMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxHoursDailyRealDays)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+
+	ConstraintTeachersMaxHoursDailyRealDays();
+
+	ConstraintTeachersMaxHoursDailyRealDays(double wp, int maxhours);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxHoursDailyRealDays)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	ConstraintTeacherMaxHoursDailyRealDays();
+
+	ConstraintTeacherMaxHoursDailyRealDays(double wp, int maxhours, const QString& teacher);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+/**
+This is a constraint.
+The resulting timetable must respect the requirement
+that this teacher must not have too much working
+days per week.
+*/
+class ConstraintTeacherMaxRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxRealDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxDaysPerWeek;
+
 	/**
 	The teacher's name
 	*/
 	QString teacherName;
+
 	/**
 	The teacher's id, or index in the rules
 	*/
 	int teacher_ID;
 
-	ConstraintTeacherMinContinuousGapInInterval();
+	ConstraintTeacherMaxRealDaysPerWeek();
 
-	ConstraintTeacherMinContinuousGapInInterval(double wp, int minGapDuration, const QString& teacherName, int startHour, int endHour);
+	ConstraintTeacherMaxRealDaysPerWeek(double wp, int maxnd, const QString& tn);
 
-	QString getXmlDescription(const Rules& r) const ;
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool hasInactiveActivities(Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
-class ConstraintTeachersMinContinuousGapInInterval: public TimeConstraint{
-	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinContinuousGapInInterval)
+class ConstraintTeachersMaxRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxRealDaysPerWeek)
 
 public:
-	int minGapDuration;
-	int startHour;
-	int endHour;
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxDaysPerWeek;
 
-	ConstraintTeachersMinContinuousGapInInterval();
+	ConstraintTeachersMaxRealDaysPerWeek();
 
-	ConstraintTeachersMinContinuousGapInInterval(double wp, int minGapDuration, int startHour, int endHour);
+	ConstraintTeachersMaxRealDaysPerWeek(double wp, int maxnd);
 
-	QString getXmlDescription(const Rules& r) const ;
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool hasInactiveActivities(Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
-class ConstraintStudentsSetMinContinuousGapInInterval: public TimeConstraint{
-	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinContinuousGapInInterval)
+class ConstraintTeacherMinRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinRealDaysPerWeek)
 
 public:
-	int minGapDuration;
+	int minDaysPerWeek;
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMinRealDaysPerWeek();
+
+	ConstraintTeacherMinRealDaysPerWeek(double wp, int mindays, const QString& t);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinRealDaysPerWeek)
+
+public:
+	int minDaysPerWeek;
+
+	ConstraintTeachersMinRealDaysPerWeek();
+
+	ConstraintTeachersMinRealDaysPerWeek(double wp, int mindays);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxGapsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxGapsPerRealDay)
+
+public:
+	int maxGaps;
+
+	bool allowOneDayExceptionPlusOne;
+
+	ConstraintTeachersMaxGapsPerRealDay();
+
+	ConstraintTeachersMaxGapsPerRealDay(double wp, int maxGaps, bool except);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxGapsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxGapsPerRealDay)
+
+public:
+	int maxGaps;
+
+	bool allowOneDayExceptionPlusOne;
+
+	QString teacherName;
+
+	int teacherIndex;
+
+	ConstraintTeacherMaxGapsPerRealDay();
+
+	ConstraintTeacherMaxGapsPerRealDay(double wp, const QString& tn, int maxGaps, bool except);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxHoursDailyRealDays)
+
+public:
+	int maxHoursDaily;
+
+	ConstraintStudentsMaxHoursDailyRealDays();
+
+	ConstraintStudentsMaxHoursDailyRealDays(double wp, int maxnh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxHoursDailyRealDays)
+
+public:
+	int maxHoursDaily;
+
+	/**
+	The students set name
+	*/
+	QString students;
+
+	//internal variables
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxHoursDailyRealDays();
+
+	ConstraintStudentsSetMaxHoursDailyRealDays(double wp, int maxnh, const QString& s);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinHoursPerMorning: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinHoursPerMorning)
+
+public:
+	/**
+	The minimum hours per morning
+	*/
+	int minHoursPerMorning;
+
+	bool allowEmptyMornings;
+
+	ConstraintTeachersMinHoursPerMorning();
+
+	ConstraintTeachersMinHoursPerMorning(double wp, int minhours, bool _allowEmptyMornings);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinHoursPerMorning: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinHoursPerMorning)
+
+public:
+	/**
+	The minimum hours per morning
+	*/
+	int minHoursPerMorning;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	bool allowEmptyMornings;
+
+	ConstraintTeacherMinHoursPerMorning();
+
+	ConstraintTeacherMinHoursPerMorning(double wp, int minhours, const QString& teacher, bool _allowEmptyMornings);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinHoursDailyRealDays)
+
+public:
+	/**
+	The minimum hours daily
+	*/
+	int minHoursDaily;
+
+	bool allowEmptyDays;
+
+	ConstraintTeachersMinHoursDailyRealDays();
+
+	ConstraintTeachersMinHoursDailyRealDays(double wp, int minhours, bool _allowEmptyDays);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinHoursDailyRealDays)
+
+public:
+	/**
+	The minimum hours daily
+	*/
+	int minHoursDaily;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	bool allowEmptyDays;
+
+	ConstraintTeacherMinHoursDailyRealDays();
+
+	ConstraintTeacherMinHoursDailyRealDays(double wp, int minhours, const QString& teacher, bool _allowEmptyDays);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//morning
+class ConstraintTeacherMorningIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMorningIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (mornings)
+	*/
+	int maxDaysPerWeek;
+
 	int startHour;
-	int endHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMorningIntervalMaxDaysPerWeek();
+
+	ConstraintTeacherMorningIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& tn, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMorningIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMorningIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (mornings)
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	ConstraintTeachersMorningIntervalMaxDaysPerWeek();
+
+	ConstraintTeachersMorningIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//afternoon
+class ConstraintTeacherAfternoonIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherAfternoonIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (afternoons)
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherAfternoonIntervalMaxDaysPerWeek();
+
+	ConstraintTeacherAfternoonIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& tn, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersAfternoonIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersAfternoonIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (afternoons)
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	ConstraintTeachersAfternoonIntervalMaxDaysPerWeek();
+
+	ConstraintTeachersAfternoonIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersActivityTagMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersActivityTagMaxHoursDailyRealDays)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+
+	QString activityTagName;
+
+	int activityTagIndex;
+
+	QList<int> canonicalTeachersList;
+
+	ConstraintTeachersActivityTagMaxHoursDailyRealDays();
+
+	ConstraintTeachersActivityTagMaxHoursDailyRealDays(double wp, int maxhours, const QString& activityTag);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherActivityTagMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherActivityTagMaxHoursDailyRealDays)
+
+public:
+	/**
+	The maximum hours daily
+	*/
+	int maxHoursDaily;
+
+	QString teacherName;
+
+	QString activityTagName;
+
+	int teacher_ID;
+
+	int activityTagIndex;
+
+	QList<int> canonicalTeachersList;
+
+	ConstraintTeacherActivityTagMaxHoursDailyRealDays();
+
+	ConstraintTeacherActivityTagMaxHoursDailyRealDays(double wp, int maxhours, const QString& teacher, const QString& activityTag);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsActivityTagMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsActivityTagMaxHoursDailyRealDays)
+
+public:
+	int maxHoursDaily;
+
+	QString activityTagName;
+
+	int activityTagIndex;
+
+	QList<int> canonicalSubgroupsList;
+
+	ConstraintStudentsActivityTagMaxHoursDailyRealDays();
+
+	ConstraintStudentsActivityTagMaxHoursDailyRealDays(double wp, int maxnh, const QString& activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetActivityTagMaxHoursDailyRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetActivityTagMaxHoursDailyRealDays)
+
+public:
+	int maxHoursDaily;
+
+	/**
+	The students set name
+	*/
+	QString students;
+
+	QString activityTagName;
+
+	//internal variables
+
+	int activityTagIndex;
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	QList<int> canonicalSubgroupsList;
+
+	ConstraintStudentsSetActivityTagMaxHoursDailyRealDays();
+
+	ConstraintStudentsSetActivityTagMaxHoursDailyRealDays(double wp, int maxnh, const QString& s, const QString& activityTag);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxGapsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxGapsPerRealDay)
+
+public:
+	int maxGaps;
+
+	ConstraintStudentsMaxGapsPerRealDay();
+
+	ConstraintStudentsMaxGapsPerRealDay(double wp, int mg);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxGapsPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxGapsPerRealDay)
+
+public:
+	int maxGaps;
+
 	/**
 	The name of the students set for this constraint
 	*/
 	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
 	/**
 	The subgroups
 	*/
 	QList<int> iSubgroupsList;
 
-	ConstraintStudentsSetMinContinuousGapInInterval();
+	ConstraintStudentsSetMaxGapsPerRealDay();
 
-	ConstraintStudentsSetMinContinuousGapInInterval(double wp, int minGapDuration, const QString& students, int startHour, int endHour);
+	ConstraintStudentsSetMaxGapsPerRealDay(double wp, int mg, const QString& st );
 
-	QString getXmlDescription(const Rules& r) const ;
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	bool hasInactiveActivities(Rules& r);
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	QString getXmlDescription(Rules& r);
 
-	QString getDescription(const Rules& r) const ;
+	QString getDescription(Rules& r);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	QString getDetailedDescription(Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 
-	bool isRelatedToTeacher(const Teacher* t) const;
+	bool isRelatedToTeacher(Teacher* t);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	bool isRelatedToSubject(Subject* s);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	bool isRelatedToActivityTag(ActivityTag* s);
 
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
 
-class ConstraintStudentsMinContinuousGapInInterval: public TimeConstraint{
-	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinContinuousGapInInterval)
+class ConstraintStudentsSetMaxRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxRealDaysPerWeek)
 
 public:
-	int minGapDuration;
-	int startHour;
-	int endHour;
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
 
-	ConstraintStudentsMinContinuousGapInInterval();
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
 
-	ConstraintStudentsMinContinuousGapInInterval(double wp, int minGapDuration, int startHour, int endHour);
+	//internal redundant data
 
-	QString getXmlDescription(const Rules& r) const ;
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
 
-	ErrorCode computeInternalStructure(const Rules& r);
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
 
-	bool hasInactiveActivities(const Rules& r) const ;
+	ConstraintStudentsSetMaxRealDaysPerWeek();
 
-	QString getDescription(const Rules& r) const ;
+	ConstraintStudentsSetMaxRealDaysPerWeek(double wp, int maxnd, const QString& sn);
 
-	QString getDetailedDescription(const Rules& r) const ;
+	bool computeInternalStructure(QWidget* parent, Rules& r);
 
-	double fitness(Solution& c, const Rules& r, ConflictInfo* conflictInfo = NULL);
+	bool hasInactiveActivities(Rules& r);
 
-	bool isRelatedToActivity(const Rules& r, const Activity* a) const;
+	QString getXmlDescription(Rules& r);
 
-	bool isRelatedToTeacher(const Teacher* t) const;
+	QString getDescription(Rules& r);
 
-	bool isRelatedToSubject(const Subject* s) const;
+	QString getDetailedDescription(Rules& r);
 
-	bool isRelatedToActivityTag(const ActivityTag* s) const;
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
 
-	bool isRelatedToStudentsSet(const Rules& r, const StudentsSet* s) const;
+	bool isRelatedToActivity(Rules& r, Activity* a);
 
-	bool hasWrongDayOrHour(const Rules& r) const;
-	bool canRepairWrongDayOrHour(const Rules& r) const;
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
 	bool repairWrongDayOrHour(Rules& r);
 };
+
+class ConstraintStudentsMaxRealDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxRealDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
+
+	ConstraintStudentsMaxRealDaysPerWeek();
+
+	ConstraintStudentsMaxRealDaysPerWeek(double wp, int maxnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxSpanPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxSpanPerRealDay)
+
+public:
+	/**
+	The maximum span daily
+	*/
+	int maxSpanPerDay;
+
+	bool allowOneDayExceptionPlusOne;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	ConstraintTeacherMaxSpanPerRealDay();
+
+	ConstraintTeacherMaxSpanPerRealDay(double wp, int maxspan, bool except, const QString& teacher);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxSpanPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxSpanPerRealDay)
+
+public:
+	/**
+	The maximum span daily
+	*/
+	int maxSpanPerDay;
+
+	bool allowOneDayExceptionPlusOne;
+
+	ConstraintTeachersMaxSpanPerRealDay();
+
+	ConstraintTeachersMaxSpanPerRealDay(double wp, int maxspan, bool except);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxSpanPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxSpanPerRealDay)
+
+public:
+	int maxSpanPerDay;
+
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxSpanPerRealDay();
+
+	ConstraintStudentsSetMaxSpanPerRealDay(double wp, int maxspan, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxSpanPerRealDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxSpanPerRealDay)
+
+public:
+	int maxSpanPerDay;
+
+	ConstraintStudentsMaxSpanPerRealDay();
+
+	ConstraintStudentsMaxSpanPerRealDay(double wp, int maxspan);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxAfternoonsPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxAfternoonsPerWeek;
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxAfternoonsPerWeek();
+
+	ConstraintTeacherMaxAfternoonsPerWeek(double wp, int maxnd, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxAfternoonsPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxAfternoonsPerWeek;
+
+	ConstraintTeachersMaxAfternoonsPerWeek();
+
+	ConstraintTeachersMaxAfternoonsPerWeek(double wp, int maxnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxMorningsPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxMorningsPerWeek;
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxMorningsPerWeek();
+
+	ConstraintTeacherMaxMorningsPerWeek(double wp, int maxnd, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxMorningsPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week (-1 for don't care)
+	*/
+	int maxMorningsPerWeek;
+
+	ConstraintTeachersMaxMorningsPerWeek();
+
+	ConstraintTeachersMaxMorningsPerWeek(double wp, int maxnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3)
+
+public:
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3();
+
+	ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3(double wp, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3)
+
+public:
+
+	ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3();
+
+	ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinMorningsPerWeek)
+
+public:
+	int minMorningsPerWeek;
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMinMorningsPerWeek();
+
+	ConstraintTeacherMinMorningsPerWeek(double wp, int minmornings, const QString& teacher);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinMorningsPerWeek)
+
+public:
+	int minMorningsPerWeek;
+
+	ConstraintTeachersMinMorningsPerWeek();
+
+	ConstraintTeachersMinMorningsPerWeek(double wp, int minmornings);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinAfternoonsPerWeek)
+
+public:
+	int minAfternoonsPerWeek;
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMinAfternoonsPerWeek();
+
+	ConstraintTeacherMinAfternoonsPerWeek(double wp, int minafternoons, const QString& teacher);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinAfternoonsPerWeek)
+
+public:
+	int minAfternoonsPerWeek;
+
+	ConstraintTeachersMinAfternoonsPerWeek();
+
+	ConstraintTeachersMinAfternoonsPerWeek(double wp, int minafternoons);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxTwoConsecutiveMornings: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxTwoConsecutiveMornings)
+
+public:
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxTwoConsecutiveMornings();
+
+	ConstraintTeacherMaxTwoConsecutiveMornings(double wp, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxTwoConsecutiveMornings: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxTwoConsecutiveMornings)
+
+public:
+	ConstraintTeachersMaxTwoConsecutiveMornings();
+
+	ConstraintTeachersMaxTwoConsecutiveMornings(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxTwoConsecutiveAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxTwoConsecutiveAfternoons)
+
+public:
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxTwoConsecutiveAfternoons();
+
+	ConstraintTeacherMaxTwoConsecutiveAfternoons(double wp, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxTwoConsecutiveAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxTwoConsecutiveAfternoons)
+
+public:
+	ConstraintTeachersMaxTwoConsecutiveAfternoons();
+
+	ConstraintTeachersMaxTwoConsecutiveAfternoons(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour)
+
+public:
+
+	int maxBeginningsAtSecondHour;
+
+	ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour)
+
+public:
+	int maxBeginningsAtSecondHour;
+
+	QString teacherName;
+
+	//internal
+	int teacherIndex;
+
+	ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH, const QString& teacher);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour)
+
+public:
+
+	int maxBeginningsAtSecondHour;
+
+	ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour)
+
+public:
+	int maxBeginningsAtSecondHour;
+
+	QString teacherName;
+
+	//internal
+	int teacherIndex;
+
+	ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH, const QString& teacher);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-14
+class ConstraintStudentsMinHoursPerMorning: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinHoursPerMorning)
+
+public:
+	int minHoursPerMorning;
+
+	bool allowEmptyMornings;
+
+	ConstraintStudentsMinHoursPerMorning();
+
+	ConstraintStudentsMinHoursPerMorning(double wp, int minnh, bool _allowEmptyMornings);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinHoursPerMorning: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinHoursPerMorning)
+
+public:
+	int minHoursPerMorning;
+
+	/**
+	The students set name
+	*/
+	QString students;
+
+	bool allowEmptyMornings;
+
+	//internal variables
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMinHoursPerMorning();
+
+	ConstraintStudentsSetMinHoursPerMorning(double wp, int minnh, const QString& s, bool _allowEmptyMornings);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxZeroGapsPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxZeroGapsPerAfternoon)
+
+public:
+	QString teacherName;
+
+	int teacherIndex;
+
+	ConstraintTeacherMaxZeroGapsPerAfternoon();
+
+	ConstraintTeacherMaxZeroGapsPerAfternoon(double wp, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxZeroGapsPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxZeroGapsPerAfternoon)
+
+public:
+	ConstraintTeachersMaxZeroGapsPerAfternoon();
+
+	ConstraintTeachersMaxZeroGapsPerAfternoon(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-25
+class ConstraintStudentsMaxAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxAfternoonsPerWeek)
+
+public:
+	int maxAfternoonsPerWeek;
+
+	ConstraintStudentsMaxAfternoonsPerWeek();
+
+	ConstraintStudentsMaxAfternoonsPerWeek(double wp, int maxnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxAfternoonsPerWeek)
+
+public:
+	int maxAfternoonsPerWeek;
+
+	QString students;
+
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxAfternoonsPerWeek();
+
+	ConstraintStudentsSetMaxAfternoonsPerWeek(double wp, int maxnd, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxMorningsPerWeek)
+
+public:
+	int maxMorningsPerWeek;
+
+	ConstraintStudentsMaxMorningsPerWeek();
+
+	ConstraintStudentsMaxMorningsPerWeek(double wp, int maxnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxMorningsPerWeek)
+
+public:
+	int maxMorningsPerWeek;
+
+	QString students;
+
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxMorningsPerWeek();
+
+	ConstraintStudentsSetMaxMorningsPerWeek(double wp, int maxnd, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-26
+class ConstraintStudentsMinAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinAfternoonsPerWeek)
+
+public:
+	int minAfternoonsPerWeek;
+
+	ConstraintStudentsMinAfternoonsPerWeek();
+
+	ConstraintStudentsMinAfternoonsPerWeek(double wp, int minnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinAfternoonsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinAfternoonsPerWeek)
+
+public:
+	int minAfternoonsPerWeek;
+
+	QString students;
+
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMinAfternoonsPerWeek();
+
+	ConstraintStudentsSetMinAfternoonsPerWeek(double wp, int minnd, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinMorningsPerWeek)
+
+public:
+	int minMorningsPerWeek;
+
+	ConstraintStudentsMinMorningsPerWeek();
+
+	ConstraintStudentsMinMorningsPerWeek(double wp, int minnd);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinMorningsPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinMorningsPerWeek)
+
+public:
+	int minMorningsPerWeek;
+
+	QString students;
+
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMinMorningsPerWeek();
+
+	ConstraintStudentsSetMinMorningsPerWeek(double wp, int minnd, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-26
+class ConstraintStudentsSetMorningIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMorningIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMorningIntervalMaxDaysPerWeek();
+
+	ConstraintStudentsSetMorningIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& sn, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMorningIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMorningIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+
+	ConstraintStudentsMorningIntervalMaxDaysPerWeek();
+
+	ConstraintStudentsMorningIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek();
+
+	ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek(double wp, int maxnd, const QString& sn, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsAfternoonIntervalMaxDaysPerWeek: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsAfternoonIntervalMaxDaysPerWeek)
+
+public:
+	/**
+	The number of maximum allowed working days per week
+	*/
+	int maxDaysPerWeek;
+
+	int startHour;
+
+	int endHour; //might be = to gt.rules.nHoursPerDay
+
+
+	ConstraintStudentsAfternoonIntervalMaxDaysPerWeek();
+
+	ConstraintStudentsAfternoonIntervalMaxDaysPerWeek(double wp, int maxnd, int sh, int eh);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-28
+class ConstraintTeacherMaxHoursPerAllAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxHoursPerAllAfternoons)
+
+public:
+	int maxHoursPerAllAfternoons;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	ConstraintTeacherMaxHoursPerAllAfternoons();
+
+	ConstraintTeacherMaxHoursPerAllAfternoons(double wp, int maxhours, const QString& teacher);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxHoursPerAllAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxHoursPerAllAfternoons)
+
+public:
+	int maxHoursPerAllAfternoons;
+
+	ConstraintTeachersMaxHoursPerAllAfternoons();
+
+	ConstraintTeachersMaxHoursPerAllAfternoons(double wp, int maxhours);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-06-28
+class ConstraintStudentsSetMaxHoursPerAllAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxHoursPerAllAfternoons)
+
+public:
+	int maxHoursPerAllAfternoons;
+
+	QString students;
+
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxHoursPerAllAfternoons();
+
+	ConstraintStudentsSetMaxHoursPerAllAfternoons(double wp, int maxhours, const QString& st);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxHoursPerAllAfternoons: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxHoursPerAllAfternoons)
+
+public:
+	int maxHoursPerAllAfternoons;
+
+	ConstraintStudentsMaxHoursPerAllAfternoons();
+
+	ConstraintStudentsMaxHoursPerAllAfternoons(double wp, int maxhours);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon)
+
+public:
+	int minRestingHours;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon();
+
+	ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon(double wp, int minrestinghours, const QString& teacher);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon)
+
+public:
+	int minRestingHours;
+
+	ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon();
+
+	ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon(double wp, int minrestinghours);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon)
+
+public:
+	int minRestingHours;
+
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon();
+
+	ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon(double wp, int minrestinghours, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon)
+
+public:
+	int minRestingHours;
+
+	ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon();
+
+	ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon(double wp, int minrestinghours);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour)
+
+public:
+
+	int maxBeginningsAtSecondHour;
+
+	ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour)
+
+public:
+	int maxBeginningsAtSecondHour;
+
+	/**
+	The name of the students
+	*/
+	QString students;
+
+	/**
+	The number of subgroups involved in this constraint
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups involved in this constraint
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH, const QString& students);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour)
+
+public:
+
+	int maxBeginningsAtSecondHour;
+
+	ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour)
+
+public:
+	int maxBeginningsAtSecondHour;
+
+	/**
+	The name of the students
+	*/
+	QString students;
+
+	/**
+	The number of subgroups involved in this constraint
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups involved in this constraint
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour();
+
+	ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour(double wp, int mBSH, const QString& students);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2020-07-29
+class ConstraintTeachersMaxGapsPerWeekForRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxGapsPerWeekForRealDays)
+
+public:
+	int maxGaps;
+
+	ConstraintTeachersMaxGapsPerWeekForRealDays();
+
+	ConstraintTeachersMaxGapsPerWeekForRealDays(double wp, int maxGaps);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxGapsPerWeekForRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxGapsPerWeekForRealDays)
+
+public:
+	int maxGaps;
+
+	QString teacherName;
+
+	int teacherIndex;
+
+	ConstraintTeacherMaxGapsPerWeekForRealDays();
+
+	ConstraintTeacherMaxGapsPerWeekForRealDays(double wp, const QString& tn, int maxGaps);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxGapsPerWeekForRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxGapsPerWeekForRealDays)
+
+public:
+	int maxGaps;
+
+	ConstraintStudentsMaxGapsPerWeekForRealDays();
+
+	ConstraintStudentsMaxGapsPerWeekForRealDays(double wp, int mg);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxGapsPerWeekForRealDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxGapsPerWeekForRealDays)
+
+public:
+	int maxGaps;
+
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxGapsPerWeekForRealDays();
+
+	ConstraintStudentsSetMaxGapsPerWeekForRealDays(double wp, int mg, const QString& st );
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+//End for mornings-afternoons
+
+//Begin mornings-afternoons 2021-09-26
+class ConstraintTeacherMaxThreeConsecutiveDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxThreeConsecutiveDays)
+
+public:
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	bool allowAMAMException; //AMAM=afternoon morning afternoon morning.
+
+	ConstraintTeacherMaxThreeConsecutiveDays();
+
+	ConstraintTeacherMaxThreeConsecutiveDays(double wp, bool ae, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxThreeConsecutiveDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxThreeConsecutiveDays)
+
+public:
+	bool allowAMAMException; //AMAM=afternoon morning afternoon morning.
+
+	ConstraintTeachersMaxThreeConsecutiveDays();
+
+	ConstraintTeachersMaxThreeConsecutiveDays(double wp, bool ae);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+//End   mornings-afternoons 2021-09-26
+
+//Begin mornings-afternoons 2022-02-15
+class ConstraintStudentsSetMaxThreeConsecutiveDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxThreeConsecutiveDays)
+
+public:
+	/**
+	The name of the students set for this constraint
+	*/
+	QString students;
+
+	//internal redundant data
+	/**
+	The subgroups
+	*/
+	QList<int> iSubgroupsList;
+
+	bool allowAMAMException; //AMAM=afternoon morning afternoon morning.
+
+	ConstraintStudentsSetMaxThreeConsecutiveDays();
+
+	ConstraintStudentsSetMaxThreeConsecutiveDays(double wp, bool ae, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxThreeConsecutiveDays: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxThreeConsecutiveDays)
+
+public:
+	bool allowAMAMException; //AMAM=afternoon morning afternoon morning.
+
+	ConstraintStudentsMaxThreeConsecutiveDays();
+
+	ConstraintStudentsMaxThreeConsecutiveDays(double wp, bool ae);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+//End   mornings-afternoons 2022-02-15
+
+//Begin mornings-afternoons 2022-05-14
+class ConstraintMinHalfDaysBetweenActivities: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintMinHalfDaysBetweenActivities)
+
+public:
+	bool consecutiveIfSameDay;
+
+	/**
+	The number of activities involved in this constraint
+	*/
+	int n_activities;
+
+	/**
+	The activities involved in this constraint (id-s)
+	*/
+	QList<int> activitiesIds;
+	//int activitiesIds[MAX_CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES];
+
+	QSet<int> activitiesIdsSet;
+
+	/**
+	The number of minimum days between each 2 activities
+	*/
+	int minDays;
+
+	//internal structure (redundant)
+
+	/**
+	The number of activities involved in this constraint - internal structure
+	*/
+	int _n_activities;
+
+	/**
+	The activities involved in this constraint (index in the rules) - internal structure
+	*/
+	QList<int> _activities;
+	//int _activities[MAX_CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES];
+
+	ConstraintMinHalfDaysBetweenActivities();
+
+	/**
+	Constructor, using:
+	the weight, the number of activities and the list of activities.
+	*/
+	ConstraintMinHalfDaysBetweenActivities(double wp, bool cisd, int n_act, const QList<int>& act, int n);
+
+	/**
+	Comparison operator - to be sure that we do not introduce duplicates
+	*/
+	bool operator==(ConstraintMinHalfDaysBetweenActivities& c);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+//End   mornings-afternoons 2022-05-14
+
+class ConstraintActivityPreferredDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivityPreferredDay)
+
+public:
+	/**
+	Activity id
+	*/
+	int activityId;
+
+	/**
+	The preferred day.
+	*/
+	int day;
+
+	//bool permanentlyLocked; //if this is true, then this activity cannot be unlocked from the timetable view form
+
+	//internal variables
+	/**
+	The index of the activity in the rules (from 0 to rules.nActivities-1) - it is not the id of the activity
+	*/
+	int activityIndex;
+	
+	ConstraintActivityPreferredDay();
+
+	ConstraintActivityPreferredDay(double wp, int actId, int d/*, bool perm*/);
+
+	/**
+	Comparison operator - to be sure that we do not introduce duplicates
+	*/
+	bool operator==(const ConstraintActivityPreferredDay& c);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesMinInATerm: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesMinInATerm)
+
+public:
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	int minActivitiesInATerm;
+	
+	bool allowEmptyTerms;
+
+	//internal variables
+	QList<int> _activitiesIndices;
+
+	ConstraintActivitiesMinInATerm();
+
+	ConstraintActivitiesMinInATerm(double wp, const QList<int>& a_L, int min_acts, bool allow_empty_terms);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules& r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintMaxTermsBetweenActivities: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintMaxTermsBetweenActivities)
+
+public:
+	/**
+	The number of activities involved in this constraint
+	*/
+	int n_activities;
+
+	/**
+	The activities involved in this constraint (id-s)
+	*/
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	/**
+	The number of maximum terms between each 2 activities
+	*/
+	int maxTerms;
+
+	//internal structure (redundant)
+
+	/**
+	The number of activities involved in this constraint - internal structure
+	*/
+	int _n_activities;
+
+	/**
+	The activities involved in this constraint (index in the rules) - internal structure
+	*/
+	QList<int> _activities;
+
+	ConstraintMaxTermsBetweenActivities();
+
+	/**
+	Constructor, using:
+	the weight, the number of activities, the list of activities, and the max number of terms.
+	*/
+	ConstraintMaxTermsBetweenActivities(double wp, int n_act, const QList<int>& act, int n);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3)
+
+public:
+
+	/**
+	The name of the students
+	*/
+	QString students;
+
+	/**
+	The subgroups involved in this constraint
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3();
+
+	ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3(double wp, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3)
+
+public:
+
+	ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3();
+
+	ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3)
+
+public:
+
+	/**
+	The teacher's name
+	*/
+	QString teacherName;
+
+	/**
+	The teacher's id, or index in the rules
+	*/
+	int teacher_ID;
+
+	ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3();
+
+	ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3(double wp, const QString& tn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3)
+
+public:
+
+	ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3();
+
+	ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3)
+
+public:
+
+	/**
+	The name of the students
+	*/
+	QString students;
+
+	/**
+	The subgroups involved in this constraint
+	*/
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3();
+
+	ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3(double wp, const QString& sn);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3)
+
+public:
+
+	ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3();
+
+	ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3(double wp);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintMaxHalfDaysBetweenActivities: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintMaxHalfDaysBetweenActivities)
+
+public:
+	/**
+	The number of activities involved in this constraint
+	*/
+	int n_activities;
+
+	/**
+	The activities involved in this constraint (id-s)
+	*/
+	QList<int> activitiesIds;
+
+	QSet<int> activitiesIdsSet;
+
+	/**
+	The number of maximum days between each 2 activities
+	*/
+	int maxDays;
+
+	//internal structure (redundant)
+
+	/**
+	The number of activities involved in this constraint - internal structure
+	*/
+	int _n_activities;
+
+	/**
+	The activities involved in this constraint (index in the rules) - internal structure
+	*/
+	QList<int> _activities;
+
+	ConstraintMaxHalfDaysBetweenActivities();
+
+	/**
+	Constructor, using:
+	the weight, the number of activities, the list of activities, and the max number of days.
+	*/
+	ConstraintMaxHalfDaysBetweenActivities(double wp, int n_act, const QList<int>& act, int n);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	void removeUseless(Rules &r);
+
+	void recomputeActivitiesSet();
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivityBeginsStudentsDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivityBeginsStudentsDay)
+
+public:
+	/**
+	Activity id
+	*/
+	int activityId;
+
+	//internal variables
+	/**
+	The index of the activity in the rules (from 0 to rules.nActivities-1) - it is not the id of the activity
+	*/
+	int activityIndex;
+
+	ConstraintActivityBeginsStudentsDay();
+
+	ConstraintActivityBeginsStudentsDay(double wp, int actId);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesBeginStudentsDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesBeginStudentsDay)
+
+public:
+	/**
+	The teacher. If void, all teachers.
+	*/
+	QString teacherName;
+
+	/**
+	The students. If void, all students.
+	*/
+	QString studentsName;
+
+	/**
+	The subject. If void, all subjects.
+	*/
+	QString subjectName;
+
+	/**
+	The activity tag. If void, all activity tags.
+	*/
+	QString activityTagName;
+	
+	
+	//internal data
+
+	/**
+	The number of activities which are represented by the subject, teacher and students requirements.
+	*/
+	int nActivities;
+	
+	/**
+	The indices of the activities in the rules (from 0 to rules.nActivities-1)
+	These are indices in the internal list -> Rules::internalActivitiesList
+	*/
+	QList<int> activitiesIndices;
+
+	ConstraintActivitiesBeginStudentsDay();
+
+	ConstraintActivitiesBeginStudentsDay(double wp, const QString& te, const QString& st, const QString& su, const QString& sut);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivityBeginsTeachersDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivityBeginsTeachersDay)
+
+public:
+	/**
+	Activity id
+	*/
+	int activityId;
+
+	//internal variables
+	/**
+	The index of the activity in the rules (from 0 to rules.nActivities-1) - it is not the id of the activity
+	*/
+	int activityIndex;
+
+	ConstraintActivityBeginsTeachersDay();
+
+	ConstraintActivityBeginsTeachersDay(double wp, int actId);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintActivitiesBeginTeachersDay: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintActivitiesBeginTeachersDay)
+
+public:
+	/**
+	The teacher. If void, all teachers.
+	*/
+	QString teacherName;
+
+	/**
+	The students. If void, all students.
+	*/
+	QString studentsName;
+
+	/**
+	The subject. If void, all subjects.
+	*/
+	QString subjectName;
+
+	/**
+	The activity tag. If void, all activity tags.
+	*/
+	QString activityTagName;
+	
+	
+	//internal data
+
+	/**
+	The number of activities which are represented by the subject, teacher and students requirements.
+	*/
+	int nActivities;
+	
+	/**
+	The indices of the activities in the rules (from 0 to rules.nActivities-1)
+	These are indices in the internal list -> Rules::internalActivitiesList
+	*/
+	//int activitiesIndices[MAX_ACTIVITIES];
+	QList<int> activitiesIndices;
+
+	ConstraintActivitiesBeginTeachersDay();
+
+	ConstraintActivitiesBeginTeachersDay(double wp, const QString& te, const QString& st, const QString& su, const QString& sut);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>& dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+	
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+	
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//2022-09-10
+class ConstraintTeachersMinHoursPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeachersMinHoursPerAfternoon)
+
+public:
+	/**
+	The minimum hours per morning
+	*/
+	int minHoursPerAfternoon;
+
+	bool allowEmptyAfternoons;
+
+	ConstraintTeachersMinHoursPerAfternoon();
+
+	ConstraintTeachersMinHoursPerAfternoon(double wp, int minhours, bool _allowEmptyAfternoons);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintTeacherMinHoursPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintTeacherMinHoursPerAfternoon)
+
+public:
+	/**
+	The minimum hours per morning
+	*/
+	int minHoursPerAfternoon;
+
+	QString teacherName;
+
+	int teacher_ID;
+
+	bool allowEmptyAfternoons;
+
+	ConstraintTeacherMinHoursPerAfternoon();
+
+	ConstraintTeacherMinHoursPerAfternoon(double wp, int minhours, const QString& teacher, bool _allowEmptyAfternoons);
+
+	QString getXmlDescription(Rules& r);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsMinHoursPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsMinHoursPerAfternoon)
+
+public:
+	int minHoursPerAfternoon;
+
+	bool allowEmptyAfternoons;
+
+	ConstraintStudentsMinHoursPerAfternoon();
+
+	ConstraintStudentsMinHoursPerAfternoon(double wp, int minnh, bool _allowEmptyAfternoons);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+class ConstraintStudentsSetMinHoursPerAfternoon: public TimeConstraint{
+	Q_DECLARE_TR_FUNCTIONS(ConstraintStudentsSetMinHoursPerAfternoon)
+
+public:
+	int minHoursPerAfternoon;
+
+	/**
+	The students set name
+	*/
+	QString students;
+
+	bool allowEmptyAfternoons;
+
+	//internal variables
+
+	/**
+	The number of subgroups
+	*/
+	//int nSubgroups;
+
+	/**
+	The subgroups
+	*/
+	//int subgroups[MAX_SUBGROUPS_PER_CONSTRAINT];
+	QList<int> iSubgroupsList;
+
+	ConstraintStudentsSetMinHoursPerAfternoon();
+
+	ConstraintStudentsSetMinHoursPerAfternoon(double wp, int minnh, const QString& s, bool _allowEmptyAfternoons);
+
+	bool computeInternalStructure(QWidget* parent, Rules& r);
+
+	bool hasInactiveActivities(Rules& r);
+
+	QString getXmlDescription(Rules& r);
+
+	QString getDescription(Rules& r);
+
+	QString getDetailedDescription(Rules& r);
+
+	double fitness(Solution& c, Rules& r, QList<double>& cl, QList<QString>&dl, FakeString* conflictsString=nullptr);
+
+	bool isRelatedToActivity(Rules& r, Activity* a);
+
+	bool isRelatedToTeacher(Teacher* t);
+
+	bool isRelatedToSubject(Subject* s);
+
+	bool isRelatedToActivityTag(ActivityTag* s);
+
+	bool isRelatedToStudentsSet(Rules& r, StudentsSet* s);
+
+	bool hasWrongDayOrHour(Rules& r);
+	bool canRepairWrongDayOrHour(Rules& r);
+	bool repairWrongDayOrHour(Rules& r);
+};
+
+//1
+QDataStream& operator<<(QDataStream& stream, const ConstraintBasicCompulsoryTime& tc);
+//2
+QDataStream& operator<<(QDataStream& stream, const ConstraintBreakTimes& tc);
+//3
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherNotAvailableTimes& tc);
+//4
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxHoursDaily& tc);
+//5
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxDaysPerWeek& tc);
+//6
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxGapsPerWeek& tc);
+//7
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxGapsPerWeek& tc);
+//8
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxHoursDaily& tc);
+//9
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxHoursContinuously& tc);
+//10
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxHoursContinuously& tc);
+//11
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinHoursDaily& tc);
+//12
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinHoursDaily& tc);
+//13
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxGapsPerDay& tc);
+//14
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxGapsPerDay& tc);
+//15
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsEarlyMaxBeginningsAtSecondHour& tc);
+//16
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetEarlyMaxBeginningsAtSecondHour& tc);
+//17
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetNotAvailableTimes& tc);
+//18
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxGapsPerWeek& tc);
+//19
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxGapsPerWeek& tc);
+//20
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxHoursDaily& tc);
+//21
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxHoursDaily& tc);
+//22
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxHoursContinuously& tc);
+//23
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxHoursContinuously& tc);
+//24
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinHoursDaily& tc);
+//25
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinHoursDaily& tc);
+//26
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityEndsStudentsDay& tc);
+//27
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityPreferredStartingTime& tc);
+//28
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesSameStartingTime& tc);
+//29
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesNotOverlapping& tc);
+//30
+QDataStream& operator<<(QDataStream& stream, const ConstraintMinDaysBetweenActivities& tc);
+//31
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityPreferredTimeSlots& tc);
+//32
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesPreferredTimeSlots& tc);
+//33
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityPreferredStartingTimes& tc);
+//34
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesPreferredStartingTimes& tc);
+//35
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesSameStartingHour& tc);
+//36
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesSameStartingDay& tc);
+//37
+QDataStream& operator<<(QDataStream& stream, const ConstraintTwoActivitiesConsecutive& tc);
+//38
+QDataStream& operator<<(QDataStream& stream, const ConstraintTwoActivitiesOrdered& tc);
+//39
+QDataStream& operator<<(QDataStream& stream, const ConstraintMinGapsBetweenActivities& tc);
+//40
+QDataStream& operator<<(QDataStream& stream, const ConstraintSubactivitiesPreferredTimeSlots& tc);
+//41
+QDataStream& operator<<(QDataStream& stream, const ConstraintSubactivitiesPreferredStartingTimes& tc);
+//42
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherIntervalMaxDaysPerWeek& tc);
+//43
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersIntervalMaxDaysPerWeek& tc);
+//44
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetIntervalMaxDaysPerWeek& tc);
+//45
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsIntervalMaxDaysPerWeek& tc);
+//46
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesEndStudentsDay& tc);
+//47
+QDataStream& operator<<(QDataStream& stream, const ConstraintTwoActivitiesGrouped& tc);
+//48
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersActivityTagMaxHoursContinuously& tc);
+//49
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherActivityTagMaxHoursContinuously& tc);
+//50
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsActivityTagMaxHoursContinuously& tc);
+//51
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetActivityTagMaxHoursContinuously& tc);
+//52
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxDaysPerWeek& tc);
+//53
+QDataStream& operator<<(QDataStream& stream, const ConstraintThreeActivitiesGrouped& tc);
+//54
+QDataStream& operator<<(QDataStream& stream, const ConstraintMaxDaysBetweenActivities& tc);
+//55
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinDaysPerWeek& tc);
+//56
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinDaysPerWeek& tc);
+//57
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersActivityTagMaxHoursDaily& tc);
+//58
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherActivityTagMaxHoursDaily& tc);
+//59
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsActivityTagMaxHoursDaily& tc);
+//60
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetActivityTagMaxHoursDaily& tc);
+//61
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxGapsPerDay& tc);
+//62
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxGapsPerDay& tc);
+//63
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesOccupyMaxTimeSlotsFromSelection& tc);
+//64
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots& tc);
+//65
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxDaysPerWeek& tc);
+//66
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxDaysPerWeek& tc);
+//67
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxSpanPerDay& tc);
+//68
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxSpanPerDay& tc);
+//69
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinRestingHours& tc);
+//70
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinRestingHours& tc);
+//71
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxSpanPerDay& tc);
+//72
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxSpanPerDay& tc);
+//73
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinRestingHours& tc);
+//74
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinRestingHours& tc);
+//75
+QDataStream& operator<<(QDataStream& stream, const ConstraintTwoActivitiesOrderedIfSameDay& tc);
+//76
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags& tc);
+//77
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags& tc);
+//78
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags& tc);
+//79
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags& tc);
+//80
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityTagsNotOverlapping& tc);
+//81
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesOccupyMinTimeSlotsFromSelection& tc);
+//82
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesMinSimultaneousInSelectedTimeSlots& tc);
+//83
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersActivityTagMinHoursDaily& tc);
+//84
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherActivityTagMinHoursDaily& tc);
+//85
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsActivityTagMinHoursDaily& tc);
+//86
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetActivityTagMinHoursDaily& tc);
+//87
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityEndsTeachersDay& tc);
+//88
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesEndTeachersDay& tc);
+//89
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxHoursDailyRealDays& tc);
+//90
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxRealDaysPerWeek& tc);
+//91
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxHoursDailyRealDays& tc);
+//92
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxHoursDailyRealDays& tc);
+//93
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxHoursDailyRealDays& tc);
+//94
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxRealDaysPerWeek& tc);
+//95
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinRealDaysPerWeek& tc);
+//96
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinRealDaysPerWeek& tc);
+//97
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersActivityTagMaxHoursDailyRealDays& tc);
+//98
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherActivityTagMaxHoursDailyRealDays& tc);
+//99
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsActivityTagMaxHoursDailyRealDays& tc);
+//100
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetActivityTagMaxHoursDailyRealDays& tc);
+//101
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxAfternoonsPerWeek& tc);
+//102
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxAfternoonsPerWeek& tc);
+//103
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxMorningsPerWeek& tc);
+//104
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxMorningsPerWeek& tc);
+//105
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//106
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//107
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinMorningsPerWeek& tc);
+//108
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinMorningsPerWeek& tc);
+//109
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinAfternoonsPerWeek& tc);
+//110
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinAfternoonsPerWeek& tc);
+//111
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxTwoConsecutiveMornings& tc);
+//112
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxTwoConsecutiveMornings& tc);
+//113
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxTwoConsecutiveAfternoons& tc);
+//114
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxTwoConsecutiveAfternoons& tc);
+//115
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxGapsPerRealDay& tc);
+//116
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxGapsPerRealDay& tc);
+//117
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxGapsPerRealDay& tc);
+//118
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxGapsPerRealDay& tc);
+//119
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinHoursDailyRealDays& tc);
+//120
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinHoursDailyRealDays& tc);
+//121
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//122
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//123
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinHoursPerMorning& tc);
+//124
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinHoursPerMorning& tc);
+//125
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxSpanPerRealDay& tc);
+//126
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxSpanPerRealDay& tc);
+//127
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxSpanPerRealDay& tc);
+//128
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxSpanPerRealDay& tc);
+//129
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMorningIntervalMaxDaysPerWeek& tc);
+//130
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMorningIntervalMaxDaysPerWeek& tc);
+//131
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherAfternoonIntervalMaxDaysPerWeek& tc);
+//132
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersAfternoonIntervalMaxDaysPerWeek& tc);
+//133
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinHoursPerMorning& tc);
+//134
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinHoursPerMorning& tc);
+//135
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxZeroGapsPerAfternoon& tc);
+//136
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxZeroGapsPerAfternoon& tc);
+//137
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxAfternoonsPerWeek& tc);
+//138
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxAfternoonsPerWeek& tc);
+//139
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxMorningsPerWeek& tc);
+//140
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxMorningsPerWeek& tc);
+//141
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinMorningsPerWeek& tc);
+//142
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinMorningsPerWeek& tc);
+//143
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinAfternoonsPerWeek& tc);
+//144
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinAfternoonsPerWeek& tc);
+//145
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMorningIntervalMaxDaysPerWeek& tc);
+//146
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMorningIntervalMaxDaysPerWeek& tc);
+//147
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek& tc);
+//148
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsAfternoonIntervalMaxDaysPerWeek& tc);
+//149
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxHoursPerAllAfternoons& tc);
+//150
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxHoursPerAllAfternoons& tc);
+//151
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxHoursPerAllAfternoons& tc);
+//152
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxHoursPerAllAfternoons& tc);
+//153
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon& tc);
+//154
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon& tc);
+//155
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon& tc);
+//156
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon& tc);
+//157
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//158
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//159
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxGapsPerWeekForRealDays& tc);
+//160
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxGapsPerWeekForRealDays& tc);
+//161
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxGapsPerWeekForRealDays& tc);
+//162
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxGapsPerWeekForRealDays& tc);
+//163
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxRealDaysPerWeek& tc);
+//164
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxRealDaysPerWeek& tc);
+//165
+QDataStream& operator<<(QDataStream& stream, const ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots& tc);
+//166
+QDataStream& operator<<(QDataStream& stream, const ConstraintMaxGapsBetweenActivities& tc);
+//167
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesMaxInATerm& tc);
+//168
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesOccupyMaxTerms& tc);
+//169
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxGapsPerMorningAndAfternoon& tc);
+//170
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxGapsPerMorningAndAfternoon& tc);
+//171
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//172
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//173
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//174
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//175
+QDataStream& operator<<(QDataStream& stream, const ConstraintTwoSetsOfActivitiesOrdered& tc);
+//176
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxThreeConsecutiveDays& tc);
+//177
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxThreeConsecutiveDays& tc);
+//178
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenActivityTag& tc);
+//179
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenActivityTag& tc);
+//180
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenActivityTag& tc);
+//181
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenActivityTag& tc);
+//182
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxThreeConsecutiveDays& tc);
+//183
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxThreeConsecutiveDays& tc);
+//184
+QDataStream& operator<<(QDataStream& stream, const ConstraintMinHalfDaysBetweenActivities& tc);
+//185
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityPreferredDay& tc);
+//186
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesMinInATerm& tc);
+//187
+QDataStream& operator<<(QDataStream& stream, const ConstraintMaxTermsBetweenActivities& tc);
+//188
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//189
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//190
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//191
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//192
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//193
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//194
+QDataStream& operator<<(QDataStream& stream, const ConstraintMaxHalfDaysBetweenActivities& tc);
+//195
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityBeginsStudentsDay& tc);
+//196
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesBeginStudentsDay& tc);
+//197
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivityBeginsTeachersDay& tc);
+//198
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesBeginTeachersDay& tc);
+//199
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinHoursPerAfternoon& tc);
+//200
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinHoursPerAfternoon& tc);
+//201
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinHoursPerAfternoon& tc);
+//202
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinHoursPerAfternoon& tc);
+//203
+QDataStream& operator<<(QDataStream& stream, const ConstraintActivitiesMaxHourlySpan& tc);
+//204
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMaxHoursDailyInInterval& tc);
+//205
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMaxHoursDailyInInterval& tc);
+//206
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMaxHoursDailyInInterval& tc);
+//207
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMaxHoursDailyInInterval& tc);
+//208
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//209
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//210
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//211
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//212
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay& tc);
+//213
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenActivityTagPerRealDay& tc);
+//214
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenActivityTagPerRealDay& tc);
+//215
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenActivityTagPerRealDay& tc);
+//216
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//217
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//218
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//219
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//220
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//221
+QDataStream& operator<<(QDataStream& stream, const ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//222
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//223
+QDataStream& operator<<(QDataStream& stream, const ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+
+//1
+QDataStream& operator>>(QDataStream& stream, ConstraintBasicCompulsoryTime& tc);
+//2
+QDataStream& operator>>(QDataStream& stream, ConstraintBreakTimes& tc);
+//3
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherNotAvailableTimes& tc);
+//4
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxHoursDaily& tc);
+//5
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxDaysPerWeek& tc);
+//6
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxGapsPerWeek& tc);
+//7
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxGapsPerWeek& tc);
+//8
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxHoursDaily& tc);
+//9
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxHoursContinuously& tc);
+//10
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxHoursContinuously& tc);
+//11
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinHoursDaily& tc);
+//12
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinHoursDaily& tc);
+//13
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxGapsPerDay& tc);
+//14
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxGapsPerDay& tc);
+//15
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsEarlyMaxBeginningsAtSecondHour& tc);
+//16
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetEarlyMaxBeginningsAtSecondHour& tc);
+//17
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetNotAvailableTimes& tc);
+//18
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxGapsPerWeek& tc);
+//19
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxGapsPerWeek& tc);
+//20
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxHoursDaily& tc);
+//21
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxHoursDaily& tc);
+//22
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxHoursContinuously& tc);
+//23
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxHoursContinuously& tc);
+//24
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinHoursDaily& tc);
+//25
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinHoursDaily& tc);
+//26
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityEndsStudentsDay& tc);
+//27
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityPreferredStartingTime& tc);
+//28
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesSameStartingTime& tc);
+//29
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesNotOverlapping& tc);
+//30
+QDataStream& operator>>(QDataStream& stream, ConstraintMinDaysBetweenActivities& tc);
+//31
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityPreferredTimeSlots& tc);
+//32
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesPreferredTimeSlots& tc);
+//33
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityPreferredStartingTimes& tc);
+//34
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesPreferredStartingTimes& tc);
+//35
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesSameStartingHour& tc);
+//36
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesSameStartingDay& tc);
+//37
+QDataStream& operator>>(QDataStream& stream, ConstraintTwoActivitiesConsecutive& tc);
+//38
+QDataStream& operator>>(QDataStream& stream, ConstraintTwoActivitiesOrdered& tc);
+//39
+QDataStream& operator>>(QDataStream& stream, ConstraintMinGapsBetweenActivities& tc);
+//40
+QDataStream& operator>>(QDataStream& stream, ConstraintSubactivitiesPreferredTimeSlots& tc);
+//41
+QDataStream& operator>>(QDataStream& stream, ConstraintSubactivitiesPreferredStartingTimes& tc);
+//42
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherIntervalMaxDaysPerWeek& tc);
+//43
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersIntervalMaxDaysPerWeek& tc);
+//44
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetIntervalMaxDaysPerWeek& tc);
+//45
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsIntervalMaxDaysPerWeek& tc);
+//46
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesEndStudentsDay& tc);
+//47
+QDataStream& operator>>(QDataStream& stream, ConstraintTwoActivitiesGrouped& tc);
+//48
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersActivityTagMaxHoursContinuously& tc);
+//49
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherActivityTagMaxHoursContinuously& tc);
+//50
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsActivityTagMaxHoursContinuously& tc);
+//51
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetActivityTagMaxHoursContinuously& tc);
+//52
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxDaysPerWeek& tc);
+//53
+QDataStream& operator>>(QDataStream& stream, ConstraintThreeActivitiesGrouped& tc);
+//54
+QDataStream& operator>>(QDataStream& stream, ConstraintMaxDaysBetweenActivities& tc);
+//55
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinDaysPerWeek& tc);
+//56
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinDaysPerWeek& tc);
+//57
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersActivityTagMaxHoursDaily& tc);
+//58
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherActivityTagMaxHoursDaily& tc);
+//59
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsActivityTagMaxHoursDaily& tc);
+//60
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetActivityTagMaxHoursDaily& tc);
+//61
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxGapsPerDay& tc);
+//62
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxGapsPerDay& tc);
+//63
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesOccupyMaxTimeSlotsFromSelection& tc);
+//64
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots& tc);
+//65
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxDaysPerWeek& tc);
+//66
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxDaysPerWeek& tc);
+//67
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxSpanPerDay& tc);
+//68
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxSpanPerDay& tc);
+//69
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinRestingHours& tc);
+//70
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinRestingHours& tc);
+//71
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxSpanPerDay& tc);
+//72
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxSpanPerDay& tc);
+//73
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinRestingHours& tc);
+//74
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinRestingHours& tc);
+//75
+QDataStream& operator>>(QDataStream& stream, ConstraintTwoActivitiesOrderedIfSameDay& tc);
+//76
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTags& tc);
+//77
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTags& tc);
+//78
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTags& tc);
+//79
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTags& tc);
+//80
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityTagsNotOverlapping& tc);
+//81
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesOccupyMinTimeSlotsFromSelection& tc);
+//82
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesMinSimultaneousInSelectedTimeSlots& tc);
+//83
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersActivityTagMinHoursDaily& tc);
+//84
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherActivityTagMinHoursDaily& tc);
+//85
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsActivityTagMinHoursDaily& tc);
+//86
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetActivityTagMinHoursDaily& tc);
+//87
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityEndsTeachersDay& tc);
+//88
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesEndTeachersDay& tc);
+//89
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxHoursDailyRealDays& tc);
+//90
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxRealDaysPerWeek& tc);
+//91
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxHoursDailyRealDays& tc);
+//92
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxHoursDailyRealDays& tc);
+//93
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxHoursDailyRealDays& tc);
+//94
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxRealDaysPerWeek& tc);
+//95
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinRealDaysPerWeek& tc);
+//96
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinRealDaysPerWeek& tc);
+//97
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersActivityTagMaxHoursDailyRealDays& tc);
+//98
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherActivityTagMaxHoursDailyRealDays& tc);
+//99
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsActivityTagMaxHoursDailyRealDays& tc);
+//100
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetActivityTagMaxHoursDailyRealDays& tc);
+//101
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxAfternoonsPerWeek& tc);
+//102
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxAfternoonsPerWeek& tc);
+//103
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxMorningsPerWeek& tc);
+//104
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxMorningsPerWeek& tc);
+//105
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//106
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//107
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinMorningsPerWeek& tc);
+//108
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinMorningsPerWeek& tc);
+//109
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinAfternoonsPerWeek& tc);
+//110
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinAfternoonsPerWeek& tc);
+//111
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxTwoConsecutiveMornings& tc);
+//112
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxTwoConsecutiveMornings& tc);
+//113
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxTwoConsecutiveAfternoons& tc);
+//114
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxTwoConsecutiveAfternoons& tc);
+//115
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxGapsPerRealDay& tc);
+//116
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxGapsPerRealDay& tc);
+//117
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxGapsPerRealDay& tc);
+//118
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxGapsPerRealDay& tc);
+//119
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinHoursDailyRealDays& tc);
+//120
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinHoursDailyRealDays& tc);
+//121
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//122
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//123
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinHoursPerMorning& tc);
+//124
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinHoursPerMorning& tc);
+//125
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxSpanPerRealDay& tc);
+//126
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxSpanPerRealDay& tc);
+//127
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxSpanPerRealDay& tc);
+//128
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxSpanPerRealDay& tc);
+//129
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMorningIntervalMaxDaysPerWeek& tc);
+//130
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMorningIntervalMaxDaysPerWeek& tc);
+//131
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherAfternoonIntervalMaxDaysPerWeek& tc);
+//132
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersAfternoonIntervalMaxDaysPerWeek& tc);
+//133
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinHoursPerMorning& tc);
+//134
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinHoursPerMorning& tc);
+//135
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxZeroGapsPerAfternoon& tc);
+//136
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxZeroGapsPerAfternoon& tc);
+//137
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxAfternoonsPerWeek& tc);
+//138
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxAfternoonsPerWeek& tc);
+//139
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxMorningsPerWeek& tc);
+//140
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxMorningsPerWeek& tc);
+//141
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinMorningsPerWeek& tc);
+//142
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinMorningsPerWeek& tc);
+//143
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinAfternoonsPerWeek& tc);
+//144
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinAfternoonsPerWeek& tc);
+//145
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMorningIntervalMaxDaysPerWeek& tc);
+//146
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMorningIntervalMaxDaysPerWeek& tc);
+//147
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetAfternoonIntervalMaxDaysPerWeek& tc);
+//148
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsAfternoonIntervalMaxDaysPerWeek& tc);
+//149
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxHoursPerAllAfternoons& tc);
+//150
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxHoursPerAllAfternoons& tc);
+//151
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxHoursPerAllAfternoons& tc);
+//152
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxHoursPerAllAfternoons& tc);
+//153
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinRestingHoursBetweenMorningAndAfternoon& tc);
+//154
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinRestingHoursBetweenMorningAndAfternoon& tc);
+//155
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinRestingHoursBetweenMorningAndAfternoon& tc);
+//156
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinRestingHoursBetweenMorningAndAfternoon& tc);
+//157
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//158
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsAfternoonsEarlyMaxBeginningsAtSecondHour& tc);
+//159
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxGapsPerWeekForRealDays& tc);
+//160
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxGapsPerWeekForRealDays& tc);
+//161
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxGapsPerWeekForRealDays& tc);
+//162
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxGapsPerWeekForRealDays& tc);
+//163
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxRealDaysPerWeek& tc);
+//164
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxRealDaysPerWeek& tc);
+//165
+QDataStream& operator>>(QDataStream& stream, ConstraintMaxTotalActivitiesFromSetInSelectedTimeSlots& tc);
+//166
+QDataStream& operator>>(QDataStream& stream, ConstraintMaxGapsBetweenActivities& tc);
+//167
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesMaxInATerm& tc);
+//168
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesOccupyMaxTerms& tc);
+//169
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxGapsPerMorningAndAfternoon& tc);
+//170
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxGapsPerMorningAndAfternoon& tc);
+//171
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//172
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//173
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//174
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMorningsEarlyMaxBeginningsAtSecondHour& tc);
+//175
+QDataStream& operator>>(QDataStream& stream, ConstraintTwoSetsOfActivitiesOrdered& tc);
+//176
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxThreeConsecutiveDays& tc);
+//177
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxThreeConsecutiveDays& tc);
+//178
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenActivityTag& tc);
+//179
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenActivityTag& tc);
+//180
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenActivityTag& tc);
+//181
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenActivityTag& tc);
+//182
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxThreeConsecutiveDays& tc);
+//183
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxThreeConsecutiveDays& tc);
+//184
+QDataStream& operator>>(QDataStream& stream, ConstraintMinHalfDaysBetweenActivities& tc);
+//185
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityPreferredDay& tc);
+//186
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesMinInATerm& tc);
+//187
+QDataStream& operator>>(QDataStream& stream, ConstraintMaxTermsBetweenActivities& tc);
+//188
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//189
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxTwoActivityTagsPerDayFromN1N2N3& tc);
+//190
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//191
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//192
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//193
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxTwoActivityTagsPerRealDayFromN1N2N3& tc);
+//194
+QDataStream& operator>>(QDataStream& stream, ConstraintMaxHalfDaysBetweenActivities& tc);
+//195
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityBeginsStudentsDay& tc);
+//196
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesBeginStudentsDay& tc);
+//197
+QDataStream& operator>>(QDataStream& stream, ConstraintActivityBeginsTeachersDay& tc);
+//198
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesBeginTeachersDay& tc);
+//199
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinHoursPerAfternoon& tc);
+//200
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinHoursPerAfternoon& tc);
+//201
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinHoursPerAfternoon& tc);
+//202
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinHoursPerAfternoon& tc);
+//203
+QDataStream& operator>>(QDataStream& stream, ConstraintActivitiesMaxHourlySpan& tc);
+//204
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMaxHoursDailyInInterval& tc);
+//205
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMaxHoursDailyInInterval& tc);
+//206
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMaxHoursDailyInInterval& tc);
+//207
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMaxHoursDailyInInterval& tc);
+//208
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//209
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//210
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//211
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsPerRealDay& tc);
+//212
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenActivityTagPerRealDay& tc);
+//213
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenActivityTagPerRealDay& tc);
+//214
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenActivityTagPerRealDay& tc);
+//215
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenActivityTagPerRealDay& tc);
+//216
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//217
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//218
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//219
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenOrderedPairOfActivityTagsBetweenMorningAndAfternoon& tc);
+//220
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsSetMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//221
+QDataStream& operator>>(QDataStream& stream, ConstraintStudentsMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//222
+QDataStream& operator>>(QDataStream& stream, ConstraintTeacherMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
+//223
+QDataStream& operator>>(QDataStream& stream, ConstraintTeachersMinGapsBetweenActivityTagBetweenMorningAndAfternoon& tc);
 
 #endif

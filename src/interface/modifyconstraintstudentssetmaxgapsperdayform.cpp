@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetmaxgapsperdayform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,9 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssetmaxgapsperdayform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetMaxGapsPerDayForm::ModifyConstraintStudentsSetMaxGapsPerDayForm(QWidget* parent, ConstraintStudentsSetMaxGapsPerDay* ctr): QDialog(parent)
 {
@@ -31,8 +26,8 @@ ModifyConstraintStudentsSetMaxGapsPerDayForm::ModifyConstraintStudentsSetMaxGaps
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMaxGapsPerDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMaxGapsPerDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -48,7 +43,7 @@ ModifyConstraintStudentsSetMaxGapsPerDayForm::ModifyConstraintStudentsSetMaxGaps
 	maxGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	maxGapsSpinBox->setValue(ctr->maxGaps);
 	
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 }
 
 ModifyConstraintStudentsSetMaxGapsPerDayForm::~ModifyConstraintStudentsSetMaxGapsPerDayForm()
@@ -56,17 +51,19 @@ ModifyConstraintStudentsSetMaxGapsPerDayForm::~ModifyConstraintStudentsSetMaxGap
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetMaxGapsPerDayForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->students, true);
+void ModifyConstraintStudentsSetMaxGapsPerDayForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->students);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->students);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->students);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintStudentsSetMaxGapsPerDayForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->students);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->students);
 		return;
 	}
 
@@ -86,18 +83,28 @@ void ModifyConstraintStudentsSetMaxGapsPerDayForm::ok()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxGaps=maxGapsSpinBox->value();
 	this->_ctr->students=students_name;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetMaxGapsPerDayForm::cancel()
+{
 	this->close();
 }

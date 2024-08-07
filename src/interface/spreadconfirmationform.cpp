@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -19,17 +19,15 @@
 
 #include "timetable_defs.h"
 
-#include "centerwidgetonscreen.h"
-
 SpreadConfirmationForm::SpreadConfirmationForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
 	
 	continuePushButton->setDefault(true);
 	
-	connect(continuePushButton, SIGNAL(clicked()), this, SLOT(accept()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(reject()));
-	connect(dontShowAgainCheckBox, SIGNAL(stateChanged(int)), this, SLOT(dontShowAgainCheckBoxToggled()));
+	connect(continuePushButton, &QPushButton::clicked, this, &SpreadConfirmationForm::accept);
+	connect(cancelPushButton, &QPushButton::clicked, this, &SpreadConfirmationForm::reject);
+	connect(dontShowAgainCheckBox, &QCheckBox::toggled, this, &SpreadConfirmationForm::dontShowAgainCheckBoxToggled);
 
 	dontShowAgain=dontShowAgainCheckBox->isChecked();
 	
@@ -52,7 +50,7 @@ SpreadConfirmationForm::SpreadConfirmationForm(QWidget* parent): QDialog(parent)
 	"referring to activities in different components, these will be left untouched - this is a useful feature.");
 	s+="\n\n";
 	s+=tr("Please SAVE/BACKUP your current file and keep it safe, in case anything goes wrong, and only continue if you did that "
-	"already. Current function might modify much your data");
+	"already. The current function might modify much your data.");
 	s+="\n\n";
 	s+=tr("If you use constraints activities same starting time or same starting day then "
 	"you must take care of this aspect: after applying this function and before generating a timetable, it is IMPORTANT to "
@@ -63,7 +61,7 @@ SpreadConfirmationForm::SpreadConfirmationForm(QWidget* parent): QDialog(parent)
 	"be values from 95.0% to 100.0% (ex.: 95.0%, 99.0%, 99.75%, 100.0%). You may want to select the check boxes for activities "
 	"split into 2 or 3 components, so that they are not in consecutive days. If you obtain a timetable too difficult for FET, "
 	"you might need to revert to your former data or lower weights of constraints. Note: you can use a progressive approach "
-	"in choosing good weights");
+	"in choosing good weights.");
 	
 	plainTextEdit->setPlainText(s);
 }

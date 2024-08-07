@@ -2,8 +2,8 @@
                           timetablegeneratemultipleform.h  -  description
                              -------------------
     begin                : Aug 20 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -22,34 +22,86 @@
 #include "timetable_defs.h"
 #include "timetable.h"
 #include "fet.h"
+#include "solution.h"
 
-#include <QThread>
+//#include <QThread>
 
-class GenerateMultipleThread: public QThread{
+#include <QList>
+
+#include <thread>
+
+class TimetablingThread: public QObject
+{
 	Q_OBJECT
 
 public:
-	void run();
+	//std::thread _internalGeneratingThread;
+	int _nThread;
+	int nOverallTimetable;
+
+	void startGenerating();
 
 signals:
-	void timetableStarted(int timetable);
-
-	void timetableGenerated(int timetable, const QString& description, bool ok);
-	
-	void finished();
+	void timetableGenerated(int nThread, int timetable, const QString& description, bool ok);
 };
+
+/*class Worker: public QObject
+{
+	Q_OBJECT
+
+signals:
+	void resultReady(int nThread, const QString& description, bool ok);
+
+public slots:
+	void doWork(int _nThread);
+};
+
+class Controller: public QObject
+{
+	Q_OBJECT
+
+public:
+	QThread workerThread;
+	
+	int _nThread;
+	int nOverallTimetable;
+
+	Controller();
+	~Controller();
+	
+	void startOperate(int nThread);
+	
+public slots:
+	void handleResults(int nThread, const QString& description, bool ok);
+
+signals:
+	void operate(int nThread);
+
+	void timetableGenerated(int nThread, int timetable, const QString& description, bool ok);
+};*/
 
 class TimetableGenerateMultipleForm : public QDialog, Ui::TimetableGenerateMultipleForm_template  {
 	Q_OBJECT
 
+	QList<QLabel*> labels;
+	
+	//QList<Controller*> controllersList;
+	
+	time_t all_processes_start_time;
+	
+	int nGeneratedTimetables;
+	int nSuccessfullyGeneratedTimetables;
+	int highestPlacedActivities; //if no timetable was finished, we save the first partial best.
+	QList<Solution*> highestStageSolutions;
+	QList<int> nTimetableForHighestStageSolutions;
+	QList<int> nThreadForHighest;
+	QList<bool> generationTimedOutForHighest;
+	QList<int> timeForHighestStageSolutions;
+
 public:
-
 	TimetableGenerateMultipleForm(QWidget* parent);
-
 	~TimetableGenerateMultipleForm();
 	
-	void simulationFinished();
-
 	void writeTimetableDataFile();
 
 public slots:
@@ -62,16 +114,15 @@ public slots:
 	void closePressed();
 	
 private slots:
-	void timetableStarted(int timetable);
+	void nThreadsChanged(int nt);
 
-	void timetableGenerated(int timetable, const QString& description, bool ok);
+	void timetableStarted(int nThread, int timetable);
+
+	void timetableGenerated(int nThread, int timetable, const QString& description, bool ok);
 	
-	void finished();
+	void generationFinished();
 	
-	void activityPlaced(int na);
-private:
-	//Represents the current status of the simulation - running or stopped.
-	bool simulation_running_multi;
+	void activityPlaced(int nThread, int na);
 };
 
 #endif

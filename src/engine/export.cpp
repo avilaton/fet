@@ -5,8 +5,8 @@ File export.cpp
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                           export.cpp  -  description
                              -------------------
@@ -25,121 +25,120 @@ File export.cpp
 // Code contributed by Volker Dirr ( https://www.timetabling.de/ )
 
 //TODO: protect export strings. textquote must be doubled
-//TODO: count skipped min days constraints?
+//TODO: count skipped min days between activities constraints?
 //TODO: add cancel button
 
+#include <Qt>
 #include <QtGlobal>
 #include <QFile>
+#include <QFileDevice>
 #include <QDir>
 
 #ifndef FET_COMMAND_LINE
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 #include <QtWidgets>
 #else
 #include <QtGui>
 #endif
-
-#include <QMessageBox>
-
-#include "centerwidgetonscreen.h"
 #endif
 
 #include <QHash>
 #include <QSet>
-#include <QTextStream>
+#include <QMap>
 
-#include "timetable_defs.h"		//needed, because of LocaleString
+class QWidget;
+void centerWidgetOnScreen(QWidget* widget);
+
+#include "timetable_defs.h"		//needed, because of QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);
 #include "export.h"
 #include "solution.h"
 
-static const char CSVActivities[]="activities.csv";
-static const char CSVActivitiesStatistic[]="statistics_activities.csv";
-static const char CSVActivityTags[]="activity_tags.csv";
-static const char CSVRoomsAndBuildings[]="rooms_and_buildings.csv";
-static const char CSVSubjects[]="subjects.csv";
-static const char CSVTeachers[]="teachers.csv";
-static const char CSVStudents[]="students.csv";
-static const char CSVTimetable[]="timetable.csv";
+#include "messageboxes.h"
+
+extern Timetable gt;
+extern Solution best_solution;
+extern bool teachers_schedule_ready;
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+
+const char CSVActivities[]="activities.csv";
+const char CSVActivitiesStatistics[]="statistics_activities.csv";
+const char CSVActivityTags[]="activity_tags.csv";
+const char CSVRoomsAndBuildings[]="rooms_and_buildings.csv";
+const char CSVSubjects[]="subjects.csv";
+const char CSVTeachers[]="teachers.csv";
+const char CSVStudents[]="students.csv";
+const char CSVTimetable[]="timetable.csv";
+QString DIRECTORY_CSV;
+QString PREFIX_CSV;
 
 #ifdef FET_COMMAND_LINE
+bool EXPORT_CSV=false;
+
+bool EXPORT_ALLOW_OVERWRITE=false;
+
+bool EXPORT_FIRST_LINE_IS_HEADING=true;
+
+extern const int EXPORT_DOUBLE_QUOTES; //trick so that these constants are visible in fet.cpp.
+extern const int EXPORT_SINGLE_QUOTES;
+extern const int EXPORT_NO_QUOTES;
+const int EXPORT_DOUBLE_QUOTES=0;
+const int EXPORT_SINGLE_QUOTES=1;
+const int EXPORT_NO_QUOTES=2;
+int EXPORT_QUOTES=EXPORT_DOUBLE_QUOTES;
+
+extern const int EXPORT_COMMA;
+extern const int EXPORT_SEMICOLON;
+extern const int EXPORT_VERTICALBAR;
+const int EXPORT_COMMA=0;
+const int EXPORT_SEMICOLON=1;
+const int EXPORT_VERTICALBAR=2;
+int EXPORT_FIELD_SEPARATOR=EXPORT_COMMA;
+
 #include <iostream>
 using namespace std;
 #endif
 
-static QString getBasename(){
-	QFileInfo input(INPUT_FILENAME_XML);
-	if (input.suffix() == "fet")
-		return input.baseName();
-	return input.fileName();
-}
-
-QString Export::getFilePath(QString suffix) {
-	QString basename = getBasename();
-	if (!basename.isEmpty())
-		basename.append("_");
-	QString path = directoryCSV;
-	if (!directoryCSV.endsWith(FILE_SEP))
-		path.append(FILE_SEP);
-	return path+basename+suffix;
-}
-
-#ifndef FET_COMMAND_LINE
-Export::Export(const Timetable &gt, const Solution &solution)
-	: gt(gt), solution(solution),
-	  textquote("\""), fieldSeparator(","),
-	  header(true), setSeparator("+"),
-	  overwrite(OVERWRITE_PROMPT)
+Export::Export()
 {
 }
-#else
-Export::Export(const Timetable &gt)
-	: gt(gt),
-	  textquote("\""), fieldSeparator(","),
-	  header(true), setSeparator("+"),
-	  overwrite(OVERWRITE_NONE)
-{
-}
-#endif
 
 Export::~Export()
 {
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::okToWrite(QWidget* parent, const QString& file)
+bool Export::okToWrite(QWidget* parent, const QString& file, QMessageBox::StandardButton& msgBoxButton)
 {
 	if(QFile::exists(file)){
-		if(overwrite==OVERWRITE_ALL){
+		if(msgBoxButton==QMessageBox::YesToAll){
 			return true;
 		}
-		else if(overwrite==OVERWRITE_NONE){
+		else if(msgBoxButton==QMessageBox::NoToAll){
 			return false;
 		}
-		else if(overwrite==OVERWRITE_PROMPT){
-		
-			QMessageBox msgBox(parent);
+		else if(msgBoxButton==QMessageBox::No ||
+		 msgBoxButton==QMessageBox::Yes ||
+		 msgBoxButton==QMessageBox::NoButton){
+			/*QMessageBox msgBox(parent);
 			msgBox.setWindowTitle(tr("FET warning"));
 			msgBox.setIcon(QMessageBox::Warning);
 			msgBox.setText(tr("File %1 exists - are you sure you want to overwrite existing file?").arg(file));
 			msgBox.setStandardButtons(QMessageBox::Yes|QMessageBox::No|QMessageBox::YesToAll|QMessageBox::NoToAll);
 			msgBox.setDefaultButton(QMessageBox::Yes);
 			
-			QMessageBox::StandardButton msgBoxButton=((QMessageBox::StandardButton)(msgBox.exec()));
-
-			switch (msgBoxButton) {
-			case QMessageBox::YesToAll:
-				overwrite = OVERWRITE_ALL;
+			msgBoxButton=(QMessageBox::StandardButton)(msgBox.exec());
+			*/
+			
+			msgBoxButton=QMessageBox::warning(parent, tr("FET warning"),
+			 tr("File %1 exists - are you sure you want to overwrite existing file?").arg(file),
+			 QMessageBox::Yes | QMessageBox::No | QMessageBox::YesToAll | QMessageBox::NoToAll,
+			 QMessageBox::Yes);
+			
+			if(msgBoxButton==QMessageBox::No || msgBoxButton==QMessageBox::NoToAll)
+				return false;
+			else
 				return true;
-			case QMessageBox::Yes:
-				return true;
-			case QMessageBox::NoToAll:
-				overwrite = OVERWRITE_NONE;
-				return false;
-			case QMessageBox::No:
-				return false;
-			default:
-				return false;
-			}
 		}
 		else{
 			assert(0);
@@ -153,30 +152,47 @@ bool Export::okToWrite(QWidget* parent, const QString& file)
 bool Export::okToWrite(const QString& file)
 {
 	if(QFile::exists(file))
-		return overwrite == OVERWRITE_ALL;
+		return EXPORT_ALLOW_OVERWRITE;
 	else
 		return true;
 }
 #endif
 
 #ifndef FET_COMMAND_LINE
-void Export::exportCSV(QWidget* parent) {
+void Export::exportCSV(QWidget* parent){
+	QString fieldSeparator=",";
+	QString textquote="\"";
+	QString componentSeparator="|";
+	QString setSeparator="+";
+	bool head=true;
 	bool ok=true;
 
-	if (directoryCSV.isNull())
-		directoryCSV=OUTPUT_DIR+FILE_SEP+"csv";
+	DIRECTORY_CSV=OUTPUT_DIR+FILE_SEP+"csv";
 
-	QString s2=getBasename();
-	if(s2.isEmpty())
+	QString s2;
+	if(INPUT_FILENAME_XML=="")
 		s2="unnamed";
-	directoryCSV.append(FILE_SEP+s2+FILE_SEP);
+	else{
+		s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+		if(s2.right(4)==".fet")
+			s2=s2.left(s2.length()-4);
+		//else if(INPUT_FILENAME_XML!="")
+		//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+	}
+	DIRECTORY_CSV.append(FILE_SEP);
+	DIRECTORY_CSV.append(s2);
+
+	PREFIX_CSV=DIRECTORY_CSV+FILE_SEP;
 
 	QDir dir;
-	if(!dir.exists(directoryCSV))
-		dir.mkpath(directoryCSV);
+	if(!dir.exists(OUTPUT_DIR))
+		dir.mkpath(OUTPUT_DIR);
+	if(!dir.exists(DIRECTORY_CSV))
+		dir.mkpath(DIRECTORY_CSV);
 
 	QDialog* newParent;
-	ok=selectSeparatorAndTextquote(parent, newParent, textquote, fieldSeparator, header);
+	ok=selectSeparatorAndTextQuote(parent, newParent, textquote, fieldSeparator, head);
 	
 	QString lastWarnings;
 	if(!ok){
@@ -184,24 +200,22 @@ void Export::exportCSV(QWidget* parent) {
 	} else {
 		bool okat, okr, oks, okt, okst, okact, okacts, oktim;
 
-		OverwriteOptions previousOverwriteOption = overwrite;
+		QMessageBox::StandardButton msgBoxButton=QMessageBox::NoButton;
 
-		okat=exportCSVActivityTags(newParent);
-		okr=exportCSVRoomsAndBuildings(newParent);
-		oks=exportCSVSubjects(newParent);
-		okt=exportCSVTeachers(newParent);
-		okst=exportCSVStudents(newParent);
-		okact=exportCSVActivities(newParent);
-		okacts=exportCSVActivitiesStatistic(newParent);
-		oktim=exportCSVTimetable(newParent);
-
-		overwrite = previousOverwriteOption;
+		okat=exportCSVActivityTags(newParent, lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator, msgBoxButton);
+		okr=exportCSVRoomsAndBuildings(newParent, lastWarnings, textquote, fieldSeparator, head, msgBoxButton);
+		oks=exportCSVSubjects(newParent, lastWarnings, textquote, fieldSeparator, head, componentSeparator, msgBoxButton);
+		okt=exportCSVTeachers(newParent, lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator, msgBoxButton);
+		okst=exportCSVStudents(newParent, lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator, msgBoxButton);
+		okact=exportCSVActivities(newParent, lastWarnings, textquote, fieldSeparator, head, msgBoxButton);
+		okacts=exportCSVActivitiesStatistics(newParent, lastWarnings, textquote, fieldSeparator, head, msgBoxButton);
+		oktim=exportCSVTimetable(newParent, lastWarnings, textquote, fieldSeparator, head, msgBoxButton);
 		
 		ok=okat && okr && oks && okt && okst && okact && okacts && oktim;
-			
-		lastWarnings.insert(0,Export::tr("CSV files were exported to directory %1.").arg(QDir::toNativeSeparators(directoryCSV))+"\n");
+		
+		lastWarnings.insert(0,Export::tr("CSV files were exported to directory %1.").arg(QDir::toNativeSeparators(DIRECTORY_CSV))+"\n");
 		if(ok)
-			lastWarnings.insert(0,Export::tr("Exported complete")+"\n");
+			lastWarnings.insert(0,Export::tr("Export complete")+"\n");
 		else
 			lastWarnings.insert(0,Export::tr("Export incomplete")+"\n");
 	}
@@ -216,128 +230,130 @@ void Export::exportCSV(QWidget* parent) {
 }
 #else
 void Export::exportCSV(Solution* bestOrHighest, Solution* current){
+	if(!EXPORT_CSV)
+		return;
+
+	QString fieldSeparator;
+	if(EXPORT_FIELD_SEPARATOR==EXPORT_COMMA)
+		fieldSeparator=",";
+	else if(EXPORT_FIELD_SEPARATOR==EXPORT_SEMICOLON)
+		fieldSeparator=";";
+	else if(EXPORT_FIELD_SEPARATOR==EXPORT_VERTICALBAR)
+		fieldSeparator="|";
+	else
+		assert(0);
+	
+	QString textquote;
+	if(EXPORT_QUOTES==EXPORT_DOUBLE_QUOTES)
+		textquote="\"";
+	else if(EXPORT_QUOTES==EXPORT_SINGLE_QUOTES)
+		textquote="'";
+	else if(EXPORT_QUOTES==EXPORT_NO_QUOTES)
+		textquote="";
+	else
+		assert(0);
+
+	QString componentSeparator="|";
+	QString setSeparator="+";
+	bool head=EXPORT_FIRST_LINE_IS_HEADING;
 	bool ok=true;
 
-	if (directoryCSV.isNull())
-		directoryCSV=OUTPUT_DIR+FILE_SEP+"csv";
+	if(OUTPUT_DIR!="")
+		DIRECTORY_CSV=OUTPUT_DIR+FILE_SEP+"csv";
+	else
+		DIRECTORY_CSV="csv";
 
-	QString s2=getBasename();
-	if(s2.isEmpty())
+	QString s2;
+	if(INPUT_FILENAME_XML=="")
 		s2="unnamed";
-	directoryCSV.append(FILE_SEP+s2);
+	else{
+		s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+		if(s2.right(4)==".fet")
+			s2=s2.left(s2.length()-4);
+		//else if(INPUT_FILENAME_XML!="")
+		//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+	}
+	DIRECTORY_CSV.append(FILE_SEP);
+	DIRECTORY_CSV.append(s2);
+
+	PREFIX_CSV=DIRECTORY_CSV+FILE_SEP;
 
 	QDir dir;
-	if(!dir.exists(directoryCSV))
-		dir.mkpath(directoryCSV);
+	if(OUTPUT_DIR!="")
+		if(!dir.exists(OUTPUT_DIR))
+			dir.mkpath(OUTPUT_DIR);
+	if(!dir.exists(DIRECTORY_CSV))
+		dir.mkpath(DIRECTORY_CSV);
+
+	QString lastWarnings;
 
 	bool okat, okr, oks, okt, okst, okact, okacts, oktim1, oktim2;
 
-	okat=exportCSVActivityTags();
-	okr=exportCSVRoomsAndBuildings();
-	oks=exportCSVSubjects();
-	okt=exportCSVTeachers();
-	okst=exportCSVStudents();
-	okact=exportCSVActivities();
-	okacts=exportCSVActivitiesStatistic();
+	okat=exportCSVActivityTags(lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator);
+	okr=exportCSVRoomsAndBuildings(lastWarnings, textquote, fieldSeparator, head);
+	oks=exportCSVSubjects(lastWarnings, textquote, fieldSeparator, head, componentSeparator);
+	okt=exportCSVTeachers(lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator);
+	okst=exportCSVStudents(lastWarnings, textquote, fieldSeparator, head, componentSeparator, setSeparator);
+	okact=exportCSVActivities(lastWarnings, textquote, fieldSeparator, head);
+	okacts=exportCSVActivitiesStatistics(lastWarnings, textquote, fieldSeparator, head);
 	
-	if(current==NULL){
+	if(current==nullptr){
+		best_solution.copy(gt.rules, *bestOrHighest);
 		lastWarnings.append(Export::tr("Successfully finished timetable:"));
 		lastWarnings.append(" ");
-		oktim1=exportCSVTimetable(*bestOrHighest);
+		oktim1=exportCSVTimetable(lastWarnings, textquote, fieldSeparator, head);
 
 		oktim2=true;
 	}
 	else{
-		QString oldName=directoryCSV;
-		directoryCSV.append("-highest");
-		if(!dir.exists(directoryCSV))
-			dir.mkpath(directoryCSV);
+		QString oldName=DIRECTORY_CSV;
+		DIRECTORY_CSV.append("-highest");
+		PREFIX_CSV=DIRECTORY_CSV+FILE_SEP;
+		if(!dir.exists(DIRECTORY_CSV))
+			dir.mkpath(DIRECTORY_CSV);
+		best_solution.copy(gt.rules, *bestOrHighest);
 		lastWarnings.append(Export::tr("Highest stage timetable:"));
 		lastWarnings.append(" ");
-		oktim1=exportCSVTimetable(*bestOrHighest);
+		oktim1=exportCSVTimetable(lastWarnings, textquote, fieldSeparator, head);
 		
-		directoryCSV=oldName;
-		directoryCSV.append("-current");
-		if(!dir.exists(directoryCSV))
-			dir.mkpath(directoryCSV);
+		DIRECTORY_CSV=oldName;
+		DIRECTORY_CSV.append("-current");
+		PREFIX_CSV=DIRECTORY_CSV+FILE_SEP;
+		if(!dir.exists(DIRECTORY_CSV))
+			dir.mkpath(DIRECTORY_CSV);
+		best_solution.copy(gt.rules, *current);
 		lastWarnings.append(Export::tr("Current stage timetable:"));
 		lastWarnings.append(" ");
-		oktim2=exportCSVTimetable(*current);
+		oktim2=exportCSVTimetable(lastWarnings, textquote, fieldSeparator, head);
 
-		directoryCSV=oldName;
+		DIRECTORY_CSV=oldName;
+		PREFIX_CSV=DIRECTORY_CSV+FILE_SEP;
 	}
 	
 	ok=okat && okr && oks && okt && okst && okact && okacts && oktim1 && oktim2;
-		
-	lastWarnings.insert(0,Export::tr("CSV files were exported to directory %1.").arg(QDir::toNativeSeparators(directoryCSV))+"\n");
+	
+	lastWarnings.insert(0,Export::tr("CSV files were exported to directory %1.").arg(QDir::toNativeSeparators(DIRECTORY_CSV))+"\n");
 	if(ok)
-		lastWarnings.insert(0,Export::tr("Exported complete")+"\n");
+		lastWarnings.insert(0,Export::tr("Export complete")+"\n");
 	else
 		lastWarnings.insert(0,Export::tr("Export incomplete")+"\n");
 		
-	cout<<qPrintable(tr("FET - export comment", "The comment of the exporting operation"))<<endl;
+	cout<<qPrintable(tr("FET - export comments", "The comments of the exporting operation"))<<endl;
 	cout<<qPrintable(lastWarnings); //no endl here - there is one already
 }
 #endif
 
-QString Export::getTextQuote() const
-{
-	return textquote;
-}
-
-void Export::setTextQuote(const QString &value)
-{
-	textquote = value;
-}
-
-QString Export::getFieldSeparator() const
-{
-	return fieldSeparator;
-}
-
-void Export::setFieldSeparator(const QString &value)
-{
-	fieldSeparator = value;
-}
-
-bool Export::getHeader() const
-{
-	return header;
-}
-
-void Export::setHeader(bool value)
-{
-	header = value;
-}
-
-QString Export::getSetSeparator() const
-{
-	return setSeparator;
-}
-
-QString Export::getDirectoryCSV() const
-{
-	return directoryCSV;
-}
-
-void Export::setDirectoryCSV(const QString &value)
-{
-	directoryCSV = value;
-}
-
-Export::OverwriteOptions Export::getOverwrite() const
-{
-	return overwrite;
-}
-
-void Export::setOverwrite(const OverwriteOptions& value)
-{
-	overwrite = value;
-}
-
 QString Export::protectCSV(const QString& str){
 	QString p=str;
 	p.replace("\"", "\"\"");
+	return p;
+}
+
+QString Export::protectCSVComments(const QString& str){
+	QString p=str;
+	p.replace("\"", "\"\"");
+	p.replace("\n", " ");
 	return p;
 }
 
@@ -347,28 +363,30 @@ bool Export::checkSetSeparator(const QString& str, const QString& setSeparator){
 	return true;
 }
 
-bool Export::isActivityNotManualyEdited(int activityIndex, bool& diffTeachers, bool& diffSubject, bool& diffActivityTags, bool& diffStudents, bool& diffCompNStud, bool& diffNStud, bool& diffActive){ //similar to ActivitiesForm::modifyActivity() by Liviu Lalescu, but added diffActive
-	diffTeachers=diffSubject=diffActivityTags=diffStudents=diffCompNStud=diffNStud=diffActive=false;
+bool Export::checkComponentSeparator(const QString& str, const QString& componentSeparator){
+	if(str.contains(componentSeparator))
+		return false;
+	return true;
+}
+
+bool Export::isActivityNotManuallyEditedPart1(int activityIndex, bool& diffTeachers, bool& diffSubject, bool& diffActivityTags, bool& diffStudents,
+		QString& tl, QString& sl, QString& atl, QString& stl){ //similar to ActivitiesForm::modifyActivity() by Liviu Lalescu, but added diffActive
+	diffTeachers=diffSubject=diffActivityTags=diffStudents=false;
 
 	assert(activityIndex>=0);
 	assert(activityIndex<gt.rules.activitiesList.size());
 
 	Activity* act=gt.rules.activitiesList[activityIndex];
-	assert(act!=NULL);
+	assert(act!=nullptr);
 	
 	QStringList teachers=act->teachersNames;
 	QString subject=act->subjectName;
 	QStringList activityTags=act->activityTagsNames;
 	QStringList students=act->studentsNames;
 	
-	int nTotalStudents=act->nTotalStudents;
-	
-	bool computeNTotalStudents=act->computeNTotalStudents;
-	bool active=act->active;
-
 	if(act->isSplit()){
-		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//possible speed improvement: not i=0. do i=act->activityGroupId
-			Activity* act2=gt.rules.activitiesList[i];			//possible speed improvement: if(act2->activityGroupId changed) break;
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
 			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
 				if(teachers!=act2->teachersNames){
 					//return false;
@@ -386,6 +404,218 @@ bool Export::isActivityNotManualyEdited(int activityIndex, bool& diffTeachers, b
 					diffStudents=true;
 					//return false;
 				}
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+	}
+	/*
+	if(!diffTeachers && !diffSubject && !diffActivityTags && !diffStudents){
+		//students
+		stl="";
+		for(int s=0; s<act->studentsNames.size(); s++){
+			if(s!=0)
+				stl+="+";
+			stl+=protectCSV(act->studentsNames[s]);
+		}
+		
+		//subject
+		sl="";
+		sl+=protectCSV(act->subjectName);
+		
+		//teachers
+		tl="";
+		for(int t=0; t<act->teachersNames.size(); t++){
+			if(t!=0)
+				tl+="+";
+			tl+=protectCSV(act->teachersNames[t]);
+		}
+		
+		//activity tags
+		atl="";
+		for(int s=0; s<act->activityTagsNames.size(); s++){
+			if(s!=0)
+				atl+="+";
+			atl+=protectCSV(act->activityTagsNames[s]);
+		}
+		
+		return true;
+	}
+	else{
+		stl="";
+		sl="";
+		tl="";
+		atl="";
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
+				if(i!=activityIndex){
+					stl+="|";
+					sl+="|";
+					tl+="|";
+					atl+="|";
+				}
+				
+				//students
+				for(int s=0; s<act2->studentsNames.size(); s++){
+					if(s!=0)
+						stl+="+";
+					stl+=protectCSV(act2->studentsNames[s]);
+				}
+				
+				//subject
+				sl+=protectCSV(act2->subjectName);
+				
+				//teachers
+				for(int t=0; t<act2->teachersNames.size(); t++){
+					if(t!=0)
+						tl+="+";
+					tl+=protectCSV(act2->teachersNames[t]);
+				}
+				
+				//activity tags
+				for(int s=0; s<act2->activityTagsNames.size(); s++){
+					if(s!=0)
+						atl+="+";
+					atl+=protectCSV(act2->activityTagsNames[s]);
+				}
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+		
+		return false;
+	}
+	*/
+	
+	//students
+	stl="";
+	if(!diffStudents){
+		for(int s=0; s<act->studentsNames.size(); s++){
+			if(s!=0)
+				stl+="+";
+			stl+=protectCSV(act->studentsNames[s]);
+		}
+	}
+	else{
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
+				if(i!=activityIndex){
+					stl+="|";
+				}
+				
+				for(int s=0; s<act2->studentsNames.size(); s++){
+					if(s!=0)
+						stl+="+";
+					stl+=protectCSV(act2->studentsNames[s]);
+				}
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+	}
+	
+	//subject
+	sl="";
+	if(!diffSubject){
+		sl+=protectCSV(act->subjectName);
+	}
+	else{
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
+				if(i!=activityIndex){
+					sl+="|";
+				}
+				
+				sl+=protectCSV(act2->subjectName);
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+	}
+	
+	//teachers
+	tl="";
+	if(!diffTeachers){
+		for(int t=0; t<act->teachersNames.size(); t++){
+			if(t!=0)
+				tl+="+";
+			tl+=protectCSV(act->teachersNames[t]);
+		}
+	}
+	else{
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
+				if(i!=activityIndex){
+					tl+="|";
+				}
+				
+				for(int t=0; t<act2->teachersNames.size(); t++){
+					if(t!=0)
+						tl+="+";
+					tl+=protectCSV(act2->teachersNames[t]);
+				}
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+	}
+	
+		//activity tags
+	atl="";
+	if(!diffActivityTags){
+		for(int s=0; s<act->activityTagsNames.size(); s++){
+			if(s!=0)
+				atl+="+";
+			atl+=protectCSV(act->activityTagsNames[s]);
+		}
+	}
+	else{
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
+				if(i!=activityIndex){
+					atl+="|";
+				}
+				
+				for(int s=0; s<act2->activityTagsNames.size(); s++){
+					if(s!=0)
+						atl+="+";
+					atl+=protectCSV(act2->activityTagsNames[s]);
+				}
+			}
+			else
+				i=gt.rules.activitiesList.size();
+		}
+	}
+	
+	if(!diffTeachers && !diffSubject && !diffActivityTags && !diffStudents)
+		return true;
+	else
+		return false;
+}
+
+bool Export::isActivityNotManuallyEditedPart2(int activityIndex, bool& diffCompNStud, bool& diffNStud, bool& diffActive){ //similar to ActivitiesForm::modifyActivity() by Liviu Lalescu, but added diffActive
+	diffCompNStud=diffNStud=diffActive=false;
+
+	assert(activityIndex>=0);
+	assert(activityIndex<gt.rules.activitiesList.size());
+
+	Activity* act=gt.rules.activitiesList[activityIndex];
+	assert(act!=nullptr);
+	
+	int nTotalStudents=act->nTotalStudents;
+	
+	bool computeNTotalStudents=act->computeNTotalStudents;
+	bool active=act->active;
+
+	if(act->isSplit()){
+		for(int i=activityIndex; i<gt.rules.activitiesList.size(); i++){	//Probably old comment: possible speed improvement: not i=0. do i=act->activityGroupId
+			Activity* act2=gt.rules.activitiesList[i];			//Probably old comment: possible speed improvement: if(act2->activityGroupId changed) break;
+			if(act2->activityGroupId!=0 && act2->activityGroupId==act->activityGroupId){
 				if( /* !computeNTotalStudents && !act2->computeNTotalStudents && */ nTotalStudents!=act2->nTotalStudents){
 					diffNStud=true;
 					//return false;
@@ -403,29 +633,31 @@ bool Export::isActivityNotManualyEdited(int activityIndex, bool& diffTeachers, b
 				i=gt.rules.activitiesList.size();
 		}
 	}
-	if(!diffTeachers && !diffSubject && !diffActivityTags && !diffStudents && !diffCompNStud && !diffNStud && !diffActive)
+	if(!diffCompNStud && !diffNStud && !diffActive)
 		return true;
 	else
 		return false;
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, QString& textquote, QString& fieldSeparator, bool& head){
-	newParent=((QDialog*)parent);
+bool Export::selectSeparatorAndTextQuote(QWidget* parent, QDialog* &newParent, QString& textquote, QString& fieldSeparator, bool& head){
+	assert(gt.rules.initialized);
+
+	newParent=(QDialog*)parent;
 
 	QStringList separators;
 	QStringList textquotes;
 	separators<<","<<";"<<"|";
-	//textquotes<<"\""<<"'"<<Export::tr("no textquote", "The translated field must contain at least 2 characters (normally it should), otherwise the export filter does not work");
-	const QString NO_TEXTQUOTE_TRANSLATED=Export::tr("no textquote", "Please use at least 2 characters for the translation of this field, so that the program works OK");
+	//textquotes<<"\""<<"'"<<Export::tr("no text quote", "The translated field must contain at least 2 characters (normally it should), otherwise the export filter does not work");
+	const QString NO_TEXTQUOTE_TRANSLATED=Export::tr("no text quote", "Please use at least 2 characters for the translation of this field, so that the program works OK");
 	textquotes<<"\""<<"'"<<NO_TEXTQUOTE_TRANSLATED;
 	const int NO_TEXTQUOTE_POS=2; //if you modify line above, modify also this variable to be the position of the no textquote (starts from 0)
 	//also, if you add textquotes longer than one character, take care of line 309 (later in the same function) (assert textquote.size()==1)
 	//it is permitted for position NO_TEXTQUOTE_POS to have a string longer than 1 QChar
 	
 	/*if(textquotes[2].size()<=1){
-		QMessageBox::warning(parent, tr("FET warning"), tr("Translation is wrong, because translation of 'no textquote' is too short - falling back to English words. Please report bug"));
-		textquote=QString("no textquote");
+		QMessageBox::warning(parent, tr("FET warning"), tr("Translation is wrong, because translation of 'no text quote' is too short - falling back to English words. Please report bug"));
+		textquote=QString("no text quote");
 	}
 	assert(textquotes[2].size()>1);*/
 	
@@ -443,7 +675,7 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 	top->addWidget(topText);
 
 	QGroupBox* separatorsGroupBox = new QGroupBox(Export::tr("Please specify the separator between fields:"));
-	QComboBox* separatorsCB=NULL;
+	QComboBox* separatorsCB=nullptr;
 	if(separators.size()>1){
 		QHBoxLayout* separatorBoxChoose=new QHBoxLayout();
 		separatorsCB=new QComboBox();
@@ -457,7 +689,7 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 	}
 
 	QGroupBox* textquoteGroupBox = new QGroupBox(Export::tr("Please specify the text quote of text fields:"));
-	QComboBox* textquoteCB=NULL;
+	QComboBox* textquoteCB=nullptr;
 	if(textquotes.size()>1){
 		QHBoxLayout* textquoteBoxChoose=new QHBoxLayout();
 		textquoteCB=new QComboBox();
@@ -496,9 +728,9 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 	pb->setDefault(true);
 	pb->setFocus();
 	
-	QObject::connect(pb, SIGNAL(clicked()), &separatorsDialog, SLOT(accept()));
-	QObject::connect(cancelpb, SIGNAL(clicked()), &separatorsDialog, SLOT(reject()));
-		
+	connect(pb, &QPushButton::clicked, &separatorsDialog, &QDialog::accept);
+	connect(cancelpb, &QPushButton::clicked, &separatorsDialog, &QDialog::reject);
+	
 	int w=separatorsDialog.sizeHint().width();
 	int h=separatorsDialog.sizeHint().height();
 	separatorsDialog.resize(w,h);
@@ -512,13 +744,13 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 
 	// TODO: if is always true. maybe clean source (also 2 previous if)
 	if(separators.size()>1){
-		assert(separatorsCB!=NULL);
-		assert(textquoteCB!=NULL);
+		assert(separatorsCB!=nullptr);
+		assert(textquoteCB!=nullptr);
 		fieldSeparator=separatorsCB->currentText();
 		textquote=textquoteCB->currentText();
 		if(textquoteCB->currentIndex()==NO_TEXTQUOTE_POS){
 			assert(textquote==NO_TEXTQUOTE_TRANSLATED);
-			textquote=QString("no tquote"); //must have length >= 2
+			textquote=QString("no text quote"); //must have length >= 2
 		}
 		else{
 			assert(textquote.size()==1);
@@ -526,8 +758,8 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 		}
 	}
 	else{
-		assert(separatorsCB==NULL);
-		assert(textquoteCB==NULL);
+		assert(separatorsCB==nullptr);
+		assert(textquoteCB==nullptr);
 		fieldSeparator="";
 		textquote="";
 	}
@@ -543,40 +775,69 @@ bool Export::selectSeparatorAndTextquote(QWidget* parent, QDialog* &newParent, Q
 #endif
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVActivityTags(QWidget* parent){
+bool Export::exportCSVActivityTags(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVActivityTags(){
+bool Export::exportCSVActivityTags(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator){
 #endif
-	QString file=getFilePath(CSVActivityTags);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVActivityTags;
 	
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 
-	if(header)
-		tosExport<<textquote<<"Activity Tag"<<textquote<<endl;
+	if(head)
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<"Activity Tag"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<"Activity Tag"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
-	for(ActivityTag* a : qAsConst(gt.rules.activityTagsList)){
-		tosExport<<textquote<<protectCSV(a->name)<<textquote<<endl;
+	for(ActivityTag* a : std::as_const(gt.rules.activityTagsList)){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<protectCSV(a->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(a->comments)<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<protectCSV(a->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(a->comments)<<textquote<<endl;
+#endif
+		if(!checkComponentSeparator(a->name, componentSeparator))
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is an activity tag's name").arg(a->name)+"\n";
 		if(!checkSetSeparator(a->name, setSeparator))
-			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.").arg(a->name)+"\n";
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.", "%1 is an activity tag's name").arg(a->name)+"\n";
 	}
 
 	lastWarnings+=Export::tr("%1 activity tags exported.").arg(gt.rules.activityTagsList.size())+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+QString("\n");
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+QString("\n");
 		return false;
 	}
 	fileExport.close();
@@ -584,88 +845,163 @@ bool Export::exportCSVActivityTags(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVRoomsAndBuildings(QWidget* parent){
+bool Export::exportCSVRoomsAndBuildings(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVRoomsAndBuildings(){
+bool Export::exportCSVRoomsAndBuildings(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head){
 #endif
-	QString file=getFilePath(CSVRoomsAndBuildings);
+
+	bool usingVirtualRooms=false;
+
+	for(Room* r : std::as_const(gt.rules.roomsList))
+		if(r->isVirtual==true){
+			usingVirtualRooms=true;
+			break;
+		}
+
+	if(usingVirtualRooms)
+#ifndef FET_COMMAND_LINE
+		TimetableExportMessage::warning(parent, tr("FET information"), tr("Your data contains virtual rooms. These virtual rooms will be exported as normal/real rooms."
+		 " The list of sets of real rooms of the virtual rooms will not be exported."));
+#else
+		TimetableExportMessage::warning(nullptr, tr("FET information"), tr("Your data contains virtual rooms. These virtual rooms will be exported as normal/real rooms."
+		 " The list of sets of real rooms of the virtual rooms will not be exported."));
+#endif
+	
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVRoomsAndBuildings;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
+	if(head)
 		tosExport	<<textquote<<"Room"<<textquote<<fieldSeparator
 				<<textquote<<"Room Capacity"<<textquote<<fieldSeparator
-				<<textquote<<"Building"<<textquote<<endl;
-
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				<<textquote<<"Building"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+				<<textquote<<"Building"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
+				
 	QStringList checkBuildings;
-	for(Room* r : qAsConst(gt.rules.roomsList)){
+	for(Room* r : std::as_const(gt.rules.roomsList)){
 		tosExport	<<textquote<<protectCSV(r->name)<<textquote<<fieldSeparator
 				<<CustomFETString::number(r->capacity)<<fieldSeparator
-				<<textquote<<protectCSV(r->building)<<textquote<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				<<textquote<<protectCSV(r->building)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(r->comments)<<textquote<<Qt::endl;
+#else
+				<<textquote<<protectCSV(r->building)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(r->comments)<<textquote<<endl;
+#endif
 		if(!checkBuildings.contains(r->building)&&!r->building.isEmpty())
 			checkBuildings<<r->building;
 	}
-
+	
 	lastWarnings+=Export::tr("%1 rooms (with buildings) exported.").arg(gt.rules.roomsList.size())+"\n";
 	if(gt.rules.buildingsList.size()!=checkBuildings.size()){
 		lastWarnings+=Export::tr("Warning! Only %1 of %2 building names are exported, because %3 buildings don't contain any room.").arg(checkBuildings.size()).arg(gt.rules.buildingsList.size()).arg(gt.rules.buildingsList.size()-checkBuildings.size())+"\n";
 	}
 	
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+QString("\n");
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+QString("\n");
 		return false;
 	}
 	fileExport.close();
+	
 	return true;
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVSubjects(QWidget* parent){
+bool Export::exportCSVSubjects(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVSubjects(){
+bool Export::exportCSVSubjects(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator){
 #endif
-	QString file=getFilePath(CSVSubjects);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVSubjects;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
-		tosExport<<textquote<<"Subject"<<textquote<<endl;
+	if(head)
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<"Subject"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<"Subject"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
-	for(Subject* s : qAsConst(gt.rules.subjectsList)){
-		tosExport<<textquote<<protectCSV(s->name)<<textquote<<endl;
+	for(Subject* s : std::as_const(gt.rules.subjectsList)){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<protectCSV(s->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(s->comments)<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<protectCSV(s->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(s->comments)<<textquote<<endl;
+#endif
+		if(!checkComponentSeparator(s->name, componentSeparator))
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is a subject's name").arg(s->name)+"\n";
 	}
 
 	lastWarnings+=Export::tr("%1 subjects exported.").arg(gt.rules.subjectsList.size())+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+QString("\n");
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+QString("\n");
 		return false;
 	}
 	fileExport.close();
@@ -673,40 +1009,69 @@ bool Export::exportCSVSubjects(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVTeachers(QWidget* parent){
+bool Export::exportCSVTeachers(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVTeachers(){
+bool Export::exportCSVTeachers(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator){
 #endif
-	QString file=getFilePath(CSVTeachers);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVTeachers;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
-		tosExport<<textquote<<"Teacher"<<textquote<<endl;
+	if(head)
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<"Teacher"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<"Teacher"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
-	for(Teacher* t : qAsConst(gt.rules.teachersList)){
-		tosExport<<textquote<<protectCSV(t->name)<<textquote<<endl;
+	for(Teacher* t : std::as_const(gt.rules.teachersList)){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<textquote<<protectCSV(t->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(t->comments)<<textquote<<Qt::endl;
+#else
+		tosExport<<textquote<<protectCSV(t->name)<<textquote<<fieldSeparator<<textquote<<protectCSVComments(t->comments)<<textquote<<endl;
+#endif
+		if(!checkComponentSeparator(t->name, componentSeparator))
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is a teacher's name").arg(t->name)+"\n";
 		if(!checkSetSeparator(t->name, setSeparator))
-			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.").arg(t->name)+"\n";
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.", "%1 is a teacher's name").arg(t->name)+"\n";
 	}
 
 	lastWarnings+=Export::tr("%1 teachers exported.").arg(gt.rules.teachersList.size())+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+QString("\n");
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+QString("\n");
 		return false;
 	}
 	fileExport.close();
@@ -714,61 +1079,101 @@ bool Export::exportCSVTeachers(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVStudents(QWidget* parent){
+bool Export::exportCSVStudents(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVStudents(){
+bool Export::exportCSVStudents(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, const QString& componentSeparator, const QString& setSeparator){
 #endif
-	QString file=getFilePath(CSVStudents);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVStudents;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
+	if(head)
 		tosExport	<<textquote<<"Year"<<textquote<<fieldSeparator
 				<<textquote<<"Number of Students per Year"<<textquote<<fieldSeparator
 				<<textquote<<"Group"<<textquote<<fieldSeparator
 				<<textquote<<"Number of Students per Group"<<textquote<<fieldSeparator
 				<<textquote<<"Subgroup"<<textquote<<fieldSeparator
-				<<textquote<<"Number of Students per Subgroup"<<textquote<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				<<textquote<<"Number of Students per Subgroup"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+				<<textquote<<"Number of Students per Subgroup"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
 	int ig=0;
 	int is=0;
-	for(StudentsYear* sty : qAsConst(gt.rules.yearsList)){
+	for(StudentsYear* sty : std::as_const(gt.rules.yearsList)){
 		tosExport<<textquote<<protectCSV(sty->name)<<textquote<<fieldSeparator
-					<<CustomFETString::number(sty->numberOfStudents)<<fieldSeparator<<fieldSeparator<<fieldSeparator<<fieldSeparator<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+					<<CustomFETString::number(sty->numberOfStudents)<<fieldSeparator<<fieldSeparator<<fieldSeparator<<fieldSeparator<<fieldSeparator<<textquote<<protectCSVComments(sty->comments)<<textquote<<Qt::endl;
+#else
+					<<CustomFETString::number(sty->numberOfStudents)<<fieldSeparator<<fieldSeparator<<fieldSeparator<<fieldSeparator<<fieldSeparator<<textquote<<protectCSVComments(sty->comments)<<textquote<<endl;
+#endif
+		if(!checkComponentSeparator(sty->name, componentSeparator))
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is a students year's name").arg(sty->name)+"\n";
 		if(!checkSetSeparator(sty->name, setSeparator))
-			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.").arg(sty->name)+"\n";
-		for(StudentsGroup* stg : qAsConst(sty->groupsList)){
+			lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.", "%1 is a students year's name").arg(sty->name)+"\n";
+		for(StudentsGroup* stg : std::as_const(sty->groupsList)){
 			ig++;
 			tosExport	<<textquote<<protectCSV(sty->name)<<textquote<<fieldSeparator
 					<<CustomFETString::number(sty->numberOfStudents)<<fieldSeparator
 					<<textquote<<protectCSV(stg->name)<<textquote<<fieldSeparator
-					<<CustomFETString::number(stg->numberOfStudents)<<fieldSeparator<<fieldSeparator<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+					<<CustomFETString::number(stg->numberOfStudents)<<fieldSeparator<<fieldSeparator<<fieldSeparator<<textquote<<protectCSVComments(stg->comments)<<textquote<<Qt::endl;
+#else
+					<<CustomFETString::number(stg->numberOfStudents)<<fieldSeparator<<fieldSeparator<<fieldSeparator<<textquote<<protectCSVComments(stg->comments)<<textquote<<endl;
+#endif
+			if(!checkComponentSeparator(stg->name, componentSeparator))
+				lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is a students group's name").arg(stg->name)+"\n";
 			if(!checkSetSeparator(stg->name, setSeparator))
-				lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.").arg(stg->name)+"\n";
-			for(StudentsSubgroup* sts : qAsConst(stg->subgroupsList)){
+				lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.", "%1 is a students group's name").arg(stg->name)+"\n";
+			for(StudentsSubgroup* sts : std::as_const(stg->subgroupsList)){
 				is++;
 				tosExport	<<textquote<<protectCSV(sty->name)<<textquote<<fieldSeparator
 						<<CustomFETString::number(sty->numberOfStudents)<<fieldSeparator
 						<<textquote<<protectCSV(stg->name)<<textquote<<fieldSeparator
 						<<CustomFETString::number(stg->numberOfStudents)<<fieldSeparator
 						<<textquote<<protectCSV(sts->name)<<textquote<<fieldSeparator
-						<<CustomFETString::number(sts->numberOfStudents)<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+						<<CustomFETString::number(sts->numberOfStudents)<<fieldSeparator<<textquote<<protectCSVComments(sts->comments)<<textquote<<Qt::endl;
+#else
+						<<CustomFETString::number(sts->numberOfStudents)<<fieldSeparator<<textquote<<protectCSVComments(sts->comments)<<textquote<<endl;
+#endif
+				if(!checkComponentSeparator(sts->name, componentSeparator))
+					lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes component separator |.", "%1 is a students subgroup's name").arg(sts->name)+"\n";
 				if(!checkSetSeparator(sts->name, setSeparator))
-					lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.").arg(sts->name)+"\n";
+					lastWarnings+=Export::tr("Warning! Import of activities will fail, because %1 includes set separator +.", "%1 is a students subgroup's name").arg(sts->name)+"\n";
 			}
 		}
 	}
@@ -776,8 +1181,9 @@ bool Export::exportCSVStudents(){
 	lastWarnings+=Export::tr("%1 years exported.").arg(gt.rules.yearsList.size())+"\n";
 	lastWarnings+=Export::tr("%1 groups exported.").arg(ig)+"\n";
 	lastWarnings+=Export::tr("%1 subgroups exported.").arg(is)+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+QString("\n");
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+QString("\n");
 		return false;
 	}
 	fileExport.close();
@@ -785,29 +1191,47 @@ bool Export::exportCSVStudents(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVActivities(QWidget* parent){
+bool Export::exportCSVActivities(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVActivities(){
+bool Export::exportCSVActivities(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head){
 #endif
-	QString file=getFilePath(CSVActivities);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVActivities;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
+	if(head)
 		tosExport	<<textquote<<"Students Sets"<<textquote<<fieldSeparator
 				<<textquote<<"Subject"<<textquote<<fieldSeparator
 				<<textquote<<"Teachers"<<textquote<<fieldSeparator
@@ -816,15 +1240,24 @@ bool Export::exportCSVActivities(){
 				<<textquote<<"Split Duration"<<textquote<<fieldSeparator
 				<<textquote<<"Min Days"<<textquote<<fieldSeparator
 				<<textquote<<"Weight"<<textquote<<fieldSeparator
-				<<textquote<<"Consecutive"<<textquote<<endl;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				<<textquote<<"Consecutive"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
+				<<textquote<<"Consecutive"<<textquote<<fieldSeparator<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
 	//code by Liviu Lalescu (begin)
 	//better detection of min days constraint
 	QHash<int, int> activitiesRepresentant;
 	QHash<int, int> activitiesNumberOfSubactivities;
-	QHash<int, ConstraintMinDaysBetweenActivities*>activitiesConstraints;
+	//QHash<int, ConstraintMinDaysBetweenActivities*> activitiesConstraints;
+	QHash<int, TimeConstraint*> activitiesConstraints; //can be ConstraintMinDaysBetweenActivities* or ConstraintMinHalfDaysBetweenActivities*
 	
-	for(Activity* act : qAsConst(gt.rules.activitiesList)){
+	activitiesRepresentant.clear();
+	activitiesNumberOfSubactivities.clear();
+	activitiesConstraints.clear();
+	
+	for(Activity* act : std::as_const(gt.rules.activitiesList)){
 		assert(!activitiesRepresentant.contains(act->id));
 		activitiesRepresentant.insert(act->id, act->activityGroupId); //act->id is key, act->agid is value
 	
@@ -834,7 +1267,7 @@ bool Export::exportCSVActivities(){
 			activitiesNumberOfSubactivities.insert(act->activityGroupId, n); //overwrites old value
 		}
 	}
-	for(TimeConstraint* tc : qAsConst(gt.rules.timeConstraintsList)){
+	for(TimeConstraint* tc : std::as_const(gt.rules.timeConstraintsList)){
 		if(tc->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES && tc->active){
 			ConstraintMinDaysBetweenActivities* c=(ConstraintMinDaysBetweenActivities*) tc;
 	
@@ -842,11 +1275,11 @@ bool Export::exportCSVActivities(){
 			int repres=-1;
 	
 			for(int i=0; i<c->n_activities; i++){
-				int aid=c->activitiesId[i];
+				int aid=c->activitiesIds[i];
 				aset.insert(aid);
 	
 				if(activitiesRepresentant.value(aid,0)==aid)
-					repres=aid; //does not matter if there are more representants in this constraint, the constraint will be skipped anyway in this case
+					repres=aid; //does not matter if there are more representatives in this constraint, the constraint will be skipped anyway in this case
 			}
 	
 			bool oktmp=false;
@@ -854,7 +1287,7 @@ bool Export::exportCSVActivities(){
 			if(repres>0){
 				if(aset.count()==activitiesNumberOfSubactivities.value(repres, 0)){
 					oktmp=true;
-					for(int aid : qAsConst(aset))
+					for(int aid : std::as_const(aset))
 						if(activitiesRepresentant.value(aid, 0)!=repres){
 							oktmp=false;
 							break;
@@ -868,194 +1301,373 @@ bool Export::exportCSVActivities(){
 			}
 	
 			if(oktmp){
-				ConstraintMinDaysBetweenActivities* oldc=activitiesConstraints.value(repres, NULL);
-				if(oldc!=NULL){
-					if(oldc->weightPercentage < c->weightPercentage){
+				TimeConstraint* generic_oldc=activitiesConstraints.value(repres, nullptr);
+				if(generic_oldc!=nullptr){
+					if(generic_oldc->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES){
+						ConstraintMinDaysBetweenActivities* oldc=(ConstraintMinDaysBetweenActivities*)generic_oldc;
+						if(oldc->weightPercentage < c->weightPercentage){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with larger weight percentage, referring to the same activities")
+								.arg(oldc->getDescription(gt.rules))+"\n";
+						}
+						else if(oldc->weightPercentage > c->weightPercentage){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with larger weight percentage, referring to the same activities")
+								.arg(c->getDescription(gt.rules))+"\n";
+						}
+		
+						//equal weights - choose the lowest number of min days
+						else if(oldc->minDays > c->minDays){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
+								.arg(c->getDescription(gt.rules))+"\n";
+						}
+						else if(oldc->minDays < c->minDays){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
+								.arg(oldc->getDescription(gt.rules))+"\n";
+						}
+		
+						//equal weights and min days - choose the one with consecutive is same day true
+						else if(oldc->consecutiveIfSameDay==true){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and same number of min days and"
+								" consecutive if on the same day true, referring to the same activities").arg(c->getDescription(gt.rules))+"\n";
+						}
+						else if(c->consecutiveIfSameDay==true){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and same number of min days and"
+								" consecutive if on the same day true, referring to the same activities").arg(oldc->getDescription(gt.rules))+"\n";
+						}
+					}
+					else if(generic_oldc->type==CONSTRAINT_MIN_HALF_DAYS_BETWEEN_ACTIVITIES){
 						activitiesConstraints.insert(repres, c); //overwrites old value
 						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with larger weight percentage, referring to the same activities")
-							.arg(oldc->getDescription(gt.rules))+"\n";
+							" there exists another constraint of type min days between activities referring to the same activities"
+							" (a min days between activities constraint is considered stronger than a min half days between activities constraint)")
+							.arg(generic_oldc->getDescription(gt.rules))+"\n";
 					}
-					else if(oldc->weightPercentage > c->weightPercentage){
-						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with larger weight percentage, referring to the same activities")
-							.arg(c->getDescription(gt.rules))+"\n";
-					}
-	
-					//equal weights - choose the lowest number of min days
-					else if(oldc->minDays > c->minDays){
-						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
-							.arg(c->getDescription(gt.rules))+"\n";
-					}
-					else if(oldc->minDays < c->minDays){
-						activitiesConstraints.insert(repres, c); //overwrites old value
-						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
-							.arg(oldc->getDescription(gt.rules))+"\n";
-					}
-	
-					//equal weights and min days - choose the one with consecutive is same day true
-					else if(oldc->consecutiveIfSameDay==true){
-						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with the same weight percentage and same number of min days and"
-							" consecutive if same day true, referring to the same activities").arg(c->getDescription(gt.rules))+"\n";
-					}
-					else if(c->consecutiveIfSameDay==true){
-						activitiesConstraints.insert(repres, c); //overwrites old value
-						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
-							" there exists another constraint of this type with the same weight percentage and same number of min days and"
-							" consecutive if same day true, referring to the same activities").arg(oldc->getDescription(gt.rules))+"\n";
-					}
-	
 				}
-				else
+				else{
 					activitiesConstraints.insert(repres, c);
+				}
+			}
+		}
+		else if(tc->type==CONSTRAINT_MIN_HALF_DAYS_BETWEEN_ACTIVITIES && tc->active){
+			ConstraintMinHalfDaysBetweenActivities* c=(ConstraintMinHalfDaysBetweenActivities*) tc;
+	
+			QSet<int> aset;
+			int repres=-1;
+	
+			for(int i=0; i<c->n_activities; i++){
+				int aid=c->activitiesIds[i];
+				aset.insert(aid);
+	
+				if(activitiesRepresentant.value(aid,0)==aid)
+					repres=aid; //does not matter if there are more representatives in this constraint, the constraint will be skipped anyway in this case
+			}
+	
+			bool oktmp=false;
+	
+			if(repres>0){
+				if(aset.count()==activitiesNumberOfSubactivities.value(repres, 0)){
+					oktmp=true;
+					for(int aid : std::as_const(aset))
+						if(activitiesRepresentant.value(aid, 0)!=repres){
+							oktmp=false;
+							break;
+						}
+				}
+			}
+	
+			if(!oktmp){
+				lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+				" it does not refer to a whole larger container activity").arg(c->getDescription(gt.rules))+"\n";
+			}
+	
+			if(oktmp){
+				TimeConstraint* generic_oldc=activitiesConstraints.value(repres, nullptr);
+				if(generic_oldc!=nullptr){
+					if(generic_oldc->type==CONSTRAINT_MIN_HALF_DAYS_BETWEEN_ACTIVITIES){
+						ConstraintMinHalfDaysBetweenActivities* oldc=(ConstraintMinHalfDaysBetweenActivities*)generic_oldc;
+						if(oldc->weightPercentage < c->weightPercentage){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with larger weight percentage, referring to the same activities")
+								.arg(oldc->getDescription(gt.rules))+"\n";
+						}
+						else if(oldc->weightPercentage > c->weightPercentage){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with larger weight percentage, referring to the same activities")
+								.arg(c->getDescription(gt.rules))+"\n";
+						}
+		
+						//equal weights - choose the lowest number of min days
+						else if(oldc->minDays > c->minDays){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
+								.arg(c->getDescription(gt.rules))+"\n";
+						}
+						else if(oldc->minDays < c->minDays){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and higher number of min days, referring to the same activities")
+								.arg(oldc->getDescription(gt.rules))+"\n";
+						}
+		
+						//equal weights and min days - choose the one with consecutive is same day true
+						else if(oldc->consecutiveIfSameDay==true){
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and same number of min days and"
+								" consecutive if on the same day true, referring to the same activities").arg(c->getDescription(gt.rules))+"\n";
+						}
+						else if(c->consecutiveIfSameDay==true){
+							activitiesConstraints.insert(repres, c); //overwrites old value
+							lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+								" there exists another constraint of this type with the same weight percentage and same number of min days and"
+								" consecutive if on the same day true, referring to the same activities").arg(oldc->getDescription(gt.rules))+"\n";
+						}
+					}
+					else if(generic_oldc->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES){
+						lastWarnings+=Export::tr("Note: Constraint %1 was skipped, because"
+							" there exists another constraint of type min days between activities referring to the same activities"
+							" (a min days between activities constraint is considered stronger than a min half days between activities constraint)")
+							.arg(c->getDescription(gt.rules))+"\n";
+					}
+				}
+				else{
+					activitiesConstraints.insert(repres, c);
+				}
 			}
 		}
 	}
 	//code by Liviu Lalescu (end)
 	
-	bool manuallyEdited=false;
+	bool manuallyEditedPart1=false;
+	bool manuallyEditedPart2=false;
 
 	Activity* acti;
 	Activity* actiNext;
 	int countExportedActivities=0;
 	for(int ai=0; ai<gt.rules.activitiesList.size(); ai++){
 		acti=gt.rules.activitiesList[ai];
+		QString tl;
+		QString sl;
+		QString atl;
+		QString stl;
 		//if(acti->active){
-			if((acti->activityGroupId==acti->id)||(acti->activityGroupId==0)){
-				bool diffTeachers, diffSubject, diffActivityTag, diffStudents, diffCompNStud, diffNStud, diffActive;
-				if(isActivityNotManualyEdited(ai, diffTeachers, diffSubject, diffActivityTag, diffStudents, diffCompNStud, diffNStud, diffActive)){
+		if((acti->activityGroupId==acti->id)||(acti->activityGroupId==0)){
+			bool diffTeachers, diffSubject, diffActivityTag, diffStudents, diffCompNStud, diffNStud, diffActive;
+			if(isActivityNotManuallyEditedPart1(ai, diffTeachers, diffSubject, diffActivityTag, diffStudents, tl, sl, atl, stl)){
+			}
+			else{
+				QStringList s;
+				if(diffTeachers)
+					s.append(tr("different teachers"));
+				if(diffSubject)
+					s.append(tr("different subject"));
+				if(diffActivityTag)
+					s.append(tr("different activity tags"));
+				if(diffStudents)
+					s.append(tr("different students"));
+				
+				manuallyEditedPart1=true;
+				
+				lastWarnings+=tr("The subactivities with the activity group id %1 are different between themselves (they were separately edited)."
+					" The fields which are different are: %2. These fields will be separated by the %3 symbol, one group for each subactivity.")
+					.arg(CustomFETString::number(acti->activityGroupId)).arg(s.join(", ")).arg("|")+"\n";
+			}
+			if(isActivityNotManuallyEditedPart2(ai, diffCompNStud, diffNStud, diffActive)){
+			}
+			else if(!diffCompNStud && !diffActive){
+			}
+			else{
+				QStringList s;
+				if(diffCompNStud)
+					s.append(tr("different Boolean variable 'must compute n total students'"));
+				if(diffNStud && diffCompNStud)
+					s.append(tr("different number of students"));
+				if(diffActive)
+					s.append(tr("different active flag"));
+				
+				manuallyEditedPart2=true;
+				
+				lastWarnings+=tr("The subactivities with the activity group id %1 are different between themselves (they were separately edited),"
+					" so the export will not be very accurate. The fields which are different will be considered those of the representative subactivity."
+					" The fields which are different are: %2").arg(CustomFETString::number(acti->activityGroupId)).arg(s.join(", "))+"\n";
+			}
+			if(!acti->active){
+				if(acti->activityGroupId==0)
+					lastWarnings+=tr("The activity with id %1 has disabled active flag but it is exported.").arg(CustomFETString::number(acti->id))+"\n";
+				else
+					lastWarnings+=tr("The subactivities with activity group id %1 have disabled active flag but they are exported.").arg(CustomFETString::number(acti->activityGroupId))+"\n";
+			}
+			
+			countExportedActivities++;
+			//students set
+			tosExport<<textquote;
+			/*
+			for(int s=0; s<acti->studentsNames.size(); s++){
+				if(s!=0)
+					tosExport<<"+";
+				tosExport<<protectCSV(acti->studentsNames[s]);
+			}
+			*/
+			
+			tosExport<<stl;
+			
+			tosExport<<textquote<<fieldSeparator<<textquote;
+			//subject
+			/*tosExport<<protectCSV(acti->subjectName);*/
+			
+			tosExport<<sl;
+			
+			tosExport<<textquote<<fieldSeparator<<textquote;
+			//teachers
+			/*
+			for(int t=0; t<acti->teachersNames.size(); t++){
+				if(t!=0)
+					tosExport<<"+";
+				tosExport<<protectCSV(acti->teachersNames[t]);
+			}
+			*/
+			
+			tosExport<<tl;
+			
+			tosExport<<textquote<<fieldSeparator<<textquote;
+			//activity tags
+			/*
+			for(int s=0; s<acti->activityTagsNames.size(); s++){
+				if(s!=0)
+					tosExport<<"+";
+				tosExport<<protectCSV(acti->activityTagsNames[s]);
+			}
+			*/
+			
+			tosExport<<atl;
+			
+			tosExport<<textquote<<fieldSeparator;
+			//total duration
+			tosExport<<CustomFETString::number(acti->totalDuration);
+			tosExport<<fieldSeparator<<textquote;
+			//split duration
+			for(int aiNext=ai; aiNext<gt.rules.activitiesList.size(); aiNext++){
+				actiNext=gt.rules.activitiesList[aiNext];
+				if(acti->activityGroupId!=0&&actiNext->activityGroupId==acti->activityGroupId){
+					if(aiNext!=ai)
+						tosExport<<"+";
+					tosExport<<actiNext->duration;
+				} else {
+					if(acti->activityGroupId==0&&actiNext->activityGroupId==acti->activityGroupId){
+						assert(ai==aiNext);
+						//assert(actiNext->duration==actiNext->totalDuration);
+						if(actiNext->duration>1)
+							tosExport<<actiNext->duration;
+					}
+					aiNext=gt.rules.activitiesList.size();
+				}
+			}
+			tosExport<<textquote<<fieldSeparator;
+			//min days
+			//start new code, because of Liviu's detection
+			bool careAboutMinDays=false;
+			
+			TimeConstraint* tc=activitiesConstraints.value(acti->id, nullptr);
+			
+			if(tc!=nullptr){
+				if(tc->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES){
+					ConstraintMinDaysBetweenActivities* tcmd=(ConstraintMinDaysBetweenActivities*)tc;
+					if(acti->id==acti->activityGroupId)
+						careAboutMinDays=true;
+					//end new code
+					if(careAboutMinDays)
+						tosExport<<CustomFETString::number(tcmd->minDays);
+					tosExport<<fieldSeparator;
+					//min days weight
+					if(careAboutMinDays)
+						tosExport<<CustomFETString::number(tcmd->weightPercentage);
+					tosExport<<fieldSeparator;
+					//min days consecutive
+					if(careAboutMinDays)
+						tosExport<<tcmd->consecutiveIfSameDay;
+					tosExport<<fieldSeparator<<textquote<<protectCSVComments(acti->comments)<<textquote;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+					tosExport<<Qt::endl;
+#else
+					tosExport<<endl;
+#endif
 				}
 				else{
-					QStringList s;
-					if(diffTeachers)
-						s.append(tr("different teachers"));
-					if(diffSubject)
-						s.append(tr("different subject"));
-					if(diffActivityTag)
-						s.append(tr("different activity tags"));
-					if(diffStudents)
-						s.append(tr("different students"));
-					if(diffCompNStud)
-						s.append(tr("different boolean variable 'must compute n total students'"));
-					if(diffNStud)
-						s.append(tr("different number of students"));
-					if(diffActive)
-						s.append(tr("different active flag"));
-					
-					manuallyEdited=true;
-					
-					lastWarnings+=tr("Subactivities with activity group id %1 are different between themselves (they were separately edited),"
-						" so the export will not be very accurate. The fields which are different will be considered those of the representative subactivity. Fields which were"
-						" different are: %2").arg(CustomFETString::number(acti->activityGroupId)).arg(s.join(", "))+"\n";
+					assert(tc->type==CONSTRAINT_MIN_HALF_DAYS_BETWEEN_ACTIVITIES);
+					ConstraintMinHalfDaysBetweenActivities* tcmd=(ConstraintMinHalfDaysBetweenActivities*)tc;
+					if(acti->id==acti->activityGroupId)
+						careAboutMinDays=true;
+					//end new code
+					if(careAboutMinDays)
+						tosExport<<CustomFETString::number(tcmd->minDays)<<"h";
+					tosExport<<fieldSeparator;
+					//min days weight
+					if(careAboutMinDays)
+						tosExport<<CustomFETString::number(tcmd->weightPercentage);
+					tosExport<<fieldSeparator;
+					//min days consecutive
+					if(careAboutMinDays)
+						tosExport<<tcmd->consecutiveIfSameDay;
+					tosExport<<fieldSeparator<<textquote<<protectCSVComments(acti->comments)<<textquote;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+					tosExport<<Qt::endl;
+#else
+					tosExport<<endl;
+#endif
 				}
-				if(!acti->active){
-					if(acti->activityGroupId==0)
-						lastWarnings+=tr("Activity with id %1 has disabled active flag but it is exported.").arg(CustomFETString::number(acti->id))+"\n";
-					else
-						lastWarnings+=tr("Subactivities with activity group id %1 have disabled active flag but they are exported.").arg(CustomFETString::number(acti->activityGroupId))+"\n";
-				}
-				
-				countExportedActivities++;
-				//students set
-				tosExport<<textquote;
-				for(int s=0; s<acti->studentsNames.size(); s++){
-					if(s!=0)
-						tosExport<<"+";
-					tosExport<<protectCSV(acti->studentsNames[s]);
-				}
-				tosExport<<textquote<<fieldSeparator<<textquote;
-				//subject
-				tosExport<<protectCSV(acti->subjectName);
-				tosExport<<textquote<<fieldSeparator<<textquote;
-				//teachers
-				for(int t=0; t<acti->teachersNames.size(); t++){
-					if(t!=0)
-						tosExport<<"+";
-					tosExport<<protectCSV(acti->teachersNames[t]);
-				}
-				tosExport<<textquote<<fieldSeparator<<textquote;
-				//activity tags
-				for(int s=0; s<acti->activityTagsNames.size(); s++){
-					if(s!=0)
-						tosExport<<"+";
-					tosExport<<protectCSV(acti->activityTagsNames[s]);
-				}
-				tosExport<<textquote<<fieldSeparator;
-				//total duration
-				tosExport<<CustomFETString::number(acti->totalDuration);
-				tosExport<<fieldSeparator<<textquote;
-				//split duration
-				for(int aiNext=ai; aiNext<gt.rules.activitiesList.size(); aiNext++){
-					actiNext=gt.rules.activitiesList[aiNext];
-					if(acti->activityGroupId!=0&&actiNext->activityGroupId==acti->activityGroupId){
-						if(aiNext!=ai)
-							tosExport<<"+";
-						tosExport<<actiNext->duration;
-					} else {
-						if(acti->activityGroupId==0&&actiNext->activityGroupId==acti->activityGroupId){
-							assert(ai==aiNext);
-							assert(actiNext->duration==actiNext->totalDuration);
-							if(actiNext->duration>1)
-								tosExport<<actiNext->duration;
-						}	
-						aiNext=gt.rules.activitiesList.size();
-					}	
-				}
-				tosExport<<textquote<<fieldSeparator;
-				//min days
-				//start new code, because of Liviu's detection
-				bool careAboutMinDay=false;
-				ConstraintMinDaysBetweenActivities* tcmd=activitiesConstraints.value(acti->id, NULL);
-				if(acti->id==acti->activityGroupId){
-					if(tcmd!=NULL){
-						careAboutMinDay=true;
-					}
-				}
-				//end new code
-				if(careAboutMinDay){
-					assert(tcmd->type==CONSTRAINT_MIN_DAYS_BETWEEN_ACTIVITIES);
-					tosExport<<CustomFETString::number(tcmd->minDays);
-				}
-				tosExport<<fieldSeparator;
-				//min days weight
-				if(careAboutMinDay)
-					tosExport<<CustomFETString::number(tcmd->weightPercentage);
-				tosExport<<fieldSeparator;
-				//min days consecutive
-				if(careAboutMinDay)
-					tosExport<<tcmd->consecutiveIfSameDay;
-				tosExport<<endl;
 			}
+			else{
+				tosExport<<fieldSeparator<<fieldSeparator<<fieldSeparator<<textquote<<protectCSVComments(acti->comments)<<textquote;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				tosExport<<Qt::endl;
+#else
+				tosExport<<endl;
+#endif
+			}
+		}
 		//}
 	}
 	
 #ifndef FET_COMMAND_LINE
-	if(manuallyEdited){
-		QMessageBox msgBox(parent);
-		msgBox.setWindowTitle(tr("FET warning"));
-		msgBox.setIcon(QMessageBox::Warning);
-		msgBox.setText(tr("There are subactivities which were modified separately - so the "
-		 "components had different values for subject, activity tags, teachers, students or number of students from the representative subactivity. The export was done, but it is not very accurate."));
-		msgBox.setStandardButtons(QMessageBox::Ok);
-		msgBox.setDefaultButton(QMessageBox::Ok);
-		
-		msgBox.exec();
+	if(manuallyEditedPart1){
+		QMessageBox::warning(parent, tr("FET warning"), tr("There are subactivities which were modified separately - so the "
+		 "components had different values for subject, activity tags, teachers, or students. The export is done, "
+		 "but for each field which is different there will be added n_subactivities fields, separated by the %1 symbol.").arg("|"));
+	}
+	if(manuallyEditedPart2){
+		QMessageBox::warning(parent, tr("FET warning"), tr("There are subactivities which were modified separately - so the "
+		 "components had different values for 'must compute n total students' or number of students from the representative subactivity. "
+		 "The export is done, but it is not very accurate."));
 	}
 #else
-	if(manuallyEdited){
+	if(manuallyEditedPart1){
 		cout<<qPrintable(tr("FET warning"))<<endl;
 		cout<<qPrintable(tr("There are subactivities which were modified separately - so the "
-		 "components had different values for subject, activity tags, teachers, students or number of students from the representative subactivity. The export was done, but it is not very accurate."))
+		 "components had different values for subject, activity tags, teachers, or students. The export is done, "
+		 "but for each field which is different there will be added n_subactivities fields, separated by the %1 symbol.").arg("|"))
+		 <<endl;
+	}
+	if(manuallyEditedPart2){
+		cout<<qPrintable(tr("FET warning"))<<endl;
+		cout<<qPrintable(tr("There are subactivities which were modified separately - so the "
+		 "components had different values for 'must compute n total students' or number of students from the representative subactivity. "
+		 "The export is done, but it is not very accurate."))
 		 <<endl;
 	}
 #endif
 
 	lastWarnings+=Export::tr("%1 activities exported.").arg(countExportedActivities)+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+"\n";
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+"\n";
 		return false;
 	}
 	fileExport.close();
@@ -1063,33 +1675,56 @@ bool Export::exportCSVActivities(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVActivitiesStatistic(QWidget* parent){
+bool Export::exportCSVActivitiesStatistics(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVActivitiesStatistic(){
+bool Export::exportCSVActivitiesStatistics(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head){
 #endif
-	QString file=getFilePath(CSVActivitiesStatistic);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVActivitiesStatistics;
 
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
-	if(header)
+	if(head)
 		tosExport	<<textquote<<"Students Sets"<<textquote<<fieldSeparator
 				<<textquote<<"Subject"<<textquote<<fieldSeparator
 				<<textquote<<"Teachers"<<textquote<<fieldSeparator
-				<<textquote<<"Total Duration"<<textquote<<"\n";
+				<<textquote<<"Total Duration"<<textquote;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				tosExport<<Qt::endl;
+#else
+				tosExport<<endl;
+#endif
 
 	Activity* acti;
 	int countExportedActivities=0;
@@ -1100,17 +1735,17 @@ bool Export::exportCSVActivitiesStatistic(){
 			int tmpD=acti->duration;
 			QString tmpIdent=textquote;
 			if(acti->studentsNames.size()>0){
-				for(QStringList::Iterator it=acti->studentsNames.begin(); it!=acti->studentsNames.end(); it++){
+				for(QStringList::const_iterator it=acti->studentsNames.constBegin(); it!=acti->studentsNames.constEnd(); it++){
 					tmpIdent+=protectCSV(*it);
-					if(it!=acti->studentsNames.end()-1)
+					if(it!=acti->studentsNames.constEnd()-1)
 						tmpIdent+="+";
 				}
 			}
 			tmpIdent+=textquote+fieldSeparator+textquote+protectCSV(acti->subjectName)+textquote+fieldSeparator+textquote;
 			if(acti->teachersNames.size()>0){
-				for(QStringList::Iterator it=acti->teachersNames.begin(); it!=acti->teachersNames.end(); it++){
+				for(QStringList::const_iterator it=acti->teachersNames.constBegin(); it!=acti->teachersNames.constEnd(); it++){
 					tmpIdent+=protectCSV(*it);
-					if(it!=acti->teachersNames.end()-1)
+					if(it!=acti->teachersNames.constEnd()-1)
 						tmpIdent+="+";
 				}
 			}
@@ -1119,17 +1754,24 @@ bool Export::exportCSVActivitiesStatistic(){
 			tmpIdentDuration.insert(tmpIdent, tmpD);
 		}
 	}
-	QMapIterator<LocaleString, int> it(tmpIdentDuration);
-	while(it.hasNext()){
+
+	QMap<LocaleString, int>::const_iterator it=tmpIdentDuration.constBegin();
+	while(it!=tmpIdentDuration.constEnd()){
 		countExportedActivities++;
-		it.next();
 		tosExport<<it.key();
-		tosExport<<textquote<<CustomFETString::number(it.value())<<textquote<<"\n";
+		tosExport<<textquote<<CustomFETString::number(it.value())<<textquote;
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+		tosExport<<Qt::endl;
+#else
+		tosExport<<endl;
+#endif
+		it++;
 	}
 
 	lastWarnings+=Export::tr("%1 active activities statistics exported.").arg(countExportedActivities)+"\n";
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+"\n";
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+"\n";
 		return false;
 	}
 	fileExport.close();
@@ -1137,30 +1779,48 @@ bool Export::exportCSVActivitiesStatistic(){
 }
 
 #ifndef FET_COMMAND_LINE
-bool Export::exportCSVTimetable(QWidget* parent){
+bool Export::exportCSVTimetable(QWidget* parent, QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head, QMessageBox::StandardButton& msgBoxButton){
 #else
-bool Export::exportCSVTimetable(const Solution &solution){
+bool Export::exportCSVTimetable(QString& lastWarnings, const QString& textquote, const QString& fieldSeparator, const bool head){
 #endif
-	QString file=getFilePath(CSVTimetable);
+	QString s2=INPUT_FILENAME_XML.right(INPUT_FILENAME_XML.length()-INPUT_FILENAME_XML.lastIndexOf(FILE_SEP)-1);	//TODO: remove s2, because too long filenames!
+
+	if(s2.right(4)==".fet")
+		s2=s2.left(s2.length()-4);
+	//else if(INPUT_FILENAME_XML!="")
+	//	cout<<"Minor problem - input file does not end in .fet extension - might be a problem when saving the timetables"<<" (file:"<<__FILE__<<", line:"<<__LINE__<<")"<<endl;
+
+	QString UNDERSCORE="_";
+	if(INPUT_FILENAME_XML=="")
+		UNDERSCORE="";
+	QString file=PREFIX_CSV+s2+UNDERSCORE+CSVTimetable;
 	
 #ifndef FET_COMMAND_LINE
-	if(!Export::okToWrite(parent, file))
+	if(!Export::okToWrite(parent, file, msgBoxButton))
 #else
 	if(!Export::okToWrite(file))
 #endif
 		return false;
 	
 	QFile fileExport(file);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	if(!fileExport.open(QIODeviceBase::WriteOnly)){
+#else
 	if(!fileExport.open(QIODevice::WriteOnly)){
+#endif
 		lastWarnings+=Export::tr("FET critical. Cannot open file %1 for writing. Please check your disk's free space. Saving of %1 aborted.").arg(file)+"\n";
 		return false;
 	}
 	QTextStream tosExport(&fileExport);
+#if QT_VERSION >= QT_VERSION_CHECK(6,0,0)
+	tosExport.setEncoding(QStringConverter::Utf8);
+#else
 	tosExport.setCodec("UTF-8");
+#endif
 	tosExport.setGenerateByteOrderMark(true);
 	
 	//section "Activity Id" was added by Liviu Lalescu on 2010-01-26, as suggested on the forum
-	if(header)
+	if(head)
 		tosExport
 				<<textquote<<"Activity Id"<<textquote<<fieldSeparator
 				<<textquote<<"Day"<<textquote<<fieldSeparator
@@ -1170,18 +1830,28 @@ bool Export::exportCSVTimetable(const Solution &solution){
 				<<textquote<<"Teachers"<<textquote<<fieldSeparator
 				<<textquote<<"Activity Tags"<<textquote<<fieldSeparator
 				<<textquote<<"Room"<<textquote<<fieldSeparator
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+				<<textquote<<"Comments"<<textquote<<Qt::endl;
+#else
 				<<textquote<<"Comments"<<textquote<<endl;
+#endif
 
-	if(gt.rules.initialized && gt.rules.internalStructureComputed){
-		const Activity *act;
+	if(gt.rules.initialized && gt.rules.internalStructureComputed
+	 && students_schedule_ready && teachers_schedule_ready && rooms_buildings_schedule_ready){
+		QSet<QString> printableActivityTagsSet;
+		for(int i=0; i<gt.rules.nInternalActivityTags; i++)
+			if(gt.rules.internalActivityTagsList[i]->printable)
+				printableActivityTagsSet.insert(gt.rules.internalActivityTagsList[i]->name);
+		
+		Activity *act;
 		int exportedActivities=0;
 		for(int i=0; i<gt.rules.nInternalActivities; i++){
-			if(solution.times[i]!=UNALLOCATED_TIME) {
+			if(best_solution.times[i]!=UNALLOCATED_TIME) {
 				exportedActivities++;
 				act=&gt.rules.internalActivitiesList[i];
-				int hour=solution.times[i]/gt.rules.nDaysPerWeek;
-				int day=solution.times[i]%gt.rules.nDaysPerWeek;
-				int r=solution.rooms[i];
+				int hour=best_solution.times[i]/gt.rules.nDaysPerWeek;
+				int day=best_solution.times[i]%gt.rules.nDaysPerWeek;
+				int r=best_solution.rooms[i];
 				for(int dd=0; dd < act->duration; dd++){
 					assert(hour+dd<gt.rules.nHoursPerDay);
 					
@@ -1209,32 +1879,55 @@ bool Export::exportCSVTimetable(const Solution &solution){
 						tosExport<<protectCSV(act->teachersNames[t]);
 					}
 					tosExport<<textquote<<fieldSeparator<<textquote;
+					
 					//Activity Tags
+					bool begin=true;
 					for(int s=0; s<act->activityTagsNames.size(); s++){
-						if(s!=0)
-							tosExport<<"+";
-						tosExport<<protectCSV(act->activityTagsNames[s]);
+						if(printableActivityTagsSet.contains(act->activityTagsNames[s])){
+							if(!begin)
+								tosExport<<"+";
+							else
+								begin=false;
+							tosExport<<protectCSV(act->activityTagsNames[s]);
+						}
 					}
 					tosExport<<textquote<<fieldSeparator<<textquote;
+					
 					//Room
-					if(solution.rooms[i] != UNSPECIFIED_ROOM && solution.rooms[i] != UNALLOCATED_SPACE){
-						assert(solution.rooms[i]>=0 && solution.rooms[i]<gt.rules.nInternalRooms);
-						tosExport<<protectCSV(gt.rules.internalRoomsList[r]->name);
+					if(best_solution.rooms[i] != UNSPECIFIED_ROOM && best_solution.rooms[i] != UNALLOCATED_SPACE){
+						assert(best_solution.rooms[i]>=0 && best_solution.rooms[i]<gt.rules.nInternalRooms);
+						if(gt.rules.internalRoomsList[r]->isVirtual==false){
+							tosExport<<protectCSV(gt.rules.internalRoomsList[r]->name);
+						} else {
+							QStringList rooms;
+							for(int x : std::as_const(best_solution.realRoomsList[i])){
+								rooms.append(gt.rules.internalRoomsList[x]->name);
+							}
+							if(SHOW_VIRTUAL_ROOMS_IN_TIMETABLES)
+								tosExport<<protectCSV(gt.rules.internalRoomsList[r]->name)<<" ("<<protectCSV(rooms.join("+"))<<")";
+							else
+								tosExport<<protectCSV(rooms.join("+"));
+						}
 					}
 					tosExport<<textquote<<fieldSeparator<<textquote;
 					//Comments
-					QString tmpString=protectCSV(act->comments);
-					tmpString.replace("\n", " ");
+					QString tmpString=protectCSVComments(act->comments);
+					//tmpString.replace("\n", " ");
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,0)
+					tosExport<<tmpString<<textquote<<Qt::endl;
+#else
 					tosExport<<tmpString<<textquote<<endl;
+#endif
 				}
 			}
-		}	
+		}
 		lastWarnings+=Export::tr("%1 scheduled activities exported.").arg(exportedActivities)+"\n";
 	} else {
 		lastWarnings+=Export::tr("0 scheduled activities exported, because no timetable was generated.")+"\n";
 	}
-	if(fileExport.error()>0){
-		lastWarnings+=Export::tr("FET critical. Writing %1 gave error code %2, which means saving is compromised. Please check your disk's free space.").arg(file).arg(fileExport.error())+"\n";
+	if(fileExport.error()!=QFileDevice::NoError){
+		lastWarnings+=Export::tr("FET critical. Writing '%1' gave the error message '%2', which means the writing is compromised. Please check your disk's free space.",
+		 "%1 is the name of a file").arg(file).arg(fileExport.errorString())+"\n";
 		return false;
 	}
 	fileExport.close();
@@ -1242,10 +1935,9 @@ bool Export::exportCSVTimetable(const Solution &solution){
 }
 
 #ifndef FET_COMMAND_LINE
-LastWarningsDialogE::LastWarningsDialogE(QWidget* parent, const QString& lastWarning)
-	: QDialog(parent)
+LastWarningsDialogE::LastWarningsDialogE(QWidget* parent, const QString& lastWarning): QDialog(parent)
 {
-	this->setWindowTitle(tr("FET - export comment", "The comment of the exporting operation"));
+	this->setWindowTitle(tr("FET - export comments", "The comments of the exporting operation"));
 	QVBoxLayout* lastWarningsMainLayout=new QVBoxLayout(this);
 
 	QPlainTextEdit* lastWarningsText=new QPlainTextEdit();
@@ -1256,7 +1948,7 @@ LastWarningsDialogE::LastWarningsDialogE(QWidget* parent, const QString& lastWar
 	lastWarningsText->setPlainText(lastWarning);
 
 	//Start Buttons
-	QPushButton* pb1=new QPushButton(tr("&Ok"));
+	QPushButton* pb1=new QPushButton(tr("&OK"));
 	//pb1->setAutoDefault(true);
 
 	QHBoxLayout* hl=new QHBoxLayout();
@@ -1267,7 +1959,7 @@ LastWarningsDialogE::LastWarningsDialogE(QWidget* parent, const QString& lastWar
 	lastWarningsMainLayout->addWidget(lastWarningsText);
 	lastWarningsMainLayout->addLayout(hl);
 
-	QObject::connect(pb1, SIGNAL(clicked()), this, SLOT(accept()));
+	connect(pb1, &QPushButton::clicked, this, &LastWarningsDialogE::accept);
 	
 	//pb1->setDefault(true);
 

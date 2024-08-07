@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -19,15 +19,10 @@
 #include "timetable.h"
 #include "fet.h"
 #include "teachersform.h"
+#include "addteacherform.h"
+#include "modifyteacherform.h"
 #include "teacher.h"
 #include "teachersubjectsqualificationsform.h"
-#include "interface/editcommentsform.h"
-
-#include "timetableexport.h"
-
-#include "centerwidgetonscreen.h"
-
-#include <QInputDialog>
 
 #include <QMessageBox>
 
@@ -39,39 +34,52 @@
 #include <QObject>
 #include <QMetaObject>
 
+#include <QInputDialog>
+
+#include <QScrollBar>
+
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
+
 TeachersForm::TeachersForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
 	
 	currentTeacherTextEdit->setReadOnly(true);
 
-	renameTeacherPushButton->setDefault(true);
+	modifyTeacherPushButton->setDefault(true);
 
 	teachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(renameTeacherPushButton, SIGNAL(clicked()), this, SLOT(renameTeacher()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addTeacherPushButton, SIGNAL(clicked()), this, SLOT(addTeacher()));
+	connect(modifyTeacherPushButton, &QPushButton::clicked, this, &TeachersForm::modifyTeacher);
+	connect(closePushButton, &QPushButton::clicked, this, &TeachersForm::close);
+	connect(addTeacherPushButton, &QPushButton::clicked, this, &TeachersForm::addTeacher);
 
-	connect(targetNumberOfHoursPushButton, SIGNAL(clicked()), this, SLOT(targetNumberOfHours()));
-	connect(qualifiedSubjectsPushButton, SIGNAL(clicked()), this, SLOT(qualifiedSubjects()));
+	connect(targetNumberOfHoursPushButton, &QPushButton::clicked, this, &TeachersForm::targetNumberOfHours);
+	connect(qualifiedSubjectsPushButton, &QPushButton::clicked, this, &TeachersForm::qualifiedSubjects);
 
-	connect(moveTeacherUpPushButton, SIGNAL(clicked()), this, SLOT(moveTeacherUp()));
-	connect(moveTeacherDownPushButton, SIGNAL(clicked()), this, SLOT(moveTeacherDown()));
+	connect(moveTeacherUpPushButton, &QPushButton::clicked, this, &TeachersForm::moveTeacherUp);
+	connect(moveTeacherDownPushButton, &QPushButton::clicked, this, &TeachersForm::moveTeacherDown);
 
-	connect(sortTeachersPushButton, SIGNAL(clicked()), this, SLOT(sortTeachers()));
-	connect(removeTeacherPushButton, SIGNAL(clicked()), this, SLOT(removeTeacher()));
-	connect(teachersListWidget, SIGNAL(currentRowChanged(int)), this, SLOT(teacherChanged(int)));
-	connect(activateTeacherPushButton, SIGNAL(clicked()), this, SLOT(activateTeacher()));
-	connect(deactivateTeacherPushButton, SIGNAL(clicked()), this, SLOT(deactivateTeacher()));
-	connect(teachersListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(renameTeacher()));
+	connect(sortTeachersPushButton, &QPushButton::clicked, this, &TeachersForm::sortTeachers);
+	connect(removeTeacherPushButton, &QPushButton::clicked, this, &TeachersForm::removeTeacher);
+	connect(teachersListWidget, &QListWidget::currentRowChanged, this, &TeachersForm::teacherChanged);
+	connect(activateTeacherPushButton, &QPushButton::clicked, this, &TeachersForm::activateTeacher);
+	connect(deactivateTeacherPushButton, &QPushButton::clicked, this, &TeachersForm::deactivateTeacher);
+	connect(teachersListWidget, &QListWidget::itemDoubleClicked, this, &TeachersForm::modifyTeacher);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &TeachersForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &TeachersForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &TeachersForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
 	
@@ -89,13 +97,13 @@ TeachersForm::~TeachersForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
 void TeachersForm::addTeacher()
 {
-	bool ok = false;
+	/*bool ok = false;
 	Teacher* tch=new Teacher();
 	tch->name = QInputDialog::getText( this, tr("Add teacher"), tr("Please enter teacher's name") ,
 	 QLineEdit::Normal, QString(), &ok );
@@ -117,7 +125,23 @@ void TeachersForm::addTeacher()
 			QMessageBox::information(this, tr("FET information"), tr("Incorrect name"));
 		}
 		delete tch;// user entered nothing or pressed Cancel
+	}*/
+
+	AddTeacherForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+	
+	teachersListWidget->clear();
+	for(int i=0; i<gt.rules.teachersList.size(); i++){
+		Teacher* tch=gt.rules.teachersList[i];
+		teachersListWidget->addItem(tch->name);
 	}
+
+	int i=teachersListWidget->count()-1;
+	if(i>=0)
+		teachersListWidget->setCurrentRow(i);
+	else
+		currentTeacherTextEdit->setPlainText(QString(""));
 }
 
 void TeachersForm::removeTeacher()
@@ -135,9 +159,13 @@ void TeachersForm::removeTeacher()
 		return;
 	}
 
+	/*if(QMessageBox::warning( this, tr("FET"),
+	 tr("Are you sure you want to delete this teacher and all related activities and constraints?"),
+	 tr("Yes"), tr("No"), QString(), 0, 1 ) == 1)
+	 return;*/
 	if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete this teacher and all related activities and constraints?"),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete this teacher and all related activities and constraints?"),
+	 QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
 		return;
 
 	int tmp=gt.rules.removeTeacher(text);
@@ -153,12 +181,14 @@ void TeachersForm::removeTeacher()
 			teachersListWidget->setCurrentRow(i);
 		else
 			currentTeacherTextEdit->setPlainText(QString(""));
+
+		gt.rules.addUndoPoint(tr("Removed the teacher %1.").arg(text));
 	}
 }
 
-void TeachersForm::renameTeacher()
+void TeachersForm::modifyTeacher()
 {
-	int i=teachersListWidget->currentRow();
+	/*int i=teachersListWidget->currentRow();
 	if(teachersListWidget->currentRow()<0){
 		QMessageBox::information(this, tr("FET information"), tr("Invalid selected teacher"));
 		return;
@@ -187,7 +217,30 @@ void TeachersForm::renameTeacher()
 			teachersListWidget->item(i)->setText(finalTeacherName);
 			teacherChanged(teachersListWidget->currentRow());
 		}
+	}*/
+	
+	int valv=teachersListWidget->verticalScrollBar()->value();
+	int valh=teachersListWidget->horizontalScrollBar()->value();
+
+	int i=teachersListWidget->currentRow();
+	if(teachersListWidget->currentRow()<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected teacher"));
+		return;
 	}
+	
+	assert(i>=0 && i<gt.rules.teachersList.count());
+	Teacher* tch=gt.rules.teachersList.at(i);
+	assert(tch->name==teachersListWidget->currentItem()->text());
+	
+	ModifyTeacherForm form(this, tch);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	teachersListWidget->verticalScrollBar()->setValue(valv);
+	teachersListWidget->horizontalScrollBar()->setValue(valh);
+	
+	teachersListWidget->item(i)->setText(tch->name);
+	teacherChanged(i);
 }
 
 void TeachersForm::targetNumberOfHours()
@@ -211,11 +264,15 @@ void TeachersForm::targetNumberOfHours()
 	 tch->targetNumberOfHours, 0, gt.rules.nDaysPerWeek*gt.rules.nHoursPerDay, 1, &ok);
 
 	if(ok){
+		int ot=tch->targetNumberOfHours;
+
 		// user entered something and pressed OK
 		tch->targetNumberOfHours=newTargetNumberOfHours;
 
+		gt.rules.addUndoPoint(tr("Changed the target number of hours for teacher %1 from %2 to %3.").arg(tch->name).arg(ot).arg(tch->targetNumberOfHours));
+
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		teacherChanged(teachersListWidget->currentRow());
 	}
@@ -238,6 +295,7 @@ void TeachersForm::qualifiedSubjects()
 	Teacher* tch=gt.rules.teachersList.at(teacher_ID);
 
 	TeacherSubjectsQualificationsForm form(this, tch);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	teacherChanged(teachersListWidget->currentRow());
@@ -256,15 +314,26 @@ void TeachersForm::moveTeacherUp()
 	QString s1=teachersListWidget->item(i)->text();
 	QString s2=teachersListWidget->item(i-1)->text();
 	
+	Teacher* at1=gt.rules.teachersList.at(i);
+	Teacher* at2=gt.rules.teachersList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	teachersListWidget->item(i)->setText(s2);
 	teachersListWidget->item(i-1)->setText(s1);
 	
-	gt.rules.teachersList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.teachersList[i]=at2;
+	gt.rules.teachersList[i-1]=at1;
+	
+	gt.rules.addUndoPoint(tr("Moved the teacher %1 up.").arg(s1));
 
 	teachersListWidget->setCurrentRow(i-1);
+	teacherChanged(i-1);
 }
 
 void TeachersForm::moveTeacherDown()
@@ -280,20 +349,33 @@ void TeachersForm::moveTeacherDown()
 	QString s1=teachersListWidget->item(i)->text();
 	QString s2=teachersListWidget->item(i+1)->text();
 	
+	Teacher* at1=gt.rules.teachersList.at(i);
+	Teacher* at2=gt.rules.teachersList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	teachersListWidget->item(i)->setText(s2);
 	teachersListWidget->item(i+1)->setText(s1);
 	
-	gt.rules.teachersList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
+	gt.rules.teachersList[i]=at2;
+	gt.rules.teachersList[i+1]=at1;
+
+	gt.rules.addUndoPoint(tr("Moved the teacher %1 down.").arg(s1));
 
 	teachersListWidget->setCurrentRow(i+1);
+	teacherChanged(i+1);
 }
 
 void TeachersForm::sortTeachers()
 {
 	gt.rules.sortTeachersAlphabetically();
+
+	gt.rules.addUndoPoint(tr("Sorted the teachers."));
 
 	teachersListWidget->clear();
 	for(int i=0; i<gt.rules.teachersList.size(); i++){
@@ -313,7 +395,7 @@ void TeachersForm::teacherChanged(int index)
 	}
 	
 	Teacher* t=gt.rules.teachersList.at(index);
-	assert(t);
+	assert(t!=nullptr);
 	QString s=t->getDetailedDescriptionWithConstraints(gt.rules);
 	currentTeacherTextEdit->setPlainText(s);
 }
@@ -328,6 +410,9 @@ void TeachersForm::activateTeacher()
 	QString teacherName=teachersListWidget->currentItem()->text();
 	int count=gt.rules.activateTeacher(teacherName);
 	QMessageBox::information(this, tr("FET information"), tr("Activated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Activated the teacher %1 (%2 activities).", "%2 is the number of activated activities").arg(teacherName).arg(count));
 }
 
 void TeachersForm::deactivateTeacher()
@@ -339,7 +424,10 @@ void TeachersForm::deactivateTeacher()
 
 	QString teacherName=teachersListWidget->currentItem()->text();
 	int count=gt.rules.deactivateTeacher(teacherName);
-	QMessageBox::information(this, tr("FET information"), tr("De-activated a number of %1 activities").arg(count));
+	QMessageBox::information(this, tr("FET information"), tr("Deactivated a number of %1 activities").arg(count));
+
+	if(count>0)
+		gt.rules.addUndoPoint(tr("Deactivated teacher %1 (%2 activities).", "%2 is the number of deactivated activities").arg(teacherName).arg(count));
 }
 
 void TeachersForm::comments()
@@ -351,18 +439,178 @@ void TeachersForm::comments()
 	}
 	
 	Teacher* tch=gt.rules.teachersList[ind];
-	assert(tch!=NULL);
+	assert(tch!=nullptr);
 
-	EditCommentsForm dialog("TeacherCommentsDialog", this, tr("Teacher comments"));
-	dialog.setComments(tch->comments);
+	QDialog getCommentsDialog(this);
+	
+	getCommentsDialog.setWindowTitle(tr("Teacher comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
 
-	int t=dialog.exec();
-
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(tch->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("TeacherCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
+	
 	if(t==QDialog::Accepted){
-		tch->comments=dialog.getComments();
+		QString oc=tch->comments;
+
+		tch->comments=commentsPT->toPlainText();
+
+		gt.rules.addUndoPoint(tr("Changed the comments for the teacher %1 from\n%2\nto\n%3.").arg(tch->name).arg(oc).arg(tch->comments));
 
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		teacherChanged(ind);
+	}
+}
+
+void TeachersForm::longName()
+{
+	int ind=teachersListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected teacher"));
+		return;
+	}
+	
+	Teacher* tch=gt.rules.teachersList[ind];
+	assert(tch!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Teacher long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(tch->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("TeacherLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=tch->longName;
+	
+		tch->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the teacher %1 from\n%2\nto\n%3.").arg(tch->name).arg(oln).arg(tch->longName));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		teacherChanged(ind);
+	}
+}
+
+void TeachersForm::code()
+{
+	int ind=teachersListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected teacher"));
+		return;
+	}
+	
+	Teacher* tch=gt.rules.teachersList[ind];
+	assert(tch!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Teacher code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(tch->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("TeacherCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=tch->code;
+	
+		tch->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the teacher %1 from\n%2\nto\n%3.").arg(tch->name).arg(oc).arg(tch->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		teacherChanged(ind);
 	}

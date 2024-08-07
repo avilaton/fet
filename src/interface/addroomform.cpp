@@ -2,8 +2,8 @@
                           addroomform.cpp  -  description
                              -------------------
     begin                : Sun Jan 1 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,11 +17,6 @@
 
 #include "addroomform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
-
 #include "longtextmessagebox.h"
 
 #include <QMessageBox>
@@ -32,9 +27,9 @@ AddRoomForm::AddRoomForm(QWidget* parent): QDialog(parent)
 	
 	addRoomPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
-	connect(addRoomPushButton, SIGNAL(clicked()), this, SLOT(addRoom()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddRoomForm::close);
+	connect(helpPushButton, &QPushButton::clicked, this, &AddRoomForm::help);
+	connect(addRoomPushButton, &QPushButton::clicked, this, &AddRoomForm::addRoom);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -44,9 +39,9 @@ AddRoomForm::AddRoomForm(QWidget* parent): QDialog(parent)
 	
 	buildingsComboBox->clear();
 	buildingsComboBox->addItem("");
-	for (const Building *building : qAsConst(gt.rules.buildingsList))
-		buildingsComboBox->addItem(building->name);
-		
+	for(int i=0; i<gt.rules.buildingsList.size(); i++)
+		buildingsComboBox->addItem(gt.rules.buildingsList.at(i)->name);
+	
 	capacitySpinBox->setMinimum(1);
 	capacitySpinBox->setMaximum(MAX_ROOM_CAPACITY);
 	capacitySpinBox->setValue(MAX_ROOM_CAPACITY);
@@ -79,6 +74,8 @@ void AddRoomForm::addRoom()
 	else{
 		QMessageBox::information(this, tr("Room insertion dialog"),
 			tr("Room added"));
+			
+		gt.rules.addUndoPoint(tr("Added the room %1.").arg(rm->name));
 	}
 
 	nameLineEdit->selectAll();
@@ -90,12 +87,12 @@ void AddRoomForm::help()
 	QString s;
 	
 	s=tr("It is advisable to generate the timetable without the rooms (or without rooms' constraints), then, if a solution is possible, to add rooms or rooms' constraints");
-	 
+	
 	s+="\n\n";
 	
 	s+=tr("Please note that each room can hold a single activity at a specified period. If you"
 	 " have a very large room, which can hold more activities at one time, please add more rooms,"
 	 " representing this larger room");
-	 
+	
 	LongTextMessageBox::largeInformation(this, tr("FET - help on adding room(s)"), s);
 }

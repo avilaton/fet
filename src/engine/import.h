@@ -5,8 +5,8 @@ File import.h
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                           import.h  -  description
                              -------------------
@@ -26,6 +26,8 @@ File import.h
 #define IMPORT_H
 
 #include <QDialog>
+
+#include <QString>
 
 #include "timetable.h"
 #include "timetable_defs.h"
@@ -71,7 +73,9 @@ static const int FIELD_MIN_DAYS=18;
 static const int FIELD_MIN_DAYS_WEIGHT=19;
 static const int FIELD_MIN_DAYS_CONSECUTIVE=20;
 
-static const int NUMBER_OF_FIELDS=21;
+static const int FIELD_COMMENTS=21;
+
+static const int NUMBER_OF_FIELDS=22;
 
 class Import: public QObject{
 	Q_OBJECT
@@ -100,7 +104,7 @@ private:
 class ChooseFieldsDialog: public QDialog{
 	Q_OBJECT
 	
-public:							//can be this done privat, too?
+public:							//could this be done private, too?
 	ChooseFieldsDialog(QWidget *parent);
 	~ChooseFieldsDialog();
 

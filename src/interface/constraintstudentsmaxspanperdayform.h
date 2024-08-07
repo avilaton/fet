@@ -2,8 +2,8 @@
                           constraintstudentsmaxspanperdayform.h  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTSTUDENTSMAXSPANPERDAYFORM_H
 #define CONSTRAINTSTUDENTSMAXSPANPERDAYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintstudentsmaxspanperdayform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintStudentsMaxSpanPerDayForm : public TimeConstraintBaseDialog  {
+class ConstraintStudentsMaxSpanPerDayForm : public QDialog, Ui::ConstraintStudentsMaxSpanPerDayForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintStudentsMaxSpanPerDayForm(QWidget* parent);
 	~ConstraintStudentsMaxSpanPerDayForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+	
+	void filterChanged();
 };
 
 #endif

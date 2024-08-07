@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -29,6 +29,7 @@ public:
 
 public slots:
 	void addSubgroup();
+	void addExistingSubgroups();
 	void removeSubgroup();
 	void purgeSubgroup();
 	void modifySubgroup();
@@ -37,13 +38,15 @@ public slots:
 	void moveSubgroupDown();
 
 	void sortSubgroups();
-	void yearChanged(const QString &yearName);
-	void groupChanged(const QString &groupName);
-	void subgroupChanged(const QString &subgroupName);
+	void yearChanged(const QString& yearName);
+	void groupChanged(const QString& groupName);
+	void subgroupChanged(const QString& subgroupName);
 	
 	void activateStudents();
 	void deactivateStudents();
 	
+	void longName();
+	void code();
 	void comments();
 };
 

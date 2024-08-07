@@ -2,8 +2,8 @@
                           modifyconstraintstudentsmaxbuildingchangesperweekform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintstudentsmaxbuildingchangesperweekform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::ModifyConstraintStudentsMaxBuildingChangesPerWeekForm(QWidget* parent, ConstraintStudentsMaxBuildingChangesPerWeek* ctr): QDialog(parent)
 {
@@ -27,12 +25,12 @@ ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::ModifyConstraintStudentsM
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	this->_ctr=ctr;
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
@@ -58,11 +56,21 @@ void ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxBuildingChangesPerWeek=maxChangesSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsMaxBuildingChangesPerWeekForm::cancel()
+{
 	this->close();
 }

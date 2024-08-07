@@ -2,8 +2,8 @@
                           addconstraintstudentsminrestinghoursform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsminrestinghoursform.h"
 #include "timeconstraint.h"
@@ -29,8 +28,8 @@ AddConstraintStudentsMinRestingHoursForm::AddConstraintStudentsMinRestingHoursFo
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMinRestingHoursForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMinRestingHoursForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -40,8 +39,6 @@ AddConstraintStudentsMinRestingHoursForm::AddConstraintStudentsMinRestingHoursFo
 	minRestingHoursSpinBox->setMinimum(1);
 	minRestingHoursSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	minRestingHoursSpinBox->setValue(1);
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsMinRestingHoursForm::~AddConstraintStudentsMinRestingHoursForm()
@@ -49,13 +46,9 @@ AddConstraintStudentsMinRestingHoursForm::~AddConstraintStudentsMinRestingHoursF
 	saveFETDialogGeometry(this);
 }
 
-void AddConstraintStudentsMinRestingHoursForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMinRestingHoursForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -74,9 +67,12 @@ void AddConstraintStudentsMinRestingHoursForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsMinRestingHours(weight, minRestingHoursSpinBox->value(), circularCheckBox->isChecked());
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

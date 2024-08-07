@@ -2,8 +2,8 @@
                           modifystudentsyearform.cpp  -  description
                              -------------------
     begin                : Feb 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,15 +15,13 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "modifystudentsyearform.h"
-
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
-#include "longtextmessagebox.h"
+#include <Qt>
 
 #include <QMessageBox>
+
+#include "modifystudentsyearform.h"
+
+#include "longtextmessagebox.h"
 
 ModifyStudentsYearForm::ModifyStudentsYearForm(QWidget* parent, const QString& initialYearName, int initialNumberOfStudents): QDialog(parent)
 {
@@ -31,8 +29,8 @@ ModifyStudentsYearForm::ModifyStudentsYearForm(QWidget* parent, const QString& i
 	
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyStudentsYearForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyStudentsYearForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,13 +52,18 @@ ModifyStudentsYearForm::~ModifyStudentsYearForm()
 	saveFETDialogGeometry(this);
 }
 
+void ModifyStudentsYearForm::cancel()
+{
+	this->close();
+}
+
 void ModifyStudentsYearForm::ok()
 {
 	if(nameLineEdit->text().isEmpty()){
 		QMessageBox::information(this, tr("FET information"), tr("Incorrect name"));
 		return;
 	}
-	if(this->_initialYearName!=nameLineEdit->text() && gt.rules.searchStudentsSet(nameLineEdit->text())!=NULL){
+	if(this->_initialYearName!=nameLineEdit->text() && gt.rules.searchStudentsSet(nameLineEdit->text())!=nullptr){
 		QMessageBox::information(this, tr("FET information"), tr("Name existing - please choose another"));
 
 		nameLineEdit->selectAll();
@@ -70,18 +73,23 @@ void ModifyStudentsYearForm::ok()
 	}
 
 	if(this->_initialYearName==nameLineEdit->text()){
+		QString od=tr("Year name=%1\nNumber of students=%2").arg(this->_initialYearName).arg(this->_initialNumberOfStudents);
+
 		bool t=gt.rules.modifyStudentsSet(this->_initialYearName, nameLineEdit->text(), numberSpinBox->value());
 		assert(t);
+
+		QString nd=tr("Year name=%1\nNumber of students=%2").arg(nameLineEdit->text()).arg(numberSpinBox->value());
+		gt.rules.addUndoPoint(tr("The year with the description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
 	}
 	else{
 		//rename groups and subgroups by Volker Dirr (start)
 		//prepare checks
 		QSet<QString> oldNames;
-		for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+		for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 			oldNames<<year->name;
-			for(StudentsGroup* group : qAsConst(year->groupsList)){
+			for(StudentsGroup* group : std::as_const(year->groupsList)){
 				oldNames<<group->name;
-				for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
+				for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
 					oldNames<<subgroup->name;
 				}
 			}
@@ -94,28 +102,28 @@ void ModifyStudentsYearForm::ok()
 		QString willBeRenamed;
 		QSet<QString> alreadyRenamed;
 		QHash<QString, QString> oldAndNewStudentsSetNamesForRenaming;
-		for(StudentsYear* year : qAsConst(gt.rules.yearsList)){
+		for(StudentsYear* year : std::as_const(gt.rules.yearsList)){
 			if(this->_initialYearName != year->name){
-				for(StudentsGroup* group : qAsConst(year->groupsList)){
-					if(group->name.left(this->_initialYearName.count())==this->_initialYearName){
+				for(StudentsGroup* group : std::as_const(year->groupsList)){
+					if(group->name.left(this->_initialYearName.length())==this->_initialYearName){
 						wontBeRenamed1+=tr("%1 in %2", "For instance group '1 a' in year '1'").arg(group->name).arg(year->name)+"\n";
 						//It's correct for example if there is year "1" and year "10"
 					}
-					for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
-						if(subgroup->name.left(this->_initialYearName.count())==this->_initialYearName){
+					for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
+						if(subgroup->name.left(this->_initialYearName.length())==this->_initialYearName){
 							wontBeRenamed1+=tr("%1 in %2 in %3", "For instance subgroup '1 a DE' in group '1 a' in year '1'").arg(subgroup->name).arg(group->name).arg(year->name)+"\n";
 							//It's correct for example if there is year "1" and year "10"
 						}
 					}
 				}
 			} else {
-				for(StudentsGroup* group : qAsConst(year->groupsList)){
-					for(StudentsSubgroup* subgroup : qAsConst(group->subgroupsList)){
-						if(subgroup->name.left(this->_initialYearName.count())!=this->_initialYearName){
+				for(StudentsGroup* group : std::as_const(year->groupsList)){
+					for(StudentsSubgroup* subgroup : std::as_const(group->subgroupsList)){
+						if(subgroup->name.left(this->_initialYearName.length())!=this->_initialYearName){
 							wontBeRenamed2+=tr("%1 in %2 in %3", "For instance subgroup '1 a DE' in group '1 a' in year '1'").arg(subgroup->name).arg(group->name).arg(year->name)+"\n";
 						} else {
 							QString tmpName=subgroup->name;
-							tmpName.remove(0, this->_initialYearName.count());
+							tmpName.remove(0, this->_initialYearName.length());
 							assert(!tmpName.isEmpty());
 							QString newName=nameLineEdit->text();
 							newName.append(tmpName);
@@ -131,11 +139,11 @@ void ModifyStudentsYearForm::ok()
 							}
 						}
 					}
-					if(group->name.left(this->_initialYearName.count())!=this->_initialYearName){
+					if(group->name.left(this->_initialYearName.length())!=this->_initialYearName){
 						wontBeRenamed2+=tr("%1 in %2", "For instance group '1 a' in year '1'").arg(group->name).arg(year->name)+"\n";
 					} else {
 						QString tmpName=group->name;
-						tmpName.remove(0, this->_initialYearName.count());
+						tmpName.remove(0, this->_initialYearName.length());
 						assert(!tmpName.isEmpty());
 						QString newName=nameLineEdit->text();
 						newName.append(tmpName);
@@ -230,14 +238,25 @@ void ModifyStudentsYearForm::ok()
 		} else result=QMessageBox::No;
 
 		if(result==QMessageBox::Yes){
+			QString od=tr("Year name=%1\nNumber of students=%2").arg(this->_initialYearName).arg(this->_initialNumberOfStudents);
+
 			bool t=gt.rules.modifyStudentsSets(oldAndNewStudentsSetNamesForRenaming);
 			assert(t);
 			t=gt.rules.modifyStudentsSet(this->_initialYearName, nameLineEdit->text(), numberSpinBox->value());
 			assert(t);
+
+			QString nd=tr("Year name=%1\nNumber of students=%2").arg(nameLineEdit->text()).arg(numberSpinBox->value());
+			gt.rules.addUndoPoint(tr("The year (some or all of its groups and subgroups were renamed to match its new name) "
+			 "with description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
 		} else if(result==QMessageBox::No) {
 		//rename groups and subgroups by Volker Dirr (end)
+			QString od=tr("Year name=%1\nNumber of students=%2").arg(this->_initialYearName).arg(this->_initialNumberOfStudents);
+
 			bool t=gt.rules.modifyStudentsSet(this->_initialYearName, nameLineEdit->text(), numberSpinBox->value());
 			assert(t);
+
+			QString nd=tr("Year name=%1\nNumber of students=%2").arg(nameLineEdit->text()).arg(numberSpinBox->value());
+			gt.rules.addUndoPoint(tr("The year with the description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
 		} else {
 			assert(result==QMessageBox::Cancel);
 			return;

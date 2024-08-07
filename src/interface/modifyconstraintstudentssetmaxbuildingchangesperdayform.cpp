@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetmaxbuildingchangesperdayform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssetmaxbuildingchangesperdayform.h"
-#include "spaceconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm(QWidget* parent, ConstraintStudentsSetMaxBuildingChangesPerDay* ctr): QDialog(parent)
 {
@@ -31,12 +25,12 @@ ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ModifyConstraintStudent
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
-		
+	
 	QSize tmp2=studentsComboBox->minimumSizeHint();
 	Q_UNUSED(tmp2);
 
@@ -44,11 +38,11 @@ ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ModifyConstraintStudent
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 
 	maxChangesSpinBox->setMinimum(0);
 	maxChangesSpinBox->setMaximum(gt.rules.nHoursPerDay);
-	maxChangesSpinBox->setValue(ctr->maxBuildingChangesPerDay);	
+	maxChangesSpinBox->setValue(ctr->maxBuildingChangesPerDay);
 }
 
 ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::~ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm()
@@ -56,18 +50,20 @@ ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::~ModifyConstraintStuden
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::updateStudentsComboBox()
+void ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::updateStudentsComboBox(QWidget* parent)
 {
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName, true);
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -82,18 +78,28 @@ void ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::ok()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->studentsName=students_name;
 	this->_ctr->maxBuildingChangesPerDay=maxChangesSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetMaxBuildingChangesPerDayForm::cancel()
+{
 	this->close();
 }

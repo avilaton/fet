@@ -2,8 +2,8 @@
                           constraintactivitypreferredroomform.h  -  description
                              -------------------
     begin                : Feb 13, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,23 +18,29 @@
 #ifndef CONSTRAINTACTIVITYPREFERREDROOMFORM_H
 #define CONSTRAINTACTIVITYPREFERREDROOMFORM_H
 
-#include "spaceconstraint_basedialog.h"
+#include "ui_constraintactivitypreferredroomform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivityPreferredRoomForm : public SpaceConstraintBaseDialog  {
+class ConstraintActivityPreferredRoomForm : public QDialog, Ui::ConstraintActivityPreferredRoomForm_template  {
 	Q_OBJECT
 
 public:
+	SpaceConstraintsList visibleConstraintsList;
+
 	ConstraintActivityPreferredRoomForm(QWidget* parent);
 	~ConstraintActivityPreferredRoomForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(SpaceConstraint *ctr);
-	virtual bool filterOk(const SpaceConstraint *ctr) const;
+	bool filterOk(SpaceConstraint* ctr);
 
-	void afterRemoveConstraint();
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
 
-	void toggleActiveConstraint(void* ctr, bool checked) const;
+	void filterChanged();
 };
 
 #endif

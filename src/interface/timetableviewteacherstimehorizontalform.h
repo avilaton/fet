@@ -2,8 +2,8 @@
                           timetableviewteacherstimehorizontalform.h  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -69,6 +69,11 @@ public slots:
 	void lockTime();
 	void lockSpace();
 	void lockTimeSpace();
+
+	void lockDays();
+	void unlockDays();
+	void unlockAllDays();
+
 	void updateTeachersTimetableTable();
 
 	void currentItemChanged(QTableWidgetItem* current, QTableWidgetItem* previous);
@@ -80,7 +85,7 @@ public slots:
 
 protected:
 //	void resizeEvent(QResizeEvent* event);
-	QColor stringToColor(QString s); //by Marco Vassura
+	QColor stringToColor(const QString& s); //by Marco Vassura
 };
 
 #endif

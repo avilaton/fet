@@ -2,8 +2,8 @@
                           modifystudentsyearform.h  -  description
                              -------------------
     begin                : Feb 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,6 +20,10 @@
 
 #include "ui_modifystudentsyearform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class ModifyStudentsYearForm : public QDialog, Ui::ModifyStudentsYearForm_template {
 	Q_OBJECT
 public:
@@ -31,6 +35,7 @@ public:
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

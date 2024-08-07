@@ -2,8 +2,8 @@
                           modifyconstraintteachermaxhoursdailyform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachermaxhoursdailyform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeacherMaxHoursDailyForm::ModifyConstraintTeacherMaxHoursDailyFo
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMaxHoursDailyForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMaxHoursDailyForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -77,6 +76,15 @@ void ModifyConstraintTeacherMaxHoursDailyForm::ok()
 		return;
 	}
 
+	if(weight<100.0){
+		int t=QMessageBox::warning(this, tr("FET warning"),
+			tr("You selected a weight less than 100%. The generation algorithm is not perfectly optimized to work with such weights (even"
+			 " if in practice it might work well). It is recommended to work only with 100% weights for these constraints. Are you sure you want to continue?"),
+			 QMessageBox::Yes | QMessageBox::Cancel);
+		if(t==QMessageBox::Cancel)
+			return;
+	}
+
 	int max_hours=maxHoursSpinBox->value();
 
 	QString teacher_name=teachersComboBox->currentText();
@@ -87,12 +95,22 @@ void ModifyConstraintTeacherMaxHoursDailyForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxHoursDaily=max_hours;
 	this->_ctr->teacherName=teacher_name;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeacherMaxHoursDailyForm::cancel()
+{
 	this->close();
 }

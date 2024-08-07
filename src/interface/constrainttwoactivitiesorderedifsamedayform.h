@@ -2,8 +2,8 @@
                           constrainttwoactivitiesorderedifsamedayform.h  -  description
                              -------------------
     begin                : 2018
-    copyright            : (C) 2018 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2018 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTTWOACTIVITIESORDEREDIFSAMEDAYFORM_H
 #define CONSTRAINTTWOACTIVITIESORDEREDIFSAMEDAYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constrainttwoactivitiesorderedifsamedayform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTwoActivitiesOrderedIfSameDayForm : public TimeConstraintBaseDialog  {
+class ConstraintTwoActivitiesOrderedIfSameDayForm : public QDialog, Ui::ConstraintTwoActivitiesOrderedIfSameDayForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintTwoActivitiesOrderedIfSameDayForm(QWidget* parent);
 	~ConstraintTwoActivitiesOrderedIfSameDayForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

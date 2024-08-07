@@ -2,8 +2,8 @@
                           activitiesroomsstatisticform.cpp  -  description
                              -------------------
     begin                : October 6, 2011
-    copyright            : (C) 2011 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2011 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,8 +16,6 @@
  ***************************************************************************/
 
 #include "activitiesroomsstatisticsform.h"
-
-#include "centerwidgetonscreen.h"
 
 #include "timetable_defs.h"
 #include "timetable.h"
@@ -37,7 +35,7 @@ ActivitiesRoomsStatisticsForm::ActivitiesRoomsStatisticsForm(QWidget* parent): Q
 	
 	closeButton->setDefault(true);
 
-	connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closeButton, &QPushButton::clicked, this, &ActivitiesRoomsStatisticsForm::close);
 	
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -48,13 +46,17 @@ ActivitiesRoomsStatisticsForm::ActivitiesRoomsStatisticsForm(QWidget* parent): Q
 	QSet<int> activitiesWith100;
 	QSet<int> activitiesWithUnder100;
 	
-	for(Activity* act : qAsConst(gt.rules.activitiesList)){
+	for(Activity* act : std::as_const(gt.rules.activitiesList)){
 		if(!act->active)
 			continue;
 	
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+		QSet<QString> currentActivityTagsSet(act->activityTagsNames.constBegin(), act->activityTagsNames.constEnd());
+#else
 		QSet<QString> currentActivityTagsSet=act->activityTagsNames.toSet();
+#endif
 	
-		for(SpaceConstraint* genericConstraint : qAsConst(gt.rules.spaceConstraintsList)){
+		for(SpaceConstraint* genericConstraint : std::as_const(gt.rules.spaceConstraintsList)){
 			if(!genericConstraint->active)
 				continue;
 		
@@ -277,7 +279,7 @@ ActivitiesRoomsStatisticsForm::ActivitiesRoomsStatisticsForm(QWidget* parent): Q
 	QList<int> certainlyWithUnspecifiedRoom;
 	QList<int> possiblyWithUnspecifiedRoom;
 	
-	for(Activity* act : qAsConst(gt.rules.activitiesList)){
+	for(Activity* act : std::as_const(gt.rules.activitiesList)){
 		if(!act->active)
 			continue;
 

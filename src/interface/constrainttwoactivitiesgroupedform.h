@@ -2,8 +2,8 @@
                           constrainttwoactivitiesgroupedform.h  -  description
                              -------------------
     begin                : Aug 21, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTTWOACTIVITIESGROUPEDFORM_H
 #define CONSTRAINTTWOACTIVITIESGROUPEDFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constrainttwoactivitiesgroupedform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTwoActivitiesGroupedForm : public TimeConstraintBaseDialog  {
+class ConstraintTwoActivitiesGroupedForm : public QDialog, Ui::ConstraintTwoActivitiesGroupedForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintTwoActivitiesGroupedForm(QWidget* parent);
 	~ConstraintTwoActivitiesGroupedForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

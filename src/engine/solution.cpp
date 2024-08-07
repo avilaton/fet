@@ -6,8 +6,8 @@ File solution.cpp
                           solution.cpp  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -21,40 +21,40 @@ File solution.cpp
 
 //Teachers free periods code contributed by Volker Dirr (https://timetabling.de/)
 
+#include <QFile>
+#include <QTextStream>
+
 #include "timetable_defs.h"
 #include "solution.h"
 #include "rules.h"
+#include "timeconstraint.h"
+
+#include "matrix.h"
 
 #include <QMultiMap>
 
-//extern bool breakDayHour[MAX_DAYS_PER_WEEK][MAX_HOURS_PER_DAY];
+#include <algorithm>
+
 extern Matrix2D<bool> breakDayHour;
-//extern bool teacherNotAvailableDayHour[MAX_TEACHERS][MAX_DAYS_PER_WEEK][MAX_HOURS_PER_DAY];
 extern Matrix3D<bool> teacherNotAvailableDayHour;
 
 //critical function here - must be optimized for speed
-Solution::Solution()
-	: conflictsTotal(0),
-	  nPlacedActivities(0), _fitness(-1),
-	  teachersMatrixReady(false), subgroupsMatrixReady(false), roomsMatrixReady(false)
-{
-	for(int i=0; i<MAX_ACTIVITIES; i++){
-		this->times[i]=UNALLOCATED_TIME;
-		this->rooms[i]=UNALLOCATED_SPACE;
-	}
-}
-
-void Solution::copy(const Rules &r, const Solution &c){
+void Solution::copy(Rules& r, Solution& c){
 	this->_fitness=c._fitness;
 
 	assert(r.internalStructureComputed);
-
+	
+	this->times.resize(r.nInternalActivities);
+	this->rooms.resize(r.nInternalActivities);
+	this->realRoomsList.resize(r.nInternalActivities);
 	for(int i=0; i<r.nInternalActivities; i++){
 		this->times[i] = c.times[i];
-		this->rooms[i]=c.rooms[i];
+		this->rooms[i] = c.rooms[i];
+		this->realRoomsList[i]=c.realRoomsList[i];
 	}
-	//memcpy(times, c.times, r.nActivities * sizeof(times[0]));
 	
+	this->changedForMatrixCalculation=c.changedForMatrixCalculation;
+
 	//added in version 5.2.0
 	conflictsWeightList=c.conflictsWeightList;
 	conflictsDescriptionList=c.conflictsDescriptionList;
@@ -67,35 +67,82 @@ void Solution::copy(const Rules &r, const Solution &c){
 	nPlacedActivities=c.nPlacedActivities;
 }
 
-void Solution::makeUnallocated(const Rules &r){
-	assert(r.initialized);
+//critical function here - must be optimized for speed
+void Solution::copyForHighestStage(Rules& r, Solution& c){
+	this->_fitness=-1;
+
+	assert(r.internalStructureComputed);
+	
+	this->times.resize(r.nInternalActivities);
+	this->rooms.resize(r.nInternalActivities);
+	this->realRoomsList.resize(r.nInternalActivities);
+	for(int i=0; i<r.nInternalActivities; i++){
+		this->times[i] = c.times[i];
+		this->rooms[i] = c.rooms[i];
+		this->realRoomsList[i]=c.realRoomsList[i];
+	}
+	
+	this->changedForMatrixCalculation=true;
+
+	//I commented out the following lines, to avoid useless copying.
+	//added in version 5.2.0
+	//conflictsWeightList=c.conflictsWeightList;
+	//conflictsDescriptionList=c.conflictsDescriptionList;
+	//conflictsTotal=c.conflictsTotal;
+	
+	//teachersMatrixReady=false;
+	//subgroupsMatrixReady=false;
+	//roomsMatrixReady=false;
+	
+	//nPlacedActivities=c.nPlacedActivities;
+}
+
+/*void Solution::init(Rules& r){
 	assert(r.internalStructureComputed);
 
+	realRoomsList.resize(r.nInternalActivities);
 	for(int i=0; i<r.nInternalActivities; i++){
 		this->times[i]=UNALLOCATED_TIME;
 		this->rooms[i]=UNALLOCATED_SPACE;
 	}
 
-	resetFitness();
-}
+	this->_fitness=-1;
+	
+	this->changedForMatrixCalculation=true;
+}*/
 
-void Solution::resetFitness()
-{
-	_fitness = -1;
-	teachersMatrixReady = false;
-	subgroupsMatrixReady = false;
-	roomsMatrixReady = false;
-}
-
-double Solution::fitness(const Rules &r, QString* conflictsString){
+void Solution::makeUnallocated(Rules& r){
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 
-	if(this->_fitness>=0 && conflictsString==NULL)
+	this->times.resize(r.nInternalActivities);
+	this->rooms.resize(r.nInternalActivities);
+	this->realRoomsList.resize(r.nInternalActivities);
+	for(int i=0; i<r.nInternalActivities; i++){
+		this->times[i]=UNALLOCATED_TIME;
+		this->rooms[i]=UNALLOCATED_SPACE;
+		this->realRoomsList[i].clear();
+	}
+
+	this->_fitness=-1;
+
+	this->changedForMatrixCalculation=true;
+}
+
+double Solution::fitness(Rules& r, FakeString* conflictsString){
+	assert(r.initialized);
+	assert(r.internalStructureComputed);
+
+	if(this->_fitness>=0)
+		assert(this->changedForMatrixCalculation==false);
+		
+	if(this->_fitness>=0 && conflictsString==nullptr)
 	//If you want to see the log, you have to recompute the fitness, even if it is
 	//already computed
 		return this->_fitness;
 		
+	this->changedForMatrixCalculation=true;
+	
 	this->_fitness=0;
 	//I AM NOT SURE IF THE COMMENT BELOW IS DEPRECATED/FALSE NOW (IT IS OLD).
 	//here we must not have compulsory activity preferred time nor
@@ -116,26 +163,23 @@ double Solution::fitness(const Rules &r, QString* conflictsString){
 			this->nPlacedActivities++;
 		
 	for(int i=0; i<r.nInternalTimeConstraints; i++){
-		ConflictInfo info;
-		ConflictInfo* pInfo = conflictsString != NULL? &info : NULL;
-		double cur_fitness = r.internalTimeConstraintsList[i]->fitness(*this, r, pInfo);
-		this->_fitness += cur_fitness;
+		QList<QString> sl;
+		QList<double> cl;
+		this->_fitness += r.internalTimeConstraintsList[i]->fitness(*this, r, cl, sl, conflictsString);
 		
-		conflictsWeightList += info.weights;
-		conflictsDescriptionList += info.descriptions;
+		conflictsWeightList+=cl;
+		conflictsDescriptionList+=sl;
 	}	
 	for(int i=0; i<r.nInternalSpaceConstraints; i++){
-		ConflictInfo info;
-		ConflictInfo* pInfo = conflictsString != NULL? &info : NULL;
-		double cur_fitness = r.internalSpaceConstraintsList[i]->fitness(*this, r, pInfo);
-		this->_fitness += cur_fitness;
-
-		conflictsWeightList += info.weights;
-		conflictsDescriptionList += info.descriptions;
+		QList<QString> sl;
+		QList<double> cl;
+		this->_fitness += r.internalSpaceConstraintsList[i]->fitness(*this, r, cl, sl, conflictsString);
+		conflictsWeightList+=cl;
+		conflictsDescriptionList+=sl;
 	}
 		
 	this->conflictsTotal=0;
-	for(double cn : qAsConst(conflictsWeightList)){
+	for(double cn : std::as_const(conflictsWeightList)){
 		//cout<<"cn=="<<cn<<endl;
 		conflictsTotal+=cn;
 	}
@@ -152,20 +196,22 @@ double Solution::fitness(const Rules &r, QString* conflictsString){
 	//sort descending according to conflicts in O(n log n)
 	int ttt=conflictsWeightList.count();
 		
-	QMultiMap<double, QString> map;
+	QMultiMap<double, QString> conflictsMap;
 	assert(conflictsWeightList.count()==conflictsDescriptionList.count());
 	for(int i=0; i<conflictsWeightList.count(); i++)
-		map.insert(conflictsWeightList.at(i), conflictsDescriptionList.at(i));
+		conflictsMap.insert(conflictsWeightList.at(i), conflictsDescriptionList.at(i));
 		
 	conflictsWeightList.clear();
 	conflictsDescriptionList.clear();
 	
-	QMapIterator<double, QString> i(map);
-	while (i.hasNext()) {
-		i.next();
-		conflictsWeightList.prepend(i.key());
-		conflictsDescriptionList.prepend(i.value());
+	QMultiMap<double, QString>::const_iterator i=conflictsMap.constBegin();
+	while(i!=conflictsMap.constEnd()){
+		conflictsWeightList.append(i.key());
+		conflictsDescriptionList.append(i.value());
+		i++;
 	}
+	std::reverse(conflictsWeightList.begin(), conflictsWeightList.end());
+	std::reverse(conflictsDescriptionList.begin(), conflictsDescriptionList.end());
 	
 	for(int i=0; i<conflictsWeightList.count()-1; i++)
 		assert(conflictsWeightList.at(i) >= conflictsWeightList.at(i+1));
@@ -173,25 +219,17 @@ double Solution::fitness(const Rules &r, QString* conflictsString){
 	assert(conflictsWeightList.count()==conflictsDescriptionList.count());
 	assert(conflictsWeightList.count()==ttt);
 	
-	if (conflictsString != NULL)
-		*conflictsString += conflictsDescriptionList.join("\n");
+	this->changedForMatrixCalculation=false;
 
 	return this->_fitness;
 }
 
-int Solution::getTeachersMatrix(const Rules& r, const Matrix3D<int>** p_a) const {
+int Solution::getTeachersMatrix(Rules& r, Matrix3D<int>& a){
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 	
-	if (teachersMatrixReady) {
-		*p_a = &cached_teachersMatrix;
-		return cached_teachersConflicts;
-	}
-
 	int conflicts=0;
 	
-	*p_a = &cached_teachersMatrix;
-	Matrix3D<int>& a = cached_teachersMatrix;
 	a.resize(r.nInternalTeachers, r.nDaysPerWeek, r.nHoursPerDay);
 
 	int i;
@@ -204,35 +242,27 @@ int Solution::getTeachersMatrix(const Rules& r, const Matrix3D<int>** p_a) const
 		if(this->times[i]!=UNALLOCATED_TIME) {
 			int hour = this->times[i] / r.nDaysPerWeek;
 			int day = this->times[i] % r.nDaysPerWeek;
-			const Activity& act=r.internalActivitiesList[i];
-			for(int dd=0; dd<act.duration && hour+dd<r.nHoursPerDay; dd++)
-				for(int it=0; it<act.iTeachersList.count(); it++){
-					int tch=act.iTeachersList.at(it);
+			Activity* act=&r.internalActivitiesList[i];
+			for(int dd=0; dd<act->duration && hour+dd<r.nHoursPerDay; dd++)
+				for(int it=0; it<act->iTeachersList.count(); it++){
+					int tch=act->iTeachersList.at(it);
 					int tmp=a[tch][day][hour+dd];
 					conflicts += tmp==0 ? 0 : 1;
 					a[tch][day][hour+dd]++;
 				}
 		}
 
-	cached_teachersConflicts = conflicts;
-	teachersMatrixReady = true;
-
+	this->changedForMatrixCalculation=false;
+		
 	return conflicts;
 }
 
-int Solution::getSubgroupsMatrix(const Rules& r, const Matrix3D<int>** p_a) const {
+int Solution::getSubgroupsMatrix(Rules& r, Matrix3D<int>& a){
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 	
-	if (subgroupsMatrixReady) {
-		*p_a = &cached_subgroupsMatrix;
-		return cached_subgroupsConflicts;
-	}
-
 	int conflicts=0;
 	
-	*p_a = &cached_subgroupsMatrix;
-	Matrix3D<int>& a = cached_subgroupsMatrix;
 	a.resize(r.nInternalSubgroups, r.nDaysPerWeek, r.nHoursPerDay);
 
 	int i;
@@ -245,7 +275,7 @@ int Solution::getSubgroupsMatrix(const Rules& r, const Matrix3D<int>** p_a) cons
 		if(this->times[i]!=UNALLOCATED_TIME){
 			int hour=this->times[i]/r.nDaysPerWeek;
 			int day=this->times[i]%r.nDaysPerWeek;
-			const Activity* act = &r.internalActivitiesList[i];
+			Activity* act = &r.internalActivitiesList[i];
 			for(int dd=0; dd < act->duration && hour+dd < r.nHoursPerDay; dd++)
 				for(int isg=0; isg < act->iSubgroupsList.count(); isg++){ //isg => index subgroup
 					int sg = act->iSubgroupsList.at(isg); //sg => subgroup
@@ -254,16 +284,15 @@ int Solution::getSubgroupsMatrix(const Rules& r, const Matrix3D<int>** p_a) cons
 					a[sg][day][hour+dd]++;
 				}
 		}
-
-	cached_subgroupsConflicts = conflicts;
-	subgroupsMatrixReady = true;
-
+		
+	this->changedForMatrixCalculation=false;
+		
 	return conflicts;
 }
 
 //The following 2 functions (getTeachersTimetable & getSubgroupsTimetable)
 //are very similar to the above 2 ones (getTeachersMatrix & getSubgroupsMatrix)
-void Solution::getTeachersTimetable(const Rules &r, Matrix3D<int>& a, Matrix3D<QList<int> >& b) const {
+void Solution::getTeachersTimetable(Rules& r, Matrix3D<int>& a, Matrix3D<QList<int>>& b){
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 	
@@ -276,8 +305,8 @@ void Solution::getTeachersTimetable(const Rules &r, Matrix3D<int>& a, Matrix3D<Q
 			for(k=0; k<r.nHoursPerDay; k++)
 				a[i][j][k]=UNALLOCATED_ACTIVITY;
 
-	const Activity *act;
-	for(i=0; i<r.nInternalActivities; i++) 
+	Activity *act;
+	for(i=0; i<r.nInternalActivities; i++)
 		if(this->times[i]!=UNALLOCATED_TIME) {
 			act=&r.internalActivitiesList[i];
 			int hour=this->times[i]/r.nDaysPerWeek;
@@ -373,7 +402,6 @@ void Solution::getTeachersTimetable(const Rules &r, Matrix3D<int>& a, Matrix3D<Q
 		}
 	}
 	//END of Code contributed by Volker Dirr (https://timetabling.de/) END
-	//bool visited[MAX_TEACHERS];
 	Matrix1D<bool> visited;
 	visited.resize(r.nInternalTeachers);
 	for(d=0; d<r.nDaysPerWeek; d++){
@@ -381,7 +409,7 @@ void Solution::getTeachersTimetable(const Rules &r, Matrix3D<int>& a, Matrix3D<Q
 			for(tch=0; tch<r.nInternalTeachers; tch++)
 				visited[tch]=false;
 			for(int tfp=0; tfp<TEACHERS_FREE_PERIODS_N_CATEGORIES; tfp++){
-				for(int tch : qAsConst(b[tfp][d][h])){
+				for(int tch : std::as_const(b[tfp][d][h])){
 					assert(!visited[tch]);
 					visited[tch]=true;
 				}
@@ -390,7 +418,7 @@ void Solution::getTeachersTimetable(const Rules &r, Matrix3D<int>& a, Matrix3D<Q
 	}
 }
 
-void Solution::getSubgroupsTimetable(const Rules &r, Matrix3D<int>& a) const {
+void Solution::getSubgroupsTimetable(Rules& r, Matrix3D<int>& a){
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 	
@@ -402,7 +430,7 @@ void Solution::getSubgroupsTimetable(const Rules &r, Matrix3D<int>& a) const {
 			for(k=0; k<r.nHoursPerDay; k++)
 				a[i][j][k]=UNALLOCATED_ACTIVITY;
 
-	const Activity *act;
+	Activity *act;
 	for(i=0; i<r.nInternalActivities; i++)
 		if(this->times[i]!=UNALLOCATED_TIME) {
 			act=&r.internalActivitiesList[i];
@@ -421,21 +449,14 @@ void Solution::getSubgroupsTimetable(const Rules &r, Matrix3D<int>& a) const {
 }
 
 int Solution::getRoomsMatrix(
-	const Rules& r,
-	const Matrix3D<int>** p_a) const
+	Rules& r,
+	Matrix3D<int>& a)
 {
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 
-	if (roomsMatrixReady) {
-		*p_a = &cached_roomsMatrix;
-		return cached_roomsConflicts;
-	}
-
 	int conflicts=0;
 	
-	*p_a = &cached_roomsMatrix;
-	Matrix3D<int>& a = cached_roomsMatrix;
 	a.resize(r.nInternalRooms, r.nDaysPerWeek, r.nHoursPerDay);
 
 	int i;
@@ -447,40 +468,55 @@ int Solution::getRoomsMatrix(
 	for(i=0; i<r.nInternalActivities; i++){
 		int room=this->rooms[i];
 		
-		if(times[i]!=UNALLOCATED_TIME && room!=UNALLOCATED_SPACE && room!=UNSPECIFIED_ROOM) {
+		if(times[i]!=UNALLOCATED_TIME && room!=UNALLOCATED_SPACE && room!=UNSPECIFIED_ROOM){
 			int hour=times[i]/r.nDaysPerWeek;
 			int day=times[i]%r.nDaysPerWeek;
 			
-			const Activity* act=&r.internalActivitiesList[i];
+			Activity* act=&r.internalActivitiesList[i];
 			for(int dd=0; dd<act->duration && hour+dd<r.nHoursPerDay; dd++){
-				int tmp=a[room][day][hour+dd];
-				conflicts += tmp==0 ? 0 : 1;
-				a[room][day][hour+dd]++;
+				if(r.internalRoomsList[room]->isVirtual==false){
+					int tmp=a[room][day][hour+dd];
+					conflicts += tmp==0 ? 0 : 1;
+					a[room][day][hour+dd]++;
+				}
+				else{
+					a[room][day][hour+dd]++;
+
+					for(int rr : std::as_const(realRoomsList[i])){
+						int tmp=a[rr][day][hour+dd];
+						conflicts += tmp==0 ? 0 : 1;
+						a[rr][day][hour+dd]++;
+					}
+				}
 			}
 		}
 	}
 	
-	cached_roomsConflicts = conflicts;
-	roomsMatrixReady = true;
-
+	this->changedForMatrixCalculation=false;
+	
 	return conflicts;
 }
 
-void Solution::getRoomsTimetable(const Rules &r,
-	Matrix3D<int>& a) const
+void Solution::getRoomsTimetable(
+	Rules& r,
+	Matrix3D<int>& a,
+	Matrix3D<QList<int>>& va)
 {
 	assert(r.initialized);
 	assert(r.internalStructureComputed);
 	
 	a.resize(r.nInternalRooms, r.nDaysPerWeek, r.nHoursPerDay);
+	va.resize(r.nInternalRooms, r.nDaysPerWeek, r.nHoursPerDay);
 	
 	int i, j, k;
 	for(i=0; i<r.nInternalRooms; i++)
 		for(j=0; j<r.nDaysPerWeek; j++)
-			for(k=0; k<r.nHoursPerDay; k++)
+			for(k=0; k<r.nHoursPerDay; k++){
 				a[i][j][k]=UNALLOCATED_ACTIVITY;
+				va[i][j][k].clear();
+			}
 
-	const Activity *act;
+	Activity *act;
 	for(i=0; i<r.nInternalActivities; i++){
 		act=&r.internalActivitiesList[i];
 		int room=this->rooms[i];
@@ -491,9 +527,55 @@ void Solution::getRoomsTimetable(const Rules &r,
 		
 			for(int dd=0; dd < act->duration; dd++){
 				assert(hour+dd<r.nHoursPerDay);
+		
+				if(r.internalRoomsList[room]->isVirtual==false){
+					assert(a[room][day][hour+dd]==UNALLOCATED_ACTIVITY);
+					a[room][day][hour+dd]=i;
+				}
+				else{
+					assert(a[room][day][hour+dd]==UNALLOCATED_ACTIVITY);
+					va[room][day][hour+dd].append(i);
+					for(int rr : std::as_const(realRoomsList[i])){
+						assert(a[rr][day][hour+dd]==UNALLOCATED_ACTIVITY);
+						a[rr][day][hour+dd]=i;
+					}
+				}
+			}
+		}
+	}
+}
+
+void Solution::getBuildingsTimetable(
+	Rules& r,
+	Matrix3D<QList<int>>& a)
+{
+	assert(r.initialized);
+	assert(r.internalStructureComputed);
+	
+	a.resize(r.nInternalBuildings, r.nDaysPerWeek, r.nHoursPerDay);
+	
+	int i, j, k;
+	for(i=0; i<r.nInternalBuildings; i++)
+		for(j=0; j<r.nDaysPerWeek; j++)
+			for(k=0; k<r.nHoursPerDay; k++)
+				a[i][j][k].clear();
+
+	Activity *act;
+	for(i=0; i<r.nInternalActivities; i++){
+		act=&r.internalActivitiesList[i];
+		int room=this->rooms[i];
+		if(room!=UNALLOCATED_SPACE && room!=UNSPECIFIED_ROOM){
+			int building=r.internalRoomsList[room]->buildingIndex;
 			
-				assert(a[room][day][hour+dd]==UNALLOCATED_ACTIVITY);
-				a[room][day][hour+dd]=i;
+			if(times[i]!=UNALLOCATED_TIME && building>=0){
+				int hour=times[i]/r.nDaysPerWeek;
+				int day=times[i]%r.nDaysPerWeek;
+				
+				for(int dd=0; dd < act->duration; dd++){
+					assert(hour+dd<r.nHoursPerDay);
+					
+					a[building][day][hour+dd].append(i);
+				}
 			}
 		}
 	}

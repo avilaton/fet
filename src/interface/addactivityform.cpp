@@ -2,8 +2,8 @@
                           addactivityform.cpp  -  description
                              -------------------
     begin                : Wed Apr 23 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -26,15 +26,11 @@
 
 #include "activityplanningform.h"
 
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
 
 #include <QDialog>
 
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 #include <QtWidgets>
 #else
 #include <QtGui>
@@ -51,6 +47,9 @@
 #include <QObject>
 #include <QMetaObject>
 
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
 QSpinBox* AddActivityForm::dur(int i)
 {
 	assert(i>=0 && i<durList.count());
@@ -65,43 +64,18 @@ QCheckBox* AddActivityForm::activ(int i)
 	return activList.at(i);
 }
 
-void AddActivityForm::setupAddRemoveKeyFilters()
-{
-	addRemoveTeacherKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveTeacherKeyFilter->setAddDstCallback("addTeacher");
-	allTeachersListWidget->installEventFilter(addRemoveTeacherKeyFilter);
-
-	addRemoveSelectedTeacherKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedTeacherKeyFilter->setRemoveDstCallback("removeTeacher");
-	selectedTeachersListWidget->installEventFilter(addRemoveSelectedTeacherKeyFilter);
-
-	addRemoveStudentKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveStudentKeyFilter->setAddDstCallback("addStudents");
-	allStudentsListWidget->installEventFilter(addRemoveStudentKeyFilter);
-
-	addRemoveSelectedStudentKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedStudentKeyFilter->setRemoveDstCallback("removeStudents");
-	selectedStudentsListWidget->installEventFilter(addRemoveSelectedStudentKeyFilter);
-
-	addRemoveActivityTagKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveActivityTagKeyFilter->setAddDstCallback("addActivityTag");
-	allActivityTagsListWidget->installEventFilter(addRemoveActivityTagKeyFilter);
-
-	addRemoveSelectedActivityTagKeyFilter = new AddRemoveByKeyPress(this);
-	addRemoveSelectedActivityTagKeyFilter->setRemoveDstCallback("removeActivityTag");
-	selectedActivityTagsListWidget->installEventFilter(addRemoveSelectedActivityTagKeyFilter);
-}
-
 AddActivityForm::AddActivityForm(QWidget* parent, const QString& teacherName, const QString& studentsSetName, const QString& subjectName, const QString& activityTagName): QDialog(parent)
 {
 	setupUi(this);
 
-	for(Teacher* tch : qAsConst(gt.rules.teachersList))
-		teacherNamesSet.insert(tch->name);
-	for(Subject* sbj : qAsConst(gt.rules.subjectsList))
-		subjectNamesSet.insert(sbj->name);
-	for(ActivityTag* at : qAsConst(gt.rules.activityTagsList))
-		activityTagNamesSet.insert(at->name);
+	studentsSeparatelyCheckBox->setChecked(false);
+
+	for(Teacher* tch : std::as_const(gt.rules.teachersList))
+		teachersNamesSet.insert(tch->name);
+	for(Subject* sbj : std::as_const(gt.rules.subjectsList))
+		subjectsNamesSet.insert(sbj->name);
+	for(ActivityTag* at : std::as_const(gt.rules.activityTagsList))
+		activityTagsNamesSet.insert(at->name);
 	
 	allTeachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedTeachersListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -110,88 +84,16 @@ AddActivityForm::AddActivityForm(QWidget* parent, const QString& teacherName, co
 	allActivityTagsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedActivityTagsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
+	splitSpinBox->setMinimum(1);
 	splitSpinBox->setMaximum(MAX_SPLIT_OF_AN_ACTIVITY);
-
-	durList.clear();
-	durList.append(duration1SpinBox);
-	durList.append(duration2SpinBox);
-	durList.append(duration3SpinBox);
-	durList.append(duration4SpinBox);
-	durList.append(duration5SpinBox);
-	durList.append(duration6SpinBox);
-	durList.append(duration7SpinBox);
-	durList.append(duration8SpinBox);
-	durList.append(duration9SpinBox);
-	durList.append(duration10SpinBox);
-	durList.append(duration11SpinBox);
-	durList.append(duration12SpinBox);
-	durList.append(duration13SpinBox);
-	durList.append(duration14SpinBox);
-	durList.append(duration15SpinBox);
-	durList.append(duration16SpinBox);
-	durList.append(duration17SpinBox);
-	durList.append(duration18SpinBox);
-	durList.append(duration19SpinBox);
-	durList.append(duration20SpinBox);
-	durList.append(duration21SpinBox);
-	durList.append(duration22SpinBox);
-	durList.append(duration23SpinBox);
-	durList.append(duration24SpinBox);
-	durList.append(duration25SpinBox);
-	durList.append(duration26SpinBox);
-	durList.append(duration27SpinBox);
-	durList.append(duration28SpinBox);
-	durList.append(duration29SpinBox);
-	durList.append(duration30SpinBox);
-	durList.append(duration31SpinBox);
-	durList.append(duration32SpinBox);
-	durList.append(duration33SpinBox);
-	durList.append(duration34SpinBox);
-	durList.append(duration35SpinBox);
+	splitSpinBox->setValue(1);
 	
-	for(int i=0; i<MAX_SPLIT_OF_AN_ACTIVITY; i++) {
-		dur(i)->setMaximum(gt.rules.nHoursPerDay);
-		connect(durList[i], SIGNAL(valueChanged(int)), this, SLOT(rewriteSplitLineEdit()));
-	}
-
+	durList.clear();
 	activList.clear();
-	activList.append(active1CheckBox);
-	activList.append(active2CheckBox);
-	activList.append(active3CheckBox);
-	activList.append(active4CheckBox);
-	activList.append(active5CheckBox);
-	activList.append(active6CheckBox);
-	activList.append(active7CheckBox);
-	activList.append(active8CheckBox);
-	activList.append(active9CheckBox);
-	activList.append(active10CheckBox);
-	activList.append(active11CheckBox);
-	activList.append(active12CheckBox);
-	activList.append(active13CheckBox);
-	activList.append(active14CheckBox);
-	activList.append(active15CheckBox);
-	activList.append(active16CheckBox);
-	activList.append(active17CheckBox);
-	activList.append(active18CheckBox);
-	activList.append(active19CheckBox);
-	activList.append(active20CheckBox);
-	activList.append(active21CheckBox);
-	activList.append(active22CheckBox);
-	activList.append(active23CheckBox);
-	activList.append(active24CheckBox);
-	activList.append(active25CheckBox);
-	activList.append(active26CheckBox);
-	activList.append(active27CheckBox);
-	activList.append(active28CheckBox);
-	activList.append(active29CheckBox);
-	activList.append(active30CheckBox);
-	activList.append(active31CheckBox);
-	activList.append(active32CheckBox);
-	activList.append(active33CheckBox);
-	activList.append(active34CheckBox);
-	activList.append(active35CheckBox);
 
-	QSettings settings;
+	populateSubactivitiesTabWidget(splitSpinBox->value());
+
+	QSettings settings(COMPANY, PROGRAM);
 
 	subgroupsCheckBox->setChecked(settings.value(this->metaObject()->className()+QString("/show-subgroups-check-box-state"), "false").toBool());
 	groupsCheckBox->setChecked(settings.value(this->metaObject()->className()+QString("/show-groups-check-box-state"), "true").toBool());
@@ -200,35 +102,26 @@ AddActivityForm::AddActivityForm(QWidget* parent, const QString& teacherName, co
 	allTeachersRadioButton->setChecked(settings.value(this->metaObject()->className()+QString("/all-teachers-radio-button-state"), "true").toBool());
 	qualifiedTeachersRadioButton->setChecked(settings.value(this->metaObject()->className()+QString("/qualified-teachers-radio-button-state"), "false").toBool());
 
-	connect(subgroupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showSubgroupsChanged()));
-	connect(groupsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showGroupsChanged()));
-	connect(yearsCheckBox, SIGNAL(toggled(bool)), this, SLOT(showYearsChanged()));
+	connect(subgroupsCheckBox, &QCheckBox::toggled, this, &AddActivityForm::showSubgroupsChanged);
+	connect(groupsCheckBox, &QCheckBox::toggled, this, &AddActivityForm::showGroupsChanged);
+	connect(yearsCheckBox, &QCheckBox::toggled, this, &AddActivityForm::showYearsChanged);
 
-	connect(splitSpinBox, SIGNAL(valueChanged(int)), this, SLOT(splitChanged()));
+	connect(splitSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &AddActivityForm::splitChanged);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addActivityPushButton, SIGNAL(clicked()), this, SLOT(addActivity()));
-	connect(helpPushButton, SIGNAL(clicked()), this, SLOT(help()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddActivityForm::close);
+	connect(addActivityPushButton, &QPushButton::clicked, this, &AddActivityForm::addActivity);
+	connect(helpPushButton, &QPushButton::clicked, this, &AddActivityForm::help);
 
-	connect(allTeachersListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addTeacher()));
-	connect(selectedTeachersListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeTeacher()));
-	connect(allStudentsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addStudents()));
-	connect(selectedStudentsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeStudents()));
-	connect(allActivityTagsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addActivityTag()));
-	connect(selectedActivityTagsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeActivityTag()));
-	setupAddRemoveKeyFilters();
+	connect(allTeachersListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::addTeacher);
+	connect(selectedTeachersListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::removeTeacher);
+	connect(allStudentsListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::addStudents);
+	connect(selectedStudentsListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::removeStudents);
+	connect(allActivityTagsListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::addActivityTag);
+	connect(selectedActivityTagsListWidget, &QListWidget::itemDoubleClicked, this, &AddActivityForm::removeActivityTag);
 
-	connect(clearActivityTagPushButton, SIGNAL(clicked()), this, SLOT(clearActivityTags()));
-	connect(clearStudentsPushButton, SIGNAL(clicked()), this, SLOT(clearStudents()));
-	connect(clearTeacherPushButton, SIGNAL(clicked()), this, SLOT(clearTeachers()));
-
-	connect(minDayDistanceSpinBox, SIGNAL(valueChanged(int)), this, SLOT(minDaysChanged()));
-
-	connect(splitLineEdit, SIGNAL(textChanged(const QString &)), this, SLOT(splitLineEditTextChanged(const QString &)));
-	for (int i = 0; i < MAX_SPLIT_OF_AN_ACTIVITY; i++)
-		connect(activList[i], SIGNAL(toggled(bool)), this, SLOT(rewriteSplitLineEdit()));
-
-	connect(createSubjectToolButton, SIGNAL(clicked(bool)), this, SLOT(createSubject()));
+	connect(clearActivityTagsPushButton, &QPushButton::clicked, this, &AddActivityForm::clearActivityTags);
+	connect(clearStudentsPushButton, &QPushButton::clicked, this, &AddActivityForm::clearStudents);
+	connect(clearTeachersPushButton, &QPushButton::clicked, this, &AddActivityForm::clearTeachers);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -264,31 +157,33 @@ AddActivityForm::AddActivityForm(QWidget* parent, const QString& teacherName, co
 	updateActivityTagsListWidget();
 
 	//after updateSubjectsComboBox
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(updateAllTeachersListWidget()));
-	connect(allTeachersRadioButton, SIGNAL(toggled(bool)), this, SLOT(allTeachersRadioButtonToggled(bool)));
-	connect(qualifiedTeachersRadioButton, SIGNAL(toggled(bool)), this, SLOT(qualifiedTeachersRadioButtonToggled(bool)));
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddActivityForm::updateAllTeachersListWidget);
+	connect(allTeachersRadioButton, &QRadioButton::toggled, this, &AddActivityForm::allTeachersRadioButtonToggled);
+	connect(qualifiedTeachersRadioButton, &QRadioButton::toggled, this, &AddActivityForm::qualifiedTeachersRadioButtonToggled);
 	updateAllTeachersListWidget();
 	selectedTeachersListWidget->clear();
 
-	minDayDistanceSpinBox->setMaximum(gt.rules.nDaysPerWeek);
-	minDayDistanceSpinBox->setMinimum(0);
-	minDayDistanceSpinBox->setValue(1);
+	if(gt.rules.mode!=MORNINGS_AFTERNOONS)
+		minDaysDistanceSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
+	else
+		minDaysDistanceSpinBox->setMaximum(gt.rules.nDaysPerWeek/2-1);
+	minDaysDistanceSpinBox->setMinimum(0);
+	minDaysDistanceSpinBox->setValue(1);
+	
+	connect(minDaysDistanceSpinBox, qOverload<int>(&QSpinBox::valueChanged), this, &AddActivityForm::minDaysChanged);
 	
 	int nSplit=splitSpinBox->value();
-	for(int i=0; i<MAX_SPLIT_OF_AN_ACTIVITY; i++){
-		if(i<nSplit)
-			subactivitiesTabWidget->setTabEnabled(i, true);
-		else
-			subactivitiesTabWidget->setTabEnabled(i, false);
-	}
+
+	halfCheckBox->setChecked(false);
+	halfCheckBox->setEnabled(nSplit>=2 && gt.rules.mode==MORNINGS_AFTERNOONS);
+	minDaysDistanceTextLabel->setEnabled(nSplit>=2);
+	minDaysDistanceSpinBox->setEnabled(nSplit>=2);
+	percentageTextLabel->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
+	percentageLineEdit->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
+	forceConsecutiveCheckBox->setChecked(true);
+	forceConsecutiveCheckBox->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
 	
-	minDayDistanceTextLabel->setEnabled(nSplit>=2);
-	minDayDistanceSpinBox->setEnabled(nSplit>=2);
-	percentageTextLabel->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
-	percentageLineEdit->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
-	forceConsecutiveCheckBox->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
-	
-	subactivitiesTabWidget->setCurrentIndex(0);
+	connect(halfCheckBox, &QCheckBox::toggled, this, &AddActivityForm::halfCheckBoxToggled);
 	
 	nStudentsSpinBox->setMinimum(-1);
 	nStudentsSpinBox->setMaximum(MAX_ROOM_CAPACITY);
@@ -307,13 +202,9 @@ AddActivityForm::AddActivityForm(QWidget* parent, const QString& teacherName, co
 
 AddActivityForm::~AddActivityForm()
 {
-	delete addRemoveTeacherKeyFilter;
-	delete addRemoveStudentKeyFilter;
-	delete addRemoveActivityTagKeyFilter;
-
 	saveFETDialogGeometry(this);
 	
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 
 	settings.setValue(this->metaObject()->className()+QString("/show-subgroups-check-box-state"), subgroupsCheckBox->isChecked());
 	settings.setValue(this->metaObject()->className()+QString("/show-groups-check-box-state"), groupsCheckBox->isChecked());
@@ -321,6 +212,61 @@ AddActivityForm::~AddActivityForm()
 
 	settings.setValue(this->metaObject()->className()+QString("/qualified-teachers-radio-button-state"), qualifiedTeachersRadioButton->isChecked());
 	settings.setValue(this->metaObject()->className()+QString("/all-teachers-radio-button-state"), allTeachersRadioButton->isChecked());
+}
+
+void AddActivityForm::populateSubactivitiesTabWidget(int n)
+{
+	int oldIndex=subactivitiesTabWidget->currentIndex();
+
+	int oldN=subactivitiesTabWidget->count();
+	if(oldN>n){
+		for(int i=oldN-1; i>=n; i--){
+			QWidget* wd=subactivitiesTabWidget->widget(i);
+			subactivitiesTabWidget->removeTab(i);
+			assert(durList.count()>0);
+			durList.removeLast();
+			assert(activList.count()>0);
+			activList.removeLast();
+			delete wd;
+		}
+
+		if(oldIndex<subactivitiesTabWidget->count())
+			subactivitiesTabWidget->setCurrentIndex(oldIndex);
+		else
+			subactivitiesTabWidget->setCurrentIndex(subactivitiesTabWidget->count()-1);
+	}
+	else if(oldN<n){
+		for(int i=oldN; i<n; i++){
+			QWidget* wd=new QWidget(subactivitiesTabWidget);
+			
+			QCheckBox* cb=new QCheckBox(tr("Active", "It refers to a (sub)activity"), wd);
+			cb->setChecked(true);
+			QSpinBox* sb=new QSpinBox(wd);
+			sb->setMinimum(1);
+			sb->setMaximum(MAX_HOURS_PER_DAY);
+			sb->setValue(1);
+			QLabel* ld=new QLabel(tr("Duration"), wd);
+			
+			QHBoxLayout* hld=new QHBoxLayout();
+			hld->addWidget(ld);
+			hld->addWidget(sb);
+			
+			QHBoxLayout* hla=new QHBoxLayout();
+			hla->addStretch();
+			hla->addWidget(cb);
+			
+			QVBoxLayout* vl=new QVBoxLayout(wd);
+			vl->addLayout(hld);
+			vl->addLayout(hla);
+			
+			subactivitiesTabWidget->addTab(wd, QString::number(i+1));
+			
+			durList.append(sb);
+			activList.append(cb);
+		}
+
+		subactivitiesTabWidget->setCurrentIndex(subactivitiesTabWidget->count()-1);
+	}
 }
 
 void AddActivityForm::allTeachersRadioButtonToggled(bool toggled)
@@ -338,6 +284,7 @@ void AddActivityForm::qualifiedTeachersRadioButtonToggled(bool toggled)
 void AddActivityForm::updateAllTeachersListWidget()
 {
 	allTeachersListWidget->clear();
+	
 	for(int i=0; i<gt.rules.teachersList.size(); i++){
 		Teacher* tch=gt.rules.teachersList[i];
 		if(allTeachersRadioButton->isChecked() || subjectsComboBox->currentIndex()==-1){
@@ -346,7 +293,7 @@ void AddActivityForm::updateAllTeachersListWidget()
 		else{
 			assert(qualifiedTeachersRadioButton->isChecked());
 			assert(subjectsComboBox->currentText()!="");
-			assert(subjectNamesSet.contains(subjectsComboBox->currentText()));
+			assert(subjectsNamesSet.contains(subjectsComboBox->currentText()));
 			if(tch->qualifiedSubjectsHash.contains(subjectsComboBox->currentText())){
 				allTeachersListWidget->addItem(tch->name);
 			}
@@ -365,8 +312,6 @@ void AddActivityForm::addTeacher()
 			
 	selectedTeachersListWidget->addItem(allTeachersListWidget->currentItem()->text());
 	selectedTeachersListWidget->setCurrentRow(selectedTeachersListWidget->count()-1);
-
-	selectedTeachersTextLabel->setText(QCoreApplication::translate("AddActivityForm_template", "Selected", "It refers to a list of selected teachers")+QString(" (%1)").arg(selectedTeachersListWidget->count()));
 }
 
 void AddActivityForm::removeTeacher()
@@ -383,8 +328,6 @@ void AddActivityForm::removeTeacher()
 		selectedTeachersListWidget->setCurrentRow(i);
 	else
 		selectedTeachersListWidget->setCurrentRow(selectedTeachersListWidget->count()-1);
-
-	selectedTeachersTextLabel->setText(QCoreApplication::translate("AddActivityForm_template", "Selected", "It refers to a list of selected teachers")+QString(" (%1)").arg(selectedTeachersListWidget->count()));
 }
 
 void AddActivityForm::addStudents()
@@ -502,15 +445,19 @@ void AddActivityForm::updateStudentsListWidget()
 		for(int j=0; j<sty->groupsList.size(); j++){
 			StudentsGroup* stg=sty->groupsList[j];
 			if(showGroups){
-				QString ident=QString(INDENT, ' ');
-				allStudentsListWidget->addItem(ident+stg->name);
+				QString begin=QString("");
+				QString end=QString("");
+				begin=QString(INDENT, ' ');
+				allStudentsListWidget->addItem(begin+stg->name+end);
 				canonicalStudentsSetsNames.append(stg->name);
 			}
 			if(showSubgroups) for(int k=0; k<stg->subgroupsList.size(); k++){
 				StudentsSubgroup* sts=stg->subgroupsList[k];
 
-				QString ident=QString(2*INDENT, ' ');
-				allStudentsListWidget->addItem(ident+sts->name);
+				QString begin=QString("");
+				QString end=QString("");
+				begin=QString(2*INDENT, ' ');
+				allStudentsListWidget->addItem(begin+sts->name+end);
 				canonicalStudentsSetsNames.append(sts->name);
 			}
 		}
@@ -520,56 +467,18 @@ void AddActivityForm::updateStudentsListWidget()
 	allStudentsListWidget->verticalScrollBar()->setValue(q);
 }
 
-void AddActivityForm::splitLineEditTextChanged(const QString &text)
-{
-	QString cleanText(text);
-	cleanText.remove(QRegExp("\\s*"));
-	QStringList divisions = cleanText.split("+", QString::SkipEmptyParts);
-	if (divisions.count() > MAX_SPLIT_OF_AN_ACTIVITY) {
-		// FIXM Emit error message
-		return;
-	}
-	splitSpinBox->setValue(divisions.count());
-	for (int i = 0; i < divisions.count(); i++) {
-		if (divisions[i].contains("!")) {
-			divisions[i].remove("!");
-			activList[i]->setChecked(false);
-		} else {
-			activList[i]->setChecked(true);
-		}
-		durList[i]->setValue(divisions[i].toInt());
-	}
-}
-
-#include "interface/subjectsform.h"
-
-void AddActivityForm::createSubject()
-{
-	SubjectsForm form(this);
-	bool added = form.addSubject();
-	if (!added)
-		return;
-	updateSubjectsComboBox();
-	int addedSubjectIndex = subjectsComboBox->count()-1;
-	subjectsComboBox->setCurrentIndex(addedSubjectIndex);
-	subjectNamesSet.insert(subjectsComboBox->currentText());
-}
-
 void AddActivityForm::splitChanged()
 {
 	int nSplit=splitSpinBox->value();
 	
-	minDayDistanceTextLabel->setEnabled(nSplit>=2);
-	minDayDistanceSpinBox->setEnabled(nSplit>=2);
-	percentageTextLabel->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
-	percentageLineEdit->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
-	forceConsecutiveCheckBox->setEnabled(nSplit>=2 && minDayDistanceSpinBox->value()>0);
+	halfCheckBox->setEnabled(nSplit>=2 && gt.rules.mode==MORNINGS_AFTERNOONS);
+	minDaysDistanceTextLabel->setEnabled(nSplit>=2);
+	minDaysDistanceSpinBox->setEnabled(nSplit>=2);
+	percentageTextLabel->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
+	percentageLineEdit->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
+	forceConsecutiveCheckBox->setEnabled(nSplit>=2 && minDaysDistanceSpinBox->value()>0);
 
-	for(int i=0; i<MAX_SPLIT_OF_AN_ACTIVITY; i++)
-		if(i<nSplit)
-			subactivitiesTabWidget->setTabEnabled(i, true);
-		else
-			subactivitiesTabWidget->setTabEnabled(i, false);
+	populateSubactivitiesTabWidget(nSplit);
 }
 
 SecondMinDaysDialog::SecondMinDaysDialog(QWidget* p, int minD, double w) :QDialog(p)
@@ -588,7 +497,7 @@ SecondMinDaysDialog::SecondMinDaysDialog(QWidget* p, int minD, double w) :QDialo
 	  "too tight, but you can remove the second constraint at any time).").arg(minD-1);
 	l+="\n\n";
 	l+=tr("Note: 95% is usually enough for min days constraints referring to same activities. "
-	  "The weights are cumulated if referring to the same activities. If you have 2 constraints with say 95%"
+	  "The weights are accumulated if referring to the same activities. If you have 2 constraints with say 95%"
 	  " (say min n days and min n-1 days), "
 	  "the min n days constraint is skipped with probability 5%, then min n-1 days constraint is skipped with "
 	  "probability 0.25%=5%*5%, so you'll get in 99.75% cases the min n-1 days constraint respected.");
@@ -647,8 +556,8 @@ SecondMinDaysDialog::SecondMinDaysDialog(QWidget* p, int minD, double w) :QDialo
 	hl->addWidget(yes);
 	hl->addWidget(no);
 	
-	connect(yes, SIGNAL(clicked()), this, SLOT(yesPressed()));
-	connect(no, SIGNAL(clicked()), this, SLOT(reject()));
+	connect(yes, &QPushButton::clicked, this, &SecondMinDaysDialog::yesPressed);
+	connect(no, &QPushButton::clicked, this, &SecondMinDaysDialog::reject);
 	
 	int ww=this->sizeHint().width();
 	if(ww>1000)
@@ -688,6 +597,11 @@ void SecondMinDaysDialog::yesPressed()
 
 void AddActivityForm::addActivity()
 {
+	if(studentsSeparatelyCheckBox->isChecked()){
+		addMultipleActivities();
+		return;
+	}
+
 	double weight;
 	QString tmp=percentageLineEdit->text();
 	weight_sscanf(tmp, "%lf", &weight);
@@ -699,7 +613,7 @@ void AddActivityForm::addActivity()
 
 	//subject
 	QString subject_name=subjectsComboBox->currentText();
-	bool found=subjectNamesSet.contains(subject_name);
+	bool found=subjectsNamesSet.contains(subject_name);
 	/*int subject_index=gt.rules.searchSubject(subject_name);
 	if(subject_index<0){*/
 	if(!found){
@@ -711,7 +625,7 @@ void AddActivityForm::addActivity()
 	QStringList activity_tags_names;
 	for(int i=0; i<selectedActivityTagsListWidget->count(); i++){
 		//assert(gt.rules.searchActivityTag(selectedActivityTagsListWidget->item(i)->text())>=0);
-		assert(activityTagNamesSet.contains(selectedActivityTagsListWidget->item(i)->text()));
+		assert(activityTagsNamesSet.contains(selectedActivityTagsListWidget->item(i)->text()));
 		activity_tags_names.append(selectedActivityTagsListWidget->item(i)->text());
 	}
 
@@ -728,7 +642,7 @@ void AddActivityForm::addActivity()
 	else{
 		for(int i=0; i<selectedTeachersListWidget->count(); i++){
 			//assert(gt.rules.searchTeacher(selectedTeachersListWidget->item(i)->text())>=0);
-			assert(teacherNamesSet.contains(selectedTeachersListWidget->item(i)->text()));
+			assert(teachersNamesSet.contains(selectedTeachersListWidget->item(i)->text()));
 			teachers_names.append(selectedTeachersListWidget->item(i)->text());
 		}
 	}
@@ -752,7 +666,7 @@ void AddActivityForm::addActivity()
 	}
 	else{
 		for(int i=0; i<selectedStudentsListWidget->count(); i++){
-			//assert(gt.rules.searchStudentsSet(selectedStudentsListWidget->item(i)->text())!=NULL);
+			//assert(gt.rules.searchStudentsSet(selectedStudentsListWidget->item(i)->text())!=nullptr);
 			/*assert(numberOfStudentsHash.contains(selectedStudentsListWidget->item(i)->text()));
 			numberOfStudents+=numberOfStudentsHash.value(selectedStudentsListWidget->item(i)->text());*/
 			assert(gt.rules.permanentStudentsHash.contains(selectedStudentsListWidget->item(i)->text()));
@@ -765,7 +679,7 @@ void AddActivityForm::addActivity()
 	}
 
 	if(splitSpinBox->value()==1){ //indivisible activity
-		int duration=duration1SpinBox->value();
+		int duration=dur(0)->value();
 		if(duration<0){
 			QMessageBox::warning(this, tr("FET information"),
 				tr("Invalid duration"));
@@ -773,7 +687,7 @@ void AddActivityForm::addActivity()
 		}
 
 		bool active=false;
-		if(active1CheckBox->isChecked())
+		if(activ(0)->isChecked())
 			active=true;
 
 		int activityid=0; //We set the id of this newly added activity = (the largest existing id + 1)
@@ -783,7 +697,10 @@ void AddActivityForm::addActivity()
 				activityid = act->id;
 		}
 		activityid++;
-		Activity a(activityid, 0, teachers_names, subject_name, activity_tags_names, students_names,
+		
+		int sfid=activityid;
+		
+		Activity a(gt.rules, activityid, 0, teachers_names, subject_name, activity_tags_names, students_names,
 			duration, duration, /*parity,*/ active, (nStudentsSpinBox->value()==-1), nStudentsSpinBox->value(), numberOfStudents);
 
 		bool already_existing=false;
@@ -794,67 +711,132 @@ void AddActivityForm::addActivity()
 		}
 
 		if(already_existing){
-			int t=QMessageBox::question(this, tr("FET question"), 
-				//tr("This activity already exists. Insert it again?"),
+			/*int t=QMessageBox::question(this, tr("FET question"),
 				tr("A similar activity already exists. Do you want to insert current activity?"),
 				tr("Yes"),tr("No"));
-			assert(t==0 || t==1 ||t==-1);
+			assert(t==0 || t==1 || t==-1);
 			if(t==1) //no pressed
 				return;
 			if(t==-1) //Esc pressed
+				return;*/
+			QMessageBox::StandardButton t=QMessageBox::question(this, tr("FET question"),
+				tr("A similar activity already exists. Do you want to insert current activity?"),
+				QMessageBox::Yes | QMessageBox::No);
+			if(t==QMessageBox::No)
 				return;
 		}
 
-		ErrorList errors = gt.rules.addSimpleActivityFast(activityid, 0, teachers_names, subject_name, activity_tags_names,
+		bool tmp=gt.rules.addSimpleActivityFast(this, activityid, 0, teachers_names, subject_name, activity_tags_names,
 			students_names, duration, duration, active,
 			(nStudentsSpinBox->value()==-1), nStudentsSpinBox->value(), numberOfStudents);
-		for (const ErrorCode& erc : qAsConst(errors)) {
-			if (erc.isError())
-				QMessageBox::critical(this, erc.getSeverityTitle(), erc.message);
-			else
-				QMessageBox::warning(this, erc.getSeverityTitle(), erc.message);
-		}
-		if(!errors.hasError())
+		if(tmp){
 			QMessageBox::information(this, tr("FET information"), tr("Activity added"));
-		else
+			
+			gt.rules.addUndoPoint(tr("Added an activity:\nId=%1\nTeachers=%2\nSubject=%3\nActivity tags=%4\n"
+			 "Students=%5")
+			 .arg(sfid).arg(teachers_names.join(", ")).arg(subject_name).arg(activity_tags_names.join(", "))
+			 .arg(students_names.join(", ")));
+		}
+		else{
 			QMessageBox::critical(this, tr("FET information"), tr("Activity NOT added - please report error"));
+		}
 	}
 	else{ //split activity
-		if(minDayDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek){
-			int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
-			 tr("Possible incorrect setting. Are you sure you want to add current activity? See details below:")+"\n\n"+
-			 tr("You want to add a container activity split into more than the number of days per week and also add a constraint min days between activities."
-			  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
-			 "\n\n"+
-			 tr("The best way to add the activities would be:")+
-			 "\n\n"+
-			 tr("1. If you add 'force consecutive if same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
-			  ". Example: 7 activities with duration 1 in a 5 days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
-			  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
-			  "\n\n"+
-			 tr("2. If you don't add 'force consecutive if same day', then add a larger activity split into a number of"
-			  " activities equal with the number of days per week and the remaining components into other larger split activity."
-			  " For example, suppose you need to add 7 activities with duration 1 in a 5 days week. Add 2 larger container activities,"
-			  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
-			  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
-		  	 "\n\n"+
-			 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
-			  ,
-			 tr("Yes"), tr("No"), QString(), 0, 1);
+		if(gt.rules.mode!=MORNINGS_AFTERNOONS){
+			if(minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of days per week and also add a constraint min days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
+				  ". Example: 7 activities with duration 1 in a 5 days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
+				  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 7 activities with duration 1 in a 5 days week. Add 2 larger container activities,"
+				  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
+				  "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
 
-			if(t==1)
-				return;
+				if(t==1)
+					return;
+			}
+		}
+		else{
+			if(!halfCheckBox->isChecked() && minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek/2){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of real days per week and also add a constraint min days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of real days per week"
+				  ". Example: 7 activities with duration 1 in a 5 real days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
+				  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of real days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 7 activities with duration 1 in a 5 real days week. Add 2 larger container activities,"
+				  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
+			  	 "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
+
+				if(t==1)
+					return;
+			}
+			else if(halfCheckBox->isChecked() && minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of days per week and also add a constraint min half days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
+				  ". Example: 12 activities with duration 1 in a 10 days week, then transform into 10 activities with durations: 2,2,1,1,1,1,1,1,1,1 and add a single container"
+				  " activity with these 10 components (possibly raising the weight of added constraint min half days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 12 activities with duration 1 in a 10 days week. Add 2 larger container activities,"
+				  " first one split into 10 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min half days between activities for each of the 2 containers up to 100%)")+
+			  	 "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
+
+				if(t==1)
+					return;
+			}
 		}
 
 		int totalduration;
-		int durations[MAX_SPLIT_OF_AN_ACTIVITY];
-		bool active[MAX_SPLIT_OF_AN_ACTIVITY];
+		QList<int> durations;
+		QList<bool> active;
 		int nsplit=splitSpinBox->value();
 
 		totalduration=0;
 		for(int i=0; i<nsplit; i++){
-			durations[i]=dur(i)->value();
-			active[i]=false;
+			durations.append(dur(i)->value());
+			active.append(false);
 			if(activ(i)->isChecked())
 				active[i]=true;
 
@@ -871,21 +853,18 @@ void AddActivityForm::addActivity()
 		}
 		firstactivityid++;
 
-		int minD=minDayDistanceSpinBox->value();
-		ErrorList errors = gt.rules.addSplitActivityFast(firstactivityid, firstactivityid,
+		int sfid=firstactivityid;
+
+		int minD=minDaysDistanceSpinBox->value();
+		bool tmp=gt.rules.addSplitActivityFast(this, firstactivityid, firstactivityid,
 			teachers_names, subject_name, activity_tags_names, students_names,
 			nsplit, totalduration, durations,
 			active, minD, weight, forceConsecutiveCheckBox->isChecked(),
-			(nStudentsSpinBox->value()==-1), nStudentsSpinBox->value(), numberOfStudents);
-		for (const ErrorCode& erc : qAsConst(errors)) {
-			if (erc.isError())
-				QMessageBox::critical(this, erc.getSeverityTitle(), erc.message);
-			else
-				QMessageBox::warning(this, erc.getSeverityTitle(), erc.message);
-		}
-		if(!errors.hasError()){
+			(nStudentsSpinBox->value()==-1), nStudentsSpinBox->value(), numberOfStudents, halfCheckBox->isChecked());
+		if(tmp){
 			if(minD>1 && weight<100.0){
 				SecondMinDaysDialog second(this, minD, weight);
+				setParentAndOtherThings(&second, this);
 				int code=second.exec();
 
 				if(code==QDialog::Accepted){
@@ -894,7 +873,12 @@ void AddActivityForm::addActivity()
 					for(int i=0; i<nsplit; i++){
 						acts.append(firstactivityid+i);
 					}
-					TimeConstraint* c=new ConstraintMinDaysBetweenActivities(second.weight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+
+					TimeConstraint* c;
+					if(!halfCheckBox->isChecked())
+						c=new ConstraintMinDaysBetweenActivities(second.weight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+					else
+						c=new ConstraintMinHalfDaysBetweenActivities(second.weight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
 					bool tmp=gt.rules.addTimeConstraint(c);
 					assert(tmp);
 				}
@@ -903,6 +887,10 @@ void AddActivityForm::addActivity()
 			QMessageBox::information(this, tr("FET information"), tr("Split activity added."
 			 " Please note that FET currently cannot check for duplicates when adding split activities"
 			 ". It is advisable to check the statistics after adding all the activities"));
+
+			gt.rules.addUndoPoint(tr("Added a split activity:\nFirst activity's id=%1\nTeachers=%2\nSubject=%3\nActivity tags=%4\nStudents=%5\nNumber of subactivities=%6")
+			 .arg(sfid).arg(teachers_names.join(", ")).arg(subject_name).arg(activity_tags_names.join(", "))
+			 .arg(students_names.join(", ")).arg(nsplit));
 		}
 		else
 			QMessageBox::critical(this, tr("FET information"), tr("Split activity NOT added - error???"));
@@ -911,11 +899,343 @@ void AddActivityForm::addActivity()
 	PlanningChanged::increasePlanningCommunicationSpinBox();
 }
 
+void AddActivityForm::addMultipleActivities()
+{
+	assert(studentsSeparatelyCheckBox->isChecked());
+
+	double weight;
+	QString tmp=percentageLineEdit->text();
+	weight_sscanf(tmp, "%lf", &weight);
+	if(percentageLineEdit->isEnabled() && (weight<0.0 || weight>100.0)){
+		QMessageBox::warning(this, tr("FET information"),
+			tr("Invalid weight (percentage) for added constraint min days between activities"));
+		return;
+	}
+
+	//subject
+	QString subject_name=subjectsComboBox->currentText();
+	bool found=subjectsNamesSet.contains(subject_name);
+	/*int subject_index=gt.rules.searchSubject(subject_name);
+	if(subject_index<0){*/
+	if(!found){
+		QMessageBox::warning(this, tr("FET warning"),
+			tr("Invalid subject"));
+		return;
+	}
+
+	QStringList activity_tags_names;
+	for(int i=0; i<selectedActivityTagsListWidget->count(); i++){
+		//assert(gt.rules.searchActivityTag(selectedActivityTagsListWidget->item(i)->text())>=0);
+		assert(activityTagsNamesSet.contains(selectedActivityTagsListWidget->item(i)->text()));
+		activity_tags_names.append(selectedActivityTagsListWidget->item(i)->text());
+	}
+
+	//teachers
+	QStringList teachers_names;
+	if(selectedTeachersListWidget->count()<=0){
+		int t=QMessageBox::question(this, tr("FET question"),
+		 tr("Do you really want to add an activity without teacher(s)?"),
+		 QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+
+		if(t==QMessageBox::No)
+			return;
+	}
+	else{
+		for(int i=0; i<selectedTeachersListWidget->count(); i++){
+			//assert(gt.rules.searchTeacher(selectedTeachersListWidget->item(i)->text())>=0);
+			assert(teachersNamesSet.contains(selectedTeachersListWidget->item(i)->text()));
+			teachers_names.append(selectedTeachersListWidget->item(i)->text());
+		}
+	}
+
+	//students
+	//int numberOfStudents=0;
+	QStringList students_names;
+	if(selectedStudentsListWidget->count()<=1){
+		QMessageBox::warning(this, tr("FET question"),
+		 tr("If you intend to add multiple activities for students (option 'Separately' is checked), please select at least 2 students sets."));
+
+		return;
+	}
+	else{
+		for(int i=0; i<selectedStudentsListWidget->count(); i++){
+			assert(gt.rules.permanentStudentsHash.contains(selectedStudentsListWidget->item(i)->text()));
+			students_names.append(selectedStudentsListWidget->item(i)->text());
+		}
+	}
+
+	if(splitSpinBox->value()==1){ //indivisible activity
+		int duration=dur(0)->value();
+		if(duration<0){
+			QMessageBox::warning(this, tr("FET information"),
+				tr("Invalid duration"));
+			return;
+		}
+
+		bool active=false;
+		if(activ(0)->isChecked())
+			active=true;
+
+		int activityid=0; //We set the id of this newly added activity = (the largest existing id + 1)
+		for(int i=0; i<gt.rules.activitiesList.size(); i++){
+			Activity* act=gt.rules.activitiesList[i];
+			if(act->id > activityid)
+				activityid = act->id;
+		}
+		
+		int cnt_act=0;
+		activityid++;
+		
+		int sfid=activityid;
+
+		for(int st=0; st<students_names.count(); st++){
+			int n1=nStudentsSpinBox->value();
+			int n2;
+			if(n1==-1)
+				n2=gt.rules.permanentStudentsHash.value(students_names.at(st))->numberOfStudents;
+			else
+				n2=nStudentsSpinBox->value();
+			
+			Activity a(gt.rules, activityid, 0, teachers_names, subject_name, activity_tags_names, QStringList(students_names.at(st)),
+				duration, duration, /*parity,*/ active, (nStudentsSpinBox->value()==-1), n1, n2);
+
+			bool already_existing=false;
+			for(int i=0; i<gt.rules.activitiesList.size(); i++){
+				Activity* act=gt.rules.activitiesList[i];
+				if((*act)==a)
+					already_existing=true;
+			}
+	
+			if(already_existing){
+				/*int t=QMessageBox::question(this, tr("FET question"),
+					tr("A similar activity for students set %1 already exists. Do you want to insert current activity?").arg(students_names.at(st)),
+					tr("Yes"),tr("No"));
+				assert(t==0 || t==1 ||t==-1);
+				if(t==1){ //no pressed
+					continue;
+				}
+				if(t==-1){ //Esc pressed
+					continue;
+				}*/
+				
+				QMessageBox::StandardButton t=QMessageBox::question(this, tr("FET question"),
+					tr("A similar activity for students set %1 already exists. Do you want to insert current activity?").arg(students_names.at(st)),
+					QMessageBox::Yes | QMessageBox::No);
+				if(t==QMessageBox::No)
+					return;
+			}
+
+			bool tmp=gt.rules.addSimpleActivityFast(this, activityid, 0, teachers_names, subject_name, activity_tags_names,
+				QStringList(students_names.at(st)), duration, duration, active,
+				(nStudentsSpinBox->value()==-1), n1, n2);
+			if(tmp){
+				cnt_act++;
+				activityid++;
+			}
+		}
+		QMessageBox::information(this, tr("FET information"), tr("%1 activities added").arg(cnt_act));
+
+		gt.rules.addUndoPoint(tr("Added multiple activities:\nFirst activity's id=%1\nTeachers=%2\nSubject=%3\nActivity tags=%4\nStudents (separately)=%5")
+		 .arg(sfid).arg(teachers_names.join(", ")).arg(subject_name).arg(activity_tags_names.join(", "))
+		 .arg(students_names.join(", ")));
+	}
+	else{ //split activity
+		if(gt.rules.mode!=MORNINGS_AFTERNOONS){
+			if(minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of days per week and also add a constraint min days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
+				  ". Example: 7 activities with duration 1 in a 5 days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
+				  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 7 activities with duration 1 in a 5 days week. Add 2 larger container activities,"
+				  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
+			  	 "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
+
+				if(t==1)
+					return;
+			}
+		}
+		else{
+			if(!halfCheckBox->isChecked() && minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek/2){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of real days per week and also add a constraint min days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of real days per week"
+				  ". Example: 7 activities with duration 1 in a 5 real days week, then transform into 5 activities with durations: 2,2,1,1,1 and add a single container activity with these 5 components"
+				  " (possibly raising the weight of added constraint min days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of real days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 7 activities with duration 1 in a 5 real days week. Add 2 larger container activities,"
+				  " first one split into 5 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min days between activities for each of the 2 containers up to 100%)")+
+			  	 "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
+
+				if(t==1)
+					return;
+			}
+			else if(halfCheckBox->isChecked() && minDaysDistanceSpinBox->value()>0 && splitSpinBox->value()>gt.rules.nDaysPerWeek){
+				int t=LongTextMessageBox::largeConfirmation(this, tr("FET confirmation"),
+				 tr("Possible incorrect settings. Are you sure you want to add current activity? See details below:")+"\n\n"+
+				 tr("You want to add a container activity split into more than the number of days per week and also add a constraint min half days between activities."
+				  " This is a very bad practice from the way the algorithm of generation works (it slows down the generation and makes it harder to find a solution).")+
+				 "\n\n"+
+				 tr("The best way to add the activities would be:")+
+				 "\n\n"+
+				 tr("1. If you selected 'consecutive if on the same day', then couple extra activities in pairs to obtain a number of activities equal to the number of days per week"
+				  ". Example: 12 activities with duration 1 in a 10 days week, then transform into 10 activities with durations: 2,2,1,1,1,1,1,1,1,1 and add a single container"
+				  " activity with these 10 components (possibly raising the weight of added constraint min half days between activities up to 100%)")+
+				  "\n\n"+
+				 tr("2. If you didn't select 'consecutive if on the same day', then add a larger activity split into a number of"
+				  " activities equal with the number of days per week and the remaining components into other larger split activity."
+				  " For example, suppose you need to add 12 activities with duration 1 in a 10 days week. Add 2 larger container activities,"
+				  " first one split into 10 activities with duration 1 and second one split into 2 activities with duration 1"
+				  " (possibly raising the weight of added constraints min half days between activities for each of the 2 containers up to 100%)")+
+			  	 "\n\n"+
+				 tr("Note: If the weight of the added constraint min days between activities is 0% or a low value, you can safely ignore this warning.")+
+				  "\n\n"+
+				 tr("Do you want to add current activities as they are now (not recommended) or cancel and edit them as instructed?")
+				  ,
+				 tr("Yes"), tr("No"), QString(), 0, 1);
+
+				if(t==1)
+					return;
+			}
+		}
+
+		int totalduration;
+		QList<int> durations;
+		QList<bool> active;
+		int nsplit=splitSpinBox->value();
+
+		totalduration=0;
+		for(int i=0; i<nsplit; i++){
+			durations.append(dur(i)->value());
+			active.append(false);
+			if(activ(i)->isChecked())
+				active[i]=true;
+
+			totalduration+=durations[i];
+		}
+
+		//the group id of this split activity and the id of the first partial activity
+		//it is the maximum already existing id + 1
+		int firstactivityid=0;
+		for(int i=0; i<gt.rules.activitiesList.size(); i++){
+			Activity* act=gt.rules.activitiesList[i];
+			if(act->id > firstactivityid)
+				firstactivityid = act->id;
+		}
+		firstactivityid++;
+
+		int sfid=firstactivityid;
+
+		int cnt_act=0;
+		
+		bool begin=true;
+		bool addSecondConstraint=false;
+		double secondWeight=-1.0;
+		
+		for(int st=0; st<students_names.count(); st++){
+			int n1=nStudentsSpinBox->value();
+			int n2;
+			if(n1==-1)
+				n2=gt.rules.permanentStudentsHash.value(students_names.at(st))->numberOfStudents;
+			else
+				n2=nStudentsSpinBox->value();
+
+			int minD=minDaysDistanceSpinBox->value();
+			bool tmp=gt.rules.addSplitActivityFast(this, firstactivityid, firstactivityid,
+				teachers_names, subject_name, activity_tags_names, QStringList(students_names.at(st)),
+				nsplit, totalduration, durations,
+				active, minD, weight, forceConsecutiveCheckBox->isChecked(),
+				(nStudentsSpinBox->value()==-1), n1, n2, halfCheckBox->isChecked());
+			if(tmp){
+				firstactivityid+=nsplit;
+				cnt_act++;
+			}
+			
+			if(tmp && begin){
+				begin=false;
+				if(minD>1 && weight<100.0){
+					SecondMinDaysDialog second(this, minD, weight);
+					setParentAndOtherThings(&second, this);
+					int code=second.exec();
+	
+					if(code==QDialog::Accepted){
+						addSecondConstraint=true;
+						assert(second.weight>=0 && second.weight<=100.0);
+						secondWeight=second.weight;
+						QList<int> acts;
+						for(int i=0; i<nsplit; i++){
+							acts.append(firstactivityid+i-nsplit);
+						}
+						TimeConstraint* c;
+						if(!halfCheckBox->isChecked())
+							c=new ConstraintMinDaysBetweenActivities(secondWeight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+						else
+							c=new ConstraintMinHalfDaysBetweenActivities(secondWeight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+						bool tmp=gt.rules.addTimeConstraint(c);
+						assert(tmp);
+					}
+					else
+						addSecondConstraint=false;
+				}
+			}
+			else if(tmp){
+				if(addSecondConstraint){
+					assert(secondWeight>=0 && secondWeight<=100.0);
+					QList<int> acts;
+					for(int i=0; i<nsplit; i++){
+						acts.append(firstactivityid+i-nsplit);
+					}
+					TimeConstraint* c;
+					if(!halfCheckBox->isChecked())
+						c=new ConstraintMinDaysBetweenActivities(secondWeight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+					else
+						c=new ConstraintMinHalfDaysBetweenActivities(secondWeight, forceConsecutiveCheckBox->isChecked(), nsplit, acts, minD-1);
+					bool tmp=gt.rules.addTimeConstraint(c);
+					assert(tmp);
+				}
+			}
+		}
+		QMessageBox::information(this, tr("FET information"), tr("%1 split activities added").arg(cnt_act));
+
+		gt.rules.addUndoPoint(tr("Added multiple split activities:\nFirst activity's id=%1\nTeachers=%2\nSubject=%3\nActivity tags=%4\nStudents (separately)=%5\n"
+		 "Number of subactivities in each larger split activity=%6")
+		 .arg(sfid).arg(teachers_names.join(", ")).arg(subject_name).arg(activity_tags_names.join(", "))
+		 .arg(students_names.join(", ")).arg(nsplit));
+	}
+
+	PlanningChanged::increasePlanningCommunicationSpinBox();
+}
+
 void AddActivityForm::clearTeachers()
 {
 	selectedTeachersListWidget->clear();
-
-	selectedTeachersTextLabel->setText(QCoreApplication::translate("AddActivityForm_template", "Selected", "It refers to a list of selected teachers")+QString(" (%1)").arg(selectedTeachersListWidget->count()));
 }
 
 void AddActivityForm::clearStudents()
@@ -938,31 +1258,29 @@ void AddActivityForm::help()
 	s+="\n";
 	s+=tr("'Split' means 'Split into ... activities per week'");
 	s+="\n";
+	s+=tr("'Half' is only useful in the Mornings-Afternoons mode and it means that, instead of min days between activities, the "
+	 "automatically added constraint(s) will be 'min _half_ days between activities'");
+	s+="\n";
 	s+=tr("'Min days' means 'The minimum required distance in days between each pair of activities'");
 	s+="\n";
 	s+=tr("'Weight %' means 'Percentage of added constraint (min days between activities constraint). Recommended: 95.0%-100.0%'");
 	s+="\n";
-	s+=tr("'Consecutive' means 'If activities on same day, force consecutive?'");
+	s+=tr("'Consecutive' means 'If two activities are on the same day, make them consecutive'");
 	s+="\n";
 	s+=tr("The 'Duration' spin box and the 'Active' check box refer to each component of current activity, you can change "
 	 "them for each component, separately, by selecting the corresponding tab in the tab widget.");
 	s+="\n";
 	s+=tr("'Qualified' means that only the teachers who are qualified to teach the selected subject will be shown in the 'Teachers' list.",
 	 "Qualified refers to teachers");
-	s+="\n\n";
-	
-	s+=tr("A first notice: "
-	 "If you use a 5 days week: "
-	 "when adding an activity split into only 2 components "
-	 "per week, the best practice is to add min days between activities to be 2. "
-	 "If you split an activity into 3 components per week - please read FAQ question Q1-5-September-2008");
+	s+="\n";
+	s+=tr("'Separately' means that multiple activities will be added, one for each selected students set, separately.");
 	s+="\n\n";
 	
 	s+=tr("You can select a teacher from all the teachers with the mouse or with the keyboard tab/up/down, then "
 	 "double click it to add it to the selected teachers for current activity. "
 	 "You can then choose to remove a teacher from the selected teachers. You can highlight it "
 	 "with the mouse or with the keyboard, then double click it to remove this teacher from the selected teachers.");
-	 
+	
 	s+="\n\n";
 	
 	s+=tr("The same procedure (double click) applies to students sets and activity tags.");
@@ -974,13 +1292,13 @@ void AddActivityForm::help()
 	
 	 s+=tr("If you split a larger activity into more activities per week, you have a multitude of choices:\n"
 	 "You can choose the minimum distance in days between each pair of activities."
-	 " Please note that a minimum distance of 1 means that the activities must not be in the same day, "
+	 " Please note that a minimum distance of 1 means that the activities must not be on the same day, "
 	 "a minimum distance of 2 means that the activities must be separated by one day (distance from Monday"
 	 " to Wednesday for instance is 2 days), etc.");
 
 	s+="\n\n";
-	 
-	 s+=tr("If you have for instance an activity with 2 lessons per week and you want to spread them to at "
+	
+	 s+=tr("If you have for instance an activity with 2 subactivities per week and you want to spread them to at "
 	 "least 2 days distance, you can add a constraint min days with min days = 2 and weight 95% "
 	 "(or higher). If you want also to ensure that activities will "
 	 "be separated by at least one day, you can use this feature: "
@@ -992,13 +1310,13 @@ void AddActivityForm::help()
 	 "the resultant is 99.75% weight");
 
 	s+="\n\n";
-	 
+	
 	s+=tr("Please note that the min days distance is a time constraint and you can only see/modify it in the "
 	 "time constraints dialogs, not in the modify activity dialog. Additionally, you can see the constraints "
 	 "for each activity in the details text box of each activity");
 
 	s+="\n\n";
-	 
+	
 	 s+=tr("If you choose a value greater or equal with 1 for min days, a time constraint min days between activities will be added automatically "
 	 "(you can see this constraint in the time constraints list or you can see this constraint in the "
 	 "detailed description of the activity). You can select a weight percentage for this constraint. "
@@ -1013,22 +1331,20 @@ void AddActivityForm::help()
 
 	s+="\n\n";
 
-	s+=tr("There is another option, if the activities are in the same day, force consecutive activities. You can select "
-	 "this option for instance if you have 5 lessons of math in 5 days, and there is no timetable which respects "
+	s+=tr("There is another option, if the activities are on the same day, make the activities consecutive. You can select "
+	 "this option for instance if you have 5 activities of math in 5 days, and there is no timetable which respects "
 	 "fully the days separation. Then, you can set the weight percent of the min days constraint to 95% and "
-	 "add consecutive if same day. You will have as results say 3 lessons with duration 1 and a 2 hours lesson in another day. "
+	 "select consecutive if on the same day. You will have as a result say 3 activities with duration 1 and a 2 hours activity on another day. "
 	 "Please be careful: if the activities are on the same day, even if the constraint has 0% weight, then the activities are forced to be "
 	 "consecutive.");
 
 	s+="\n\n";
 
-	s+=tr("Current algorithm cannot schedule 3 activities in the same day if consecutive is checked, so "
-	 "you will get no solution in such extreme cases (for instance, if you have 3 lessons and a teacher which works only 1 day per week, "
-	 "and select 'force consecutive if same day', you will get an imposssible timetable. But these are extremely unlikely cases).");
+	s+=tr("The current algorithm will not schedule 3 or more activities on the same day if you add a min days between activities constraint.");
 
 	s+="\n\n";
 	
-	s+=tr("Note: You cannot add 'consecutive if same day' with min days=0. If you want this, you have to add "
+	s+=tr("Note: You cannot add/select 'consecutive if on the same day' with min days=0. If you want this, you have to add "
 	 "min days at least 1 (and any weight percentage).");
 
 	s+="\n\n";
@@ -1058,30 +1374,29 @@ void AddActivityForm::help()
 
 	vl->addWidget(te);
 	vl->addLayout(hl);
-	connect(pb, SIGNAL(clicked()), &dialog, SLOT(close()));
+	connect(pb, &QPushButton::clicked, &dialog, &QDialog::close);
 
 	dialog.resize(700,500);
 	centerWidgetOnScreen(&dialog);
 
+	setParentAndOtherThings(&dialog, this);
 	dialog.exec();
 }
 
 void AddActivityForm::minDaysChanged()
 {
-	percentageTextLabel->setEnabled(splitSpinBox->value()>=2 && minDayDistanceSpinBox->value()>0);
-	percentageLineEdit->setEnabled(splitSpinBox->value()>=2 && minDayDistanceSpinBox->value()>0);
-	forceConsecutiveCheckBox->setEnabled(splitSpinBox->value()>=2 && minDayDistanceSpinBox->value()>0);
+	percentageTextLabel->setEnabled(splitSpinBox->value()>=2 && minDaysDistanceSpinBox->value()>0);
+	percentageLineEdit->setEnabled(splitSpinBox->value()>=2 && minDaysDistanceSpinBox->value()>0);
+	forceConsecutiveCheckBox->setEnabled(splitSpinBox->value()>=2 && minDaysDistanceSpinBox->value()>0);
 }
 
-void AddActivityForm::rewriteSplitLineEdit()
+void AddActivityForm::halfCheckBoxToggled()
 {
-	QStringList divisionTexts;
-	for (int i = 0; i<splitSpinBox->value(); i++) {
-		divisionTexts << "";
-		if (!activList[i]->isChecked())
-			divisionTexts[i] += "!";
-		divisionTexts[i] += QString::number(durList[i]->value());
-	}
-	QString text = divisionTexts.join(" + ");
-	splitLineEdit->setText(text);
+	//The assert below should be OK, because if the mode is not Mornings-Afternoons the check box should be disabled,
+	//and the connection is done in the constructor after unchecking it and disabling it. But I consider that it is better to disable the assert.
+	//assert(gt.rules.mode==MORNINGS_AFTERNOONS);
+	if(halfCheckBox->isChecked())
+		minDaysDistanceSpinBox->setMaximum(gt.rules.nDaysPerWeek-1);
+	else
+		minDaysDistanceSpinBox->setMaximum(gt.rules.nDaysPerWeek/2-1);
 }

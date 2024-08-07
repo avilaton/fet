@@ -2,8 +2,8 @@
                           modifyconstraintteachermindaysperweekform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteachermindaysperweekform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeacherMinDaysPerWeekForm::ModifyConstraintTeacherMinDaysPerWeek
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMinDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMinDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -53,11 +52,15 @@ ModifyConstraintTeacherMinDaysPerWeekForm::~ModifyConstraintTeacherMinDaysPerWee
 
 void ModifyConstraintTeacherMinDaysPerWeekForm::updateTeachersComboBox(){
 	teachersComboBox->clear();
-	for(int i=0; i<gt.rules.teachersList.size(); i++){
-		Teacher* t=gt.rules.teachersList[i];
-		teachersComboBox->addItem(t->name);
+	int i=0, j=-1;
+	for(int k=0; k<gt.rules.teachersList.size(); k++, i++){
+		Teacher* tch=gt.rules.teachersList[k];
+		teachersComboBox->addItem(tch->name);
+		if(tch->name==this->_ctr->teacherName)
+			j=i;
 	}
-	teachersComboBox->setCurrentText(this->_ctr->teacherName);
+	assert(j>=0);
+	teachersComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintTeacherMinDaysPerWeekForm::updateMinDaysSpinBox(){
@@ -91,12 +94,22 @@ void ModifyConstraintTeacherMinDaysPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->minDaysPerWeek=min_days;
 	this->_ctr->teacherName=teacher_name;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeacherMinDaysPerWeekForm::cancel()
+{
 	this->close();
 }

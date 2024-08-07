@@ -2,8 +2,8 @@
                           addstudentsyearform.h  -  description
                              -------------------
     begin                : Sat Jan 24 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -19,6 +19,10 @@
 #define ADDSTUDENTSYEARFORM_H
 
 #include "ui_addstudentsyearform_template.h"
+
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
 class AddStudentsYearForm : public QDialog, Ui::AddStudentsYearForm_template {
 	Q_OBJECT

@@ -2,8 +2,8 @@
                           modifyconstraintstudentsethomeroomform.cpp  -  description
                              -------------------
     begin                : April 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,16 +16,11 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssethomeroomsform.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetHomeRoomsForm::ModifyConstraintStudentsSetHomeRoomsForm(QWidget* parent, ConstraintStudentsSetHomeRooms* ctr): QDialog(parent)
 {
@@ -36,11 +31,11 @@ ModifyConstraintStudentsSetHomeRoomsForm::ModifyConstraintStudentsSetHomeRoomsFo
 	roomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedRoomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(roomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addRoom()));
-	connect(selectedRoomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeRoom()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetHomeRoomsForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetHomeRoomsForm::ok);
+	connect(roomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintStudentsSetHomeRoomsForm::addRoom);
+	connect(selectedRoomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintStudentsSetHomeRoomsForm::removeRoom);
+	connect(clearPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetHomeRoomsForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,32 +49,9 @@ ModifyConstraintStudentsSetHomeRoomsForm::ModifyConstraintStudentsSetHomeRoomsFo
 	
 /////////
 	//students
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName);
-	/*int i=0, j=-1;
-	studentsComboBox->clear();
-	for(int m=0; m<gt.rules.yearsList.size(); m++){
-		StudentsYear* sty=gt.rules.yearsList[m];
-		studentsComboBox->addItem(sty->name);
-		if(sty->name==this->_ctr->studentsName)
-			j=i;
-		i++;
-		for(int n=0; n<sty->groupsList.size(); n++){
-			StudentsGroup* stg=sty->groupsList[n];
-			studentsComboBox->addItem(stg->name);
-			if(stg->name==this->_ctr->studentsName)
-				j=i;
-			i++;
-			if(SHOW_SUBGROUPS_IN_COMBO_BOXES) for(int p=0; p<stg->subgroupsList.size(); p++){
-				StudentsSubgroup* sts=stg->subgroupsList[p];
-				studentsComboBox->addItem(sts->name);
-				if(sts->name==this->_ctr->studentsName)
-					j=i;
-				i++;
-			}
-		}
-	}*/
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
 	else
 		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
@@ -87,7 +59,7 @@ ModifyConstraintStudentsSetHomeRoomsForm::ModifyConstraintStudentsSetHomeRoomsFo
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
-	for(QStringList::Iterator it=ctr->roomsNames.begin(); it!=ctr->roomsNames.end(); it++)
+	for(QStringList::const_iterator it=ctr->roomsNames.constBegin(); it!=ctr->roomsNames.constEnd(); it++)
 		selectedRoomsListWidget->addItem(*it);
 }
 
@@ -110,7 +82,7 @@ void ModifyConstraintStudentsSetHomeRoomsForm::updateRoomsListWidget()
 void ModifyConstraintStudentsSetHomeRoomsForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -134,8 +106,10 @@ void ModifyConstraintStudentsSetHomeRoomsForm::ok()
 		return;
 	}*/
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	QString students=studentsComboBox->currentText();
-	assert(gt.rules.searchStudentsSet(students)!=NULL);
+	assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QStringList roomsList;
 	for(int i=0; i<selectedRoomsListWidget->count(); i++)
@@ -147,9 +121,17 @@ void ModifyConstraintStudentsSetHomeRoomsForm::ok()
 
 	this->_ctr->roomsNames=roomsList;
 	
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetHomeRoomsForm::cancel()
+{
 	this->close();
 }
 

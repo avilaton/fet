@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -19,17 +19,15 @@
 
 #include "timetable_defs.h"
 
-#include "centerwidgetonscreen.h"
-
 ActivityPlanningConfirmationForm::ActivityPlanningConfirmationForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
 	
 	continuePushButton->setDefault(true);
 	
-	connect(continuePushButton, SIGNAL(clicked()), this, SLOT(accept()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(reject()));
-	connect(dontShowAgainCheckBox, SIGNAL(stateChanged(int)), this, SLOT(dontShowAgainCheckBoxToggled()));
+	connect(continuePushButton, &QPushButton::clicked, this, &ActivityPlanningConfirmationForm::accept);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ActivityPlanningConfirmationForm::reject);
+	connect(dontShowAgainCheckBox, &QCheckBox::toggled, this, &ActivityPlanningConfirmationForm::dontShowAgainCheckBoxToggled);
 	
 	dontShowAgain=dontShowAgainCheckBox->isChecked();
 	
@@ -42,10 +40,6 @@ ActivityPlanningConfirmationForm::ActivityPlanningConfirmationForm(QWidget* pare
 	
 	s+=tr("Please read carefully the description below:");
 	s+="\n\n";
-	//s+=tr("This function is new and not thoroughly tested. Please report any problems.");
-	//s+=" ";
-	//s+=tr("It might be a good idea to backup your current data file before proceeding.");
-	//s+="\n\n";
 	s+=tr("This is a simple activity planning dialog. You need to add all teachers, "
 		"subjects and the students structure before you can work with it. It "
 		"is also recommended to add the necessary activity tags before using this dialog.");

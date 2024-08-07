@@ -2,8 +2,8 @@
                           modifyconstraintteacherintervalmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteacherintervalmaxdaysperweekform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::ModifyConstraintTeacherInterv
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -69,16 +68,20 @@ ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::~ModifyConstraintTeacherInter
 
 void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::updateTeachersComboBox(){
 	teachersComboBox->clear();
-	for(int i=0; i<gt.rules.teachersList.size(); i++){
-		Teacher* t=gt.rules.teachersList[i];
-		teachersComboBox->addItem(t->name);
+	int i=0, j=-1;
+	for(int k=0; k<gt.rules.teachersList.size(); k++, i++){
+		Teacher* tch=gt.rules.teachersList[k];
+		teachersComboBox->addItem(tch->name);
+		if(tch->name==this->_ctr->teacherName)
+			j=i;
 	}
-	teachersComboBox->setCurrentText(this->_ctr->teacherName);
+	assert(j>=0);
+	teachersComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
 	maxDaysSpinBox->setMinimum(0);
-	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);	
+	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 }
 
 void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::ok()
@@ -125,6 +128,8 @@ void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxDaysPerWeek=max_days;
 	this->_ctr->teacherName=teacher_name;
@@ -132,8 +137,16 @@ void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::ok()
 	this->_ctr->startHour=startHour;
 	this->_ctr->endHour=endHour;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintTeacherIntervalMaxDaysPerWeekForm::cancel()
+{
 	this->close();
 }

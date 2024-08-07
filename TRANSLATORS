@@ -6,10 +6,20 @@ ar - Arabic translation
 	current translator: Benahmed Abdelkrim (pmg9.81 AT gmail.com)
 
 
+bg - Bulgarian translation
+
+	former translator: Asen Pashov (pashov AT phys.uni-sofia.bg)
+
+	current translator: Hristiyan Dimitrov (to contact Hristiyan Dimitrov visit FET forum - https://lalescu.ro/liviu/fet/forum/,
+	section about Bulgarian translation, or contact forum user Creator X)
+
+
 ca - Catalan translation
 
+	former translator: Miguel Gea Milvaques (debian AT miguelgea.com)
+
 	former translator: Sílvia Lag (to contact Sílvia visit FET forum - https://lalescu.ro/liviu/fet/forum/,
-	section about Catalan translation, or contact forum user silvia)
+	section about Catalan translation, or contact forum user silvia) - rewrote the translation from zero
 
 	current translator: Innocent De Marchi (tangram.peces AT gmail.com)
 
@@ -26,9 +36,9 @@ da - Danish translation
 
 de - German translation
 
-	former translator: Volker Dirr (https://www.timetabling.de/)
+	former translator: Robert Hairgrove (code AT roberthairgrove.com)
 
-	current translator: Robert Hairgrove (code AT roberthairgrove.com)
+	current translator: Volker Dirr (https://www.timetabling.de/)
 
 
 el - Greek translation
@@ -87,7 +97,9 @@ he - Hebrew translation
 
 hu - Hungarian translation
 
-	Ferenczi Viktor (cx AT cx.hu)
+	former translator: Ferenczi Viktor (cx AT cx.hu)
+
+	current translator: Zsolt Udvari (uzsolt AT uzsolt.hu)
 
 
 id - Indonesian translation
@@ -97,7 +109,11 @@ id - Indonesian translation
 
 it - Italian translation
 
-	Marco Barsotti (mbarsan AT gmail.com)
+	former translator: Marco Barsotti (mbarsan AT gmail.com)
+
+	former translator: Francesco Rizzo (francesco.rizzo79 AT gmail.com)
+
+	current translator: Andrea Primiani (primiani AT dag.it)
 
 
 ja - Japanese translation
@@ -123,12 +139,14 @@ ms - Malay translation
 
 nl - Dutch translation
 
-	Niels Fikse (k.fikse AT student.utwente.nl)
+	former translator: Daan Huntjens
+
+	current translator: Niels Fikse (k.fikse AT student.utwente.nl)
 
 
 pl - Polish translation
 
-	Radoslaw Pasiok (zapala AT konto.pl)
+	Radosław Pasiok (zapala AT konto.pl)
 
 
 pt_BR - Brazilian Portuguese translation
@@ -146,12 +164,16 @@ pt_BR - Brazilian Portuguese translation
 
 ro - Romanian translation
 
-	Liviu Lalescu (https://lalescu.ro/liviu/)
+	former translator: Constantin Romulus (daviodan AT yahoo.com)
+
+	current translator: Liviu Lalescu (https://lalescu.ro/liviu/)
 
 
 ru - Russian translation
 
-	Ilya V. Paramonov (ivparamonov AT gmail.com)
+	former translator: Ilya V. Paramonov (ivparamonov AT gmail.com)
+
+	current translator: Alexey Chernous (alexch82 AT ya.ru)
 
 
 si - Sinhala translation
@@ -202,7 +224,12 @@ vi - Vietnamese translation
 	former translator: Nguyen Truong Thang (to contact Thang visit FET forum - https://lalescu.ro/liviu/fet/forum/,
 	section about Vietnamese translation, or contact forum user NTThang)
 
-	current translator: Nguyễn Hữu Duyệt (nguyenhuuduyet AT gmail.com)
+	former translator: Nguyễn Hữu Duyệt (nguyenhuuduyet AT gmail.com)
+
+	former translator: Ngọc Ngô Minh (nmngoc.c3hvt AT yenbai.edu.vn, or visit FET forum - https://lalescu.ro/liviu/fet/forum/,
+	section about Vietnamese translation, or contact forum user ngoctp29121982)
+
+	current translator: Phạm Văn Quyền Anh (phamanhlc1992 AT gmail.com)
 
 
 zh_CN - Chinese Simplified translation

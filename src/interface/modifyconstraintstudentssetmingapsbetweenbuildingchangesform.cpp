@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetmingapsbetweenbuildingchangesform.cpp  -  description
                              -------------------
     begin                : Feb 10, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssetmingapsbetweenbuildingchangesform.h"
-#include "spaceconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm(QWidget* parent, ConstraintStudentsSetMinGapsBetweenBuildingChanges* ctr): QDialog(parent)
 {
@@ -31,8 +25,8 @@ ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ModifyConstraintSt
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -44,7 +38,7 @@ ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ModifyConstraintSt
 	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 
 	minGapsSpinBox->setMinimum(1);
 	minGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
@@ -56,17 +50,19 @@ ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::~ModifyConstraintS
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName, true);
+void ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -81,18 +77,28 @@ void ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::ok()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->studentsName=students_name;
 	this->_ctr->minGapsBetweenBuildingChanges=minGapsSpinBox->value();
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetMinGapsBetweenBuildingChangesForm::cancel()
+{
 	this->close();
 }

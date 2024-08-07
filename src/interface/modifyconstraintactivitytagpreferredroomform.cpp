@@ -3,7 +3,7 @@
                              -------------------
     begin                : 2009
     copyright            : (C) 2009 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintactivitytagpreferredroomform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintActivityTagPreferredRoomForm::ModifyConstraintActivityTagPreferredRoomForm(QWidget* parent, ConstraintActivityTagPreferredRoom* ctr): QDialog(parent)
 {
@@ -27,8 +25,8 @@ ModifyConstraintActivityTagPreferredRoomForm::ModifyConstraintActivityTagPreferr
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityTagPreferredRoomForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityTagPreferredRoomForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,12 +52,17 @@ ModifyConstraintActivityTagPreferredRoomForm::~ModifyConstraintActivityTagPrefer
 
 void ModifyConstraintActivityTagPreferredRoomForm::updateActivityTagsComboBox()
 {
+	int i=0, j=-1;
 	activityTagsComboBox->clear();
-	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* s=gt.rules.activityTagsList[i];
-		activityTagsComboBox->addItem(s->name);
+	for(int k=0; k<gt.rules.activityTagsList.size(); k++){
+		ActivityTag* sb=gt.rules.activityTagsList[k];
+		activityTagsComboBox->addItem(sb->name);
+		if(sb->name==this->_ctr->activityTagName)
+			j=i;
+		i++;
 	}
-	activityTagsComboBox->setCurrentText(this->_ctr->activityTagName);
+	assert(j>=0);
+	activityTagsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivityTagPreferredRoomForm::updateRoomsComboBox()
@@ -75,6 +78,11 @@ void ModifyConstraintActivityTagPreferredRoomForm::updateRoomsComboBox()
 	}
 	assert(j>=0);
 	roomsComboBox->setCurrentIndex(j);
+}
+
+void ModifyConstraintActivityTagPreferredRoomForm::cancel()
+{
+	this->close();
 }
 
 void ModifyConstraintActivityTagPreferredRoomForm::ok()
@@ -94,6 +102,7 @@ void ModifyConstraintActivityTagPreferredRoomForm::ok()
 			tr("Invalid activity tag"));
 		return;
 	}
+
 	QString activityTag=activityTagsComboBox->currentText();
 
 	i=roomsComboBox->currentIndex();
@@ -104,12 +113,17 @@ void ModifyConstraintActivityTagPreferredRoomForm::ok()
 	}
 	QString room=roomsComboBox->currentText();
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->roomName=room;
 	this->_ctr->activityTagName=activityTag;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }

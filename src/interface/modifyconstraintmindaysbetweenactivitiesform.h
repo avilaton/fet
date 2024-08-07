@@ -2,8 +2,8 @@
                           modifyconstraintmindaysbetweenactivitiesform.h  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -26,7 +26,7 @@
 #include <QList>
 
 class ModifyConstraintMinDaysBetweenActivitiesForm : public QDialog, Ui::ModifyConstraintMinDaysBetweenActivitiesForm_template  {
-	Q_OBJECT	
+	Q_OBJECT
 
 public:
 	ModifyConstraintMinDaysBetweenActivitiesForm(QWidget* parent, ConstraintMinDaysBetweenActivities* ctr);
@@ -40,6 +40,7 @@ public slots:
 	void removeActivity();
 
 	void ok();
+	void cancel();
 	
 	void clear();
 

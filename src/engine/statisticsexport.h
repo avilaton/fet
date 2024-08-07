@@ -5,8 +5,8 @@ File statisticsexport.h
 /***************************************************************************
                                 FET
                           -------------------
-   copyright            : (C) by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+   copyright            : (C) by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************
                       statisticsexport.h  -  description
                              -------------------
@@ -26,8 +26,15 @@ File statisticsexport.h
 #define STATISTICEXPORT_H
 
 #include <QString>
+#include <QStringList>
+
 #include <QHash>
-#include <QObject>
+#include <QMultiHash>
+
+class QWidget;
+
+#include "timetable.h"		//needed?
+#include "timetable_defs.h"	//needed?
 
 class FetStatistics{
 public:
@@ -40,18 +47,18 @@ public:
 	//QHash<QString, QString> hashDayIDsStatistics;
 	
 	//needed values
-	QHash <QString, int> teachersTotalNumberOfHours;
-	QHash <QString, int> teachersTotalNumberOfHours2;
-	QHash <QString, int> studentsTotalNumberOfHours;
-	QHash <QString, int> studentsTotalNumberOfHours2;
-	QHash <QString, int> subjectsTotalNumberOfHours;
-	QHash <QString, int> subjectsTotalNumberOfHours4;
-	QStringList allStudentsNames;				//NOT QSet <QString>!!! Because that does an incorrect order of the lists!
-	QStringList allTeachersNames;				//NOT QSet <QString>!!! Because that does an incorrect order of the lists!
-	QStringList allSubjectsNames;				//NOT QSet <QString>!!! Because that does an incorrect order of the lists!
-	QMultiHash <QString, int> studentsActivities;
-	QMultiHash <QString, int> teachersActivities;
-	QMultiHash <QString, int> subjectsActivities;
+	QHash<QString, int> teachersTotalNumberOfHours;
+	QHash<QString, int> teachersTotalNumberOfHours2;
+	QHash<QString, int> studentsTotalNumberOfHours;
+	QHash<QString, int> studentsTotalNumberOfHours2;
+	QHash<QString, int> subjectsTotalNumberOfHours;
+	QHash<QString, int> subjectsTotalNumberOfHours4;
+	QStringList allStudentsNames;				//NOT QSet<QString>!!! Because that does an incorrect order of the lists!
+	QStringList allTeachersNames;				//NOT QSet<QString>!!! Because that does an incorrect order of the lists!
+	QStringList allSubjectsNames;				//NOT QSet<QString>!!! Because that does an incorrect order of the lists!
+	QMultiHash<QString, int> studentsActivities;
+	QMultiHash<QString, int> teachersActivities;
+	QMultiHash<QString, int> subjectsActivities;
 };
 
 
@@ -62,30 +69,28 @@ public:
 	StatisticsExport();
 	~StatisticsExport();
 	
-	static bool exportStatistics(QWidget* parent);
+	static void exportStatistics(QWidget* parent);
 	
-	static QString exportStatisticsTeachersSubjectsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
-	static QString exportStatisticsSubjectsTeachersHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
-	static QString exportStatisticsTeachersStudentsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
-	static QString exportStatisticsStudentsTeachersHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
-	static QString exportStatisticsSubjectsStudentsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
-	static QString exportStatisticsStudentsSubjectsHtml(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int> *excludedNames);
+	static QString exportStatisticsTeachersSubjectsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
+	static QString exportStatisticsSubjectsTeachersHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
+	static QString exportStatisticsTeachersStudentsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
+	static QString exportStatisticsStudentsTeachersHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
+	static QString exportStatisticsSubjectsStudentsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
+	static QString exportStatisticsStudentsSubjectsHtml(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel, bool printActivityTags, int maxNames, QSet<int>* excludedNames);
 	
-	static QString getStatisticsDirectory();
-
-	//this function must be called before export html files, because it compute the IDs
-	static void computeHashForIDsStatistics(FetStatistics *statisticValues);
-	static void getNamesAndHours(FetStatistics *statisticValues);
+	//this function must be called before export HTML files, because it computes the IDs
+	static void computeHashForIDsStatistics(FetStatistics* statisticValues);
+	static void getNamesAndHours(FetStatistics* statisticValues);
 private:
-	//the following functions write the css and html statistics files
-	static bool exportStatisticsStylesheetCss(QWidget* parent, QString saveTime, FetStatistics statisticValues);
-	static bool exportStatisticsIndex(QWidget* parent, QString saveTime);
-	static bool exportStatisticsTeachersSubjects(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
-	static bool exportStatisticsSubjectsTeachers(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
-	static bool exportStatisticsTeachersStudents(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
-	static bool exportStatisticsStudentsTeachers(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
-	static bool exportStatisticsSubjectsStudents(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
-	static bool exportStatisticsStudentsSubjects(QWidget* parent, QString saveTime, FetStatistics statisticValues, int htmlLevel);
+	//the following functions write the CSS and HTML statistics files
+	static bool exportStatisticsStylesheetCss(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues);
+	static bool exportStatisticsIndex(QWidget* parent, const QString& saveTime);
+	static bool exportStatisticsTeachersSubjects(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
+	static bool exportStatisticsSubjectsTeachers(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
+	static bool exportStatisticsTeachersStudents(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
+	static bool exportStatisticsStudentsTeachers(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
+	static bool exportStatisticsSubjectsStudents(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
+	static bool exportStatisticsStudentsSubjects(QWidget* parent, const QString& saveTime, const FetStatistics& statisticValues, int htmlLevel);
 };
 
 #endif

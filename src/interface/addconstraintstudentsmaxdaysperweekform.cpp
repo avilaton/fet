@@ -2,8 +2,8 @@
                           addconstraintstudentsmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2013
-    copyright            : (C) 2013 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2013 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,7 +18,6 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentsmaxdaysperweekform.h"
 #include "timeconstraint.h"
@@ -29,8 +28,8 @@ AddConstraintStudentsMaxDaysPerWeekForm::AddConstraintStudentsMaxDaysPerWeekForm
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxDaysPerWeekForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsMaxDaysPerWeekForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -44,18 +43,14 @@ AddConstraintStudentsMaxDaysPerWeekForm::~AddConstraintStudentsMaxDaysPerWeekFor
 }
 
 void AddConstraintStudentsMaxDaysPerWeekForm::updateMaxDaysSpinBox(){
-	maxDaysSpinBox->setMinimum(0);
+	maxDaysSpinBox->setMinimum(1);
 	maxDaysSpinBox->setMaximum(gt.rules.nDaysPerWeek);
 	maxDaysSpinBox->setValue(gt.rules.nDaysPerWeek);
 }
 
-void AddConstraintStudentsMaxDaysPerWeekForm::constraintChanged()
-{
-}
-
 void AddConstraintStudentsMaxDaysPerWeekForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -76,9 +71,12 @@ void AddConstraintStudentsMaxDaysPerWeekForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsMaxDaysPerWeek(weight, max_days);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

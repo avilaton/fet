@@ -7,23 +7,23 @@
     <x>0</x>
     <y>0</y>
     <width>1053</width>
-    <height>600</height>
+    <height>615</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Spreading activities uniformly in the week</string>
+   <string>Spreading the activities evenly over the week</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_6">
    <item row="0" column="0" colspan="4">
     <widget class="QGroupBox" name="groupBox_5">
      <property name="title">
-      <string>Consecutive if same day?</string>
+      <string>Consecutive if on the same day?</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="0" column="0">
        <widget class="QCheckBox" name="consecutiveIfSameDayCheckBox">
         <property name="text">
-         <string>Force consecutive if 2 components are on the same day</string>
+         <string>If 2 components are on the same day, make them consecutive</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -39,7 +39,7 @@
          </sizepolicy>
         </property>
         <property name="text">
-         <string>Select if when placing 2 activities from the same container in the same day, activities should be consecutive (this only happens for constraints with weight below 100.0%, which are not respected)</string>
+         <string>Select if when placing 2 activities from the same container on the same day, the activities should be consecutive (this only happens for constraints with weight below 100.0%, which are not respected)</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>
@@ -82,7 +82,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>This has to be checked, so activies from the same container are not in the same day (they are at least 1 day apart)</string>
+           <string>This has to be checked, so that the activities from the same container are not on the same day (they are at least 1 day apart)</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -137,7 +137,7 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>Select this so the activities will not be in 2 consecutive days. There will be added 1 additional constraint to accomplish this</string>
+           <string>Select this so that the activities will not be on 2 consecutive days. There will be added 1 additional constraint to accomplish this</string>
           </property>
           <property name="wordWrap">
            <bool>true</bool>
@@ -190,7 +190,7 @@
          </sizepolicy>
         </property>
         <property name="text">
-         <string>Should not be in 3 consecutive days</string>
+         <string>Should not be on 3 consecutive days</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -206,7 +206,7 @@
          </sizepolicy>
         </property>
         <property name="text">
-         <string>Select this if you want activities split into 3 per week not to be in 3 consecutive days. There will be added 2 additional constraints to accomplish this, min 2 days between isolated component and each of the other 2 components. Note: usually, any isolated component: 1, 2 or 3 should work</string>
+         <string>Select this if you want the activities split into 3 components per week not to be on 3 consecutive days. There will be added 2 additional constraints to accomplish this, min 2 days between the isolated component and each of the other 2 components. Note: usually, any isolated component: 1, 2 or 3 should work</string>
         </property>
         <property name="wordWrap">
          <bool>true</bool>

@@ -6,8 +6,8 @@ File activity.h
                           activity.h  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -24,6 +24,8 @@ File activity.h
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QString>
 #include <QList>
 #include <QSet>
@@ -31,8 +33,42 @@ File activity.h
 
 class Rules;
 class Activity;
+class GroupActivitiesInInitialOrderItem;
 
 typedef QList<Activity*> ActivitiesList;
+
+class QDataStream;
+
+QDataStream& operator<<(QDataStream& stream, const Activity& act);
+QDataStream& operator>>(QDataStream& stream, Activity& act);
+
+QDataStream& operator<<(QDataStream& stream, const GroupActivitiesInInitialOrderItem& gaio);
+QDataStream& operator>>(QDataStream& stream, GroupActivitiesInInitialOrderItem& gaio);
+
+class GroupActivitiesInInitialOrderItem{
+	Q_DECLARE_TR_FUNCTIONS(GroupActivitiesInInitialOrderItem)
+
+public:
+	GroupActivitiesInInitialOrderItem();
+	~GroupActivitiesInInitialOrderItem();
+
+	QString comments;
+	bool active;
+
+	QList<int> ids;
+	QSet<int> idsSet;
+	QList<int> indices; //in the rules internal activities list
+
+	QString getXmlDescription(Rules& r);
+	QString getDescription(Rules& r);
+	QString getDetailedDescription(Rules& r);
+	
+	void removeUseless(Rules& r);
+	
+	void recomputeActivitiesSet();
+};
+
+typedef QList<GroupActivitiesInInitialOrderItem*> GroupActivitiesInInitialOrderList;
 
 /**
 This class represents an activity.
@@ -106,7 +142,7 @@ public:
 	int nTotalStudents;
 	
 	/**
-	If true, we will have to compute the number of total students from the 
+	If true, we will have to compute the number of total students from the
 	involved students sets. If false, it means that nTotalStudents is given
 	and must not be recalculated.
 	*/
@@ -123,7 +159,7 @@ public:
 	and the activity group id of both of them is 0 or of both of them is != 0, returns true.
 	TODO: add a more intelligent comparison
 	*/
-	bool operator==(const Activity &a) const;
+	bool operator==(const Activity &a);
 
 	//internal structure
 	
@@ -192,7 +228,9 @@ public:
 		
 	//deprecated comment below - this function is used in more places.
 	//this is used only when reading a file (Rules), so that the computed number of students is known faster
-	Activity(int _id,
+	Activity(
+		Rules& r,
+		int _id,
 		int _activityGroupId,
 		const QStringList& _teachersNames,
 		const QString& _subjectName,
@@ -206,7 +244,7 @@ public:
 		int _nTotalStudents,
 		int _computedNumberOfStudents);
 		
-	bool hasTeacher(const QString& teacherName) const;
+	bool searchTeacher(const QString& teacherName);
 
 	/**
 	Removes this teacher from the list of teachers
@@ -218,7 +256,7 @@ public:
 	*/
 	void renameTeacher(const QString& initialTeacherName, const QString& finalTeacherName);
 	
-	bool hasStudents(const QString& studentsName) const;
+	bool searchStudents(const QString& studentsName);
 
 	/**
 	Removes this students set from the list of students
@@ -233,35 +271,37 @@ public:
 	/**
 	Computes the internal structure
 	*/
-	void computeInternalStructure(const Rules &r);
+	void computeInternalStructure(Rules& r);
 
 	/**
-	Returns a representation of this activity (xml format).
+	Returns a representation of this activity (in XML format).
 	*/
-	QString getXmlDescription() const;
+	QString getXmlDescription(Rules& r);
 
 	/**
 	Returns a representation of this activity.
 	*/
-	QString getDescription() const;
+	QString getDescription(Rules& r);
 
 	/**
 	Returns a representation of this activity (more detailed).
 	*/
-	QString getDetailedDescription() const;
+	QString getDetailedDescription(Rules& r);
 
 	/**
 	Returns a representation of this activity (detailed),
 	together with the constraints related to this activity.
 	*/
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 
 	/**
-	Returns true if this activity is split into more lessons per week.
+	Returns true if this activity is split into more subactivities per week.
 	*/
-	bool isSplit() const;
+	bool isSplit();
 	
-	bool representsComponentNumber(int compNumber) const;
+	bool representsComponentNumber(int compNumber);
+	
+	int componentNumber();
 };
 
 #endif

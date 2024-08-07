@@ -18,15 +18,17 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QtGlobal>
+#include <QSizePolicy>
+
 #include "statisticsprintform.h"
 
 #include "timetable.h"
-#include "timetableexport.h"
+#include "timetable_defs.h"
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= QT_VERSION_CHECK(5,0,0)
 #include <QtWidgets>
 #else
 #include <QtGui>
@@ -42,18 +44,32 @@
 #include <QPrinter>
 #include <QPrintDialog>
 #include <QPrintPreviewDialog>
+
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+#include <QPageSize>
+#endif
+
 #endif
 
 extern Timetable gt;
 
 extern QString generationLocalizedTime;
 
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
 //static int numberOfPlacedActivities1;
 
 #ifdef QT_NO_PRINTER
 static QMap<LocaleString, int> paperSizesMap;
 #else
+
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+static QMap<LocaleString, QPageSize> paperSizesMap;
+#else
 static QMap<LocaleString, QPrinter::PaperSize> paperSizesMap;
+#endif
+
 #endif
 
 //const QString CBTablesState="/timetables-combo-box-state";
@@ -73,6 +89,8 @@ const QString CBorientationModeState="/orientation-mode-combo-box-state";
 
 const QString printDetailedTablesState="/print-detailed-tables-check-box-state";
 const QString printActivityTagsState="/print-activity-tags-check-box-state";
+
+const QString printOnlyBlackFontsState="/print-only-black-fonts-check-box-state";
 
 const QString activitiesPaddingState="/activity-padding-spin-box-value-state";
 const QString tablePaddingState="/table-padding-spin-box-value-state";
@@ -160,7 +178,7 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	CBBreak->setSizePolicy(QSizePolicy::Expanding, CBBreak->sizePolicy().verticalPolicy());
 	
 	QStringList whiteSpaceStrings;
-	whiteSpaceStrings<<QString("normal")<<QString("pre")<<QString("nowrap")<<QString("pre-wrap");	//don't translate these strings, because they are css parameters!
+	whiteSpaceStrings<<QString("normal")<<QString("pre")<<QString("nowrap")<<QString("pre-wrap");	//don't translate these strings, because they are CSS parameters!
 	CBWhiteSpace=new QComboBox();
 	CBWhiteSpace->addItems(whiteSpaceStrings);
 	CBWhiteSpace->setCurrentIndex(0);
@@ -185,6 +203,39 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	paperSizesMap.clear();
 #ifdef QT_NO_PRINTER
 	paperSizesMap.insert(tr("Custom", "Type of paper size"), 30);
+#else
+
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+	paperSizesMap.insert(tr("A0", "Type of paper size"), QPageSize(QPageSize::A0));
+	paperSizesMap.insert(tr("A1", "Type of paper size"), QPageSize(QPageSize::A1));
+	paperSizesMap.insert(tr("A2", "Type of paper size"), QPageSize(QPageSize::A2));
+	paperSizesMap.insert(tr("A3", "Type of paper size"), QPageSize(QPageSize::A3));
+	paperSizesMap.insert(tr("A4", "Type of paper size"), QPageSize(QPageSize::A4));
+	paperSizesMap.insert(tr("A5", "Type of paper size"), QPageSize(QPageSize::A5));
+	paperSizesMap.insert(tr("A6", "Type of paper size"), QPageSize(QPageSize::A6));
+	paperSizesMap.insert(tr("A7", "Type of paper size"), QPageSize(QPageSize::A7));
+	paperSizesMap.insert(tr("A8", "Type of paper size"), QPageSize(QPageSize::A8));
+	paperSizesMap.insert(tr("A9", "Type of paper size"), QPageSize(QPageSize::A9));
+	paperSizesMap.insert(tr("B0", "Type of paper size"), QPageSize(QPageSize::B0));
+	paperSizesMap.insert(tr("B1", "Type of paper size"), QPageSize(QPageSize::B1));
+	paperSizesMap.insert(tr("B2", "Type of paper size"), QPageSize(QPageSize::B2));
+	paperSizesMap.insert(tr("B3", "Type of paper size"), QPageSize(QPageSize::B3));
+	paperSizesMap.insert(tr("B4", "Type of paper size"), QPageSize(QPageSize::B4));
+	paperSizesMap.insert(tr("B5", "Type of paper size"), QPageSize(QPageSize::B5));
+	paperSizesMap.insert(tr("B6", "Type of paper size"), QPageSize(QPageSize::B6));
+	paperSizesMap.insert(tr("B7", "Type of paper size"), QPageSize(QPageSize::B7));
+	paperSizesMap.insert(tr("B8", "Type of paper size"), QPageSize(QPageSize::B8));
+	paperSizesMap.insert(tr("B9", "Type of paper size"), QPageSize(QPageSize::B9));
+	paperSizesMap.insert(tr("B10", "Type of paper size"), QPageSize(QPageSize::B10));
+	paperSizesMap.insert(tr("C5E", "Type of paper size"), QPageSize(QPageSize::C5E));
+	paperSizesMap.insert(tr("Comm10E", "Type of paper size"), QPageSize(QPageSize::Comm10E));
+	paperSizesMap.insert(tr("DLE", "Type of paper size"), QPageSize(QPageSize::DLE));
+	paperSizesMap.insert(tr("Executive", "Type of paper size"), QPageSize(QPageSize::Executive));
+	paperSizesMap.insert(tr("Folio", "Type of paper size"), QPageSize(QPageSize::Folio));
+	paperSizesMap.insert(tr("Ledger", "Type of paper size"), QPageSize(QPageSize::Ledger));
+	paperSizesMap.insert(tr("Legal", "Type of paper size"), QPageSize(QPageSize::Legal));
+	paperSizesMap.insert(tr("Letter", "Type of paper size"), QPageSize(QPageSize::Letter));
+	paperSizesMap.insert(tr("Tabloid", "Type of paper size"), QPageSize(QPageSize::Tabloid));
 #else
 	paperSizesMap.insert(tr("A0", "Type of paper size"), QPrinter::A0);
 	paperSizesMap.insert(tr("A1", "Type of paper size"), QPrinter::A1);
@@ -218,11 +269,13 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	paperSizesMap.insert(tr("Tabloid", "Type of paper size"), QPrinter::Tabloid);
 #endif
 
+#endif
+
 	CBpaperSize=new QComboBox();
 	
 	//CBpaperSize->addItems(paperSizesMap.keys());
 	QList<LocaleString> items=paperSizesMap.keys();
-	for(const LocaleString& s : qAsConst(items))
+	for(const LocaleString& s : std::as_const(items))
 		CBpaperSize->addItem(s);
 	
 	if(CBpaperSize->count()>=5)
@@ -245,6 +298,9 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	
 	printActivityTags=new QCheckBox(tr("Activity tags"));
 	printActivityTags->setChecked(true);
+	
+	onlyBlackFonts=new QCheckBox(tr("Black", "Black font"));
+	onlyBlackFonts->setChecked(false);
 	
 	fontSizeTable=new QSpinBox;
 	fontSizeTable->setRange(4, 20);
@@ -455,6 +511,7 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	optionsBoxGrid->addWidget(CBBreak,5,1);
 //	optionsBoxGrid->addWidget(CBprinterMode,5,0);
 	optionsBoxGrid->addWidget(printActivityTags,6,0);
+	optionsBoxGrid->addWidget(onlyBlackFonts,6,1);
 //	optionsBoxGrid->addWidget(printDetailedTables,6,1);
 
 	optionsBox->setLayout(optionsBoxGrid);
@@ -479,19 +536,19 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	
 	updateNamesList();
 	
-	connect(pbSelectAll, SIGNAL(clicked()), this, SLOT(selectAll()));
-	connect(pbUnselectAll, SIGNAL(clicked()), this, SLOT(unselectAll()));
-	connect(pbPrint, SIGNAL(clicked()), this, SLOT(print()));
-	connect(pbPrintPreviewSmall, SIGNAL(clicked()), this, SLOT(printPreviewSmall()));
-	connect(pbPrintPreviewFull, SIGNAL(clicked()), this, SLOT(printPreviewFull()));
-	connect(pbClose, SIGNAL(clicked()), this, SLOT(close()));
+	connect(pbSelectAll, &QPushButton::clicked, this, &StatisticsPrintForm::selectAll);
+	connect(pbUnselectAll, &QPushButton::clicked, this, &StatisticsPrintForm::unselectAll);
+	connect(pbPrint, &QPushButton::clicked, this, &StatisticsPrintForm::print);
+	connect(pbPrintPreviewSmall, &QPushButton::clicked, this, &StatisticsPrintForm::printPreviewSmall);
+	connect(pbPrintPreviewFull, &QPushButton::clicked, this, &StatisticsPrintForm::printPreviewFull);
+	connect(pbClose, &QPushButton::clicked, this, &StatisticsPrintForm::close);
 	
-	connect(studentSubjectRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
-	connect(studentTeacherRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
-	connect(teacherSubjectRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
-	connect(teacherStudentRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
-	connect(subjectStudentRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
-	connect(subjectTeacherRB, SIGNAL(toggled(bool)), this, SLOT(updateNamesList()));
+	connect(studentSubjectRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
+	connect(studentTeacherRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
+	connect(teacherSubjectRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
+	connect(teacherStudentRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
+	connect(subjectStudentRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
+	connect(subjectTeacherRB, &QRadioButton::toggled, this, &StatisticsPrintForm::updateNamesList);
 
 	int ww=this->sizeHint().width();
 	if(ww>900)
@@ -509,8 +566,8 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	
-	QSettings settings;
-		
+	QSettings settings(COMPANY, PROGRAM);
+	
 	if(settings.contains(this->metaObject()->className()+studentSubjectRBState))
 		studentSubjectRB->setChecked(settings.value(this->metaObject()->className()+studentSubjectRBState).toBool());
 	if(settings.contains(this->metaObject()->className()+studentTeacherRBState))
@@ -534,11 +591,15 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 		CBpaperSize->setCurrentIndex(settings.value(this->metaObject()->className()+CBpaperSizeState).toInt());
 	if(settings.contains(this->metaObject()->className()+CBorientationModeState))
 		CBorientationMode->setCurrentIndex(settings.value(this->metaObject()->className()+CBorientationModeState).toInt());
-//	if(settings.contains(this->metaObject()->className()+printDetailedTablesState))
-//		printDetailedTables->setChecked(settings.value(this->metaObject()->className()+printDetailedTablesState).toBool());
+	//if(settings.contains(this->metaObject()->className()+printDetailedTablesState))
+	//	printDetailedTables->setChecked(settings.value(this->metaObject()->className()+printDetailedTablesState).toBool());
 	if(settings.contains(this->metaObject()->className()+printActivityTagsState))
 		printActivityTags->setChecked(settings.value(this->metaObject()->className()+printActivityTagsState).toBool());
 	//
+
+	if(settings.contains(this->metaObject()->className()+printOnlyBlackFontsState))
+		onlyBlackFonts->setChecked(settings.value(this->metaObject()->className()+printOnlyBlackFontsState).toBool());
+
 	if(settings.contains(this->metaObject()->className()+activitiesPaddingState))
 		activitiesPadding->setValue(settings.value(this->metaObject()->className()+activitiesPaddingState).toInt());
 	if(settings.contains(this->metaObject()->className()+tablePaddingState))
@@ -560,7 +621,7 @@ StatisticsPrintForm::StatisticsPrintForm(QWidget *parent): QDialog(parent){
 StatisticsPrintForm::~StatisticsPrintForm(){
 	saveFETDialogGeometry(this);
 	
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	//save other settings
 
 	settings.setValue(this->metaObject()->className()+studentSubjectRBState, studentSubjectRB->isChecked());
@@ -578,6 +639,8 @@ StatisticsPrintForm::~StatisticsPrintForm(){
 	//
 //	settings.setValue(this->metaObject()->className()+printDetailedTablesState, printDetailedTables->isChecked());
 	settings.setValue(this->metaObject()->className()+printActivityTagsState, printActivityTags->isChecked());
+
+	settings.setValue(this->metaObject()->className()+printOnlyBlackFontsState, onlyBlackFonts->isChecked());
 	//
 	settings.setValue(this->metaObject()->className()+activitiesPaddingState, activitiesPadding->value());
 	settings.setValue(this->metaObject()->className()+tablePaddingState, tablePadding->value());
@@ -602,7 +665,7 @@ void StatisticsPrintForm::updateNamesList(){
 	
 	if(studentSubjectRB->isChecked() || studentTeacherRB->isChecked()){
 		int count=0;
-		for(const QString& student : qAsConst(statisticValues.allStudentsNames)){
+		for(const QString& student : std::as_const(statisticValues.allStudentsNames)){
 			namesList->addItem(student);
 			QListWidgetItem* tmpItem=namesList->item(count);
 			tmpItem->setSelected(true);
@@ -611,7 +674,7 @@ void StatisticsPrintForm::updateNamesList(){
 	}
 	if(teacherSubjectRB->isChecked() || teacherStudentRB->isChecked()){
 		int count=0;
-		for(const QString& teacher : qAsConst(statisticValues.allTeachersNames)){
+		for(const QString& teacher : std::as_const(statisticValues.allTeachersNames)){
 			namesList->addItem(teacher);
 			QListWidgetItem* tmpItem=namesList->item(count);
 			tmpItem->setSelected(true);
@@ -620,7 +683,7 @@ void StatisticsPrintForm::updateNamesList(){
 	}
 	if(subjectStudentRB->isChecked() || subjectTeacherRB->isChecked()){
 	int count=0;
-		for(const QString& subject : qAsConst(statisticValues.allSubjectsNames)){
+		for(const QString& subject : std::as_const(statisticValues.allSubjectsNames)){
 			namesList->addItem(subject);
 			QListWidgetItem* tmpItem=namesList->item(count);
 			tmpItem->setSelected(true);
@@ -634,25 +697,27 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 
 	QString tmp;
 	tmp+="<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n";
-	tmp+="  \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
+	tmp+="  \"https://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n\n";
 	
 	if(LANGUAGE_STYLE_RIGHT_TO_LEFT==false)
-		tmp+="<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""+LANGUAGE_FOR_HTML+"\" xml:lang=\""+LANGUAGE_FOR_HTML+"\">\n";
+		tmp+="<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""+LANGUAGE_FOR_HTML+"\" xml:lang=\""+LANGUAGE_FOR_HTML+"\">\n";
 	else
-		tmp+="<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\""+LANGUAGE_FOR_HTML+"\" xml:lang=\""+LANGUAGE_FOR_HTML+"\" dir=\"rtl\">\n";
+		tmp+="<html xmlns=\"https://www.w3.org/1999/xhtml/\" lang=\""+LANGUAGE_FOR_HTML+"\" xml:lang=\""+LANGUAGE_FOR_HTML+"\" dir=\"rtl\">\n";
 
 	//QTBUG-9438
 	//QTBUG-2730
 	tmp+="  <head>\n";
-	tmp+="    <title>"+protect2(gt.rules.getInstitutionName())+"</title>\n";
-	tmp+="    <meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" />\n";
+	tmp+="    <title>"+protect2(gt.rules.institutionName)+"</title>\n";
+	tmp+="    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />\n";
 	tmp+="    <style type=\"text/css\">\n";
+
+	tmp+="      body {\n        color: black;\n        background-color: white;\n      }\n\n";
 	
 	//this variant doesn't need the "back" stuff, but there will be an empty last page!
 	//but you need to care about correct odd and even like in the groups tables
 /*	tmp+="      table.even_table {\n";
 	if(CBBreak->currentIndex()==1 || CBBreak->currentIndex()==2){
-		tmp+="        page-break-after: always;";
+		tmp+="        page-break-after: always;\n";
 	} //else {
 	//tmp+="        padding-top: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug. (*1*)
 	//tmp+="        padding-bottom: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug. (*1*)
@@ -660,7 +725,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	tmp+="      }\n";
 	tmp+="      table.odd_table {\n";
 	if(CBBreak->currentIndex()==1){
-		tmp+="        page-break-after: always;";
+		tmp+="        page-break-after: always;\n";
 	} //else {
 	//tmp+="        padding-top: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug. (*1*)
 	//tmp+="        padding-bottom: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug. (*1*)
@@ -668,26 +733,26 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	tmp+="      }\n";
 */
 	
-	//start. the "back" stuff is needed because of a qt bug (*1*). it also solve the last empty page problem.
+	//start. the "back" stuff is needed because of a qt bug (*1*). it also solves the last empty page problem.
 	tmp+="      p.back0 {\n";	//i can't to that with a class in table, because of a qt bug
 	if(CBBreak->currentIndex()==0)
-		tmp+="        font-size: "+QString::number(tablePadding->value())+"pt;\n";	//i can't do that in table, because it will also effect detailed table cells. it is not possible with a class, because of a qt bug.
+		tmp+="        font-size: "+QString::number(tablePadding->value())+"pt;\n";	//i can't do that in table, because it will also afect detailed table cells. it is not possible with a class, because of a qt bug.
 	else
 		tmp+="        font-size: 1pt;\n";	//font size 0 is not possible.
 //	tmp+="        padding-top: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug.
 //	tmp+="        padding-bottom: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug.
 	if(CBBreak->currentIndex()==1 || CBBreak->currentIndex()==2)
-		tmp+="        page-break-after: always;";
+		tmp+="        page-break-after: always;\n";
 	tmp+="      }\n";
 	tmp+="      p.back1 {\n";	//i can't to that with a class in table, because of a qt bug
 	if(CBBreak->currentIndex()==0 || CBBreak->currentIndex()==2)
-		tmp+="        font-size: "+QString::number(tablePadding->value())+"pt;\n";	//i can't do that in table, because it will also effect detailed table cells. it is not possible with a class, because of a qt bug.
+		tmp+="        font-size: "+QString::number(tablePadding->value())+"pt;\n";	//i can't do that in table, because it will also afect detailed table cells. it is not possible with a class, because of a qt bug.
 	else
 		tmp+="        font-size: 1pt;\n";	//font size 0 is not possible.
 //	tmp+="        padding-top: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug.
 //	tmp+="        padding-bottom: "+QString::number(tablePadding->value())+"px;\n";	//not possible: qt bug.
 	if(CBBreak->currentIndex()==1)
-		tmp+="        page-break-after: always;";
+		tmp+="        page-break-after: always;\n";
 	tmp+="      }\n";
 	//end. the "back" stuff is only needed because of a qt bug (*1*). delete this as soon as bug is solved
 	
@@ -696,12 +761,12 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	tmp+="        padding-top: "+QString::number(tablePadding->value())+"px;\n";
 	tmp+="      }\n";
 	tmp+="      th {\n";
-	tmp+="        text-align: center;\n"; //currently no effect because of a qt bug (compare http://bugreports.qt.nokia.com/browse/QTBUG-2730 )
+	tmp+="        text-align: center;\n"; //currently no effect because of a qt bug (compare https://bugreports.qt.io/browse/QTBUG-2730)
 	tmp+="        vertical-align: middle;\n";
 	tmp+="        white-space: "+CBWhiteSpace->currentText()+";\n";
 	tmp+="      }\n";
 	tmp+="      td {\n";
-	tmp+="        text-align: center;\n"; //currently no effect because of a qt bug (compare http://bugreports.qt.nokia.com/browse/QTBUG-2730 )
+	tmp+="        text-align: center;\n"; //currently no effect because of a qt bug (compare https://bugreports.qt.io/browse/QTBUG-2730)
 	tmp+="        vertical-align: middle;\n";
 	tmp+="        white-space: "+CBWhiteSpace->currentText()+";\n";
 	tmp+="        padding-left: "+QString::number(activitiesPadding->value())+"px;\n";
@@ -711,26 +776,32 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 //	tmp+="        padding-left: 4px;\n";
 //	tmp+="        padding-right: 4px;\n";
 	tmp+="      }\n";
-	tmp+="      th.xAxis {\n";	//need level 2
+	tmp+="      th.xAxis {\n";	//needs level 2
 //	tmp+="        padding-left: 4px;\n";
 //	tmp+="        padding-right: 4px;\n";
 	tmp+="      }\n";
-	tmp+="      th.yAxis {\n";	//need level 2
+	tmp+="      th.yAxis {\n";	//needs level 2
 //	tmp+="        padding-top: 4px;\n";
 //	tmp+="        padding-bottom: 4px;\n";
 	tmp+="      }\n";
-	tmp+="      tr.line0, div.line0 {\n";	//need level 3
+	tmp+="      tr.line0, div.line0 {\n";	//needs level 3
 	tmp+="        /*font-size: 12pt;*/\n";
-	tmp+="        color: gray;\n";
+	if(onlyBlackFonts->isChecked())
+		tmp+="        /*color: gray;*/\n";
+	else
+		tmp+="        color: gray;\n";
 	tmp+="      }\n";
-	tmp+="      tr.line1, div.line1 {\n";	//need level 3
+	tmp+="      tr.line1, div.line1 {\n";	//needs level 3
 	tmp+="        /*font-size: 12pt;*/\n";
 	tmp+="      }\n";
-	tmp+="      tr.line2, div.line2 {\n";	//need level 3
+	tmp+="      tr.line2, div.line2 {\n";	//needs level 3
 	tmp+="        /*font-size: 12pt;*/\n";
-	tmp+="        color: gray;\n";
+	if(onlyBlackFonts->isChecked())
+		tmp+="        /*color: gray;*/\n";
+	else
+		tmp+="        color: gray;\n";
 	tmp+="      }\n";
-	tmp+="      tr.line3, div.line3 {\n";	//need level 3
+	tmp+="      tr.line3, div.line3 {\n";	//needs level 3
 	tmp+="        /*font-size: 12pt;*/\n";
 	tmp+="        color: silver;\n";
 	tmp+="      }\n";
@@ -758,7 +829,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(studentSubjectRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsStudentsSubjectsHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsStudentsSubjectsHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -773,7 +844,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(studentTeacherRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsStudentsTeachersHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsStudentsTeachersHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -788,7 +859,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(teacherSubjectRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsTeachersSubjectsHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsTeachersSubjectsHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -803,7 +874,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(teacherStudentRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsTeachersStudentsHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsTeachersStudentsHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -818,7 +889,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(subjectStudentRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsSubjectsStudentsHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsSubjectsStudentsHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -833,7 +904,7 @@ QString StatisticsPrintForm::updateHTMLprintString(bool printAll){
 	if(subjectTeacherRB->isChecked()){
 		int count=0;
 		while(excludedNamesIndex.size()<namesList->count()){
-			tmp+=StatisticsExport::exportStatisticsSubjectsTeachersHtml(NULL/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
+			tmp+=StatisticsExport::exportStatisticsSubjectsTeachersHtml(nullptr/*parent*/, saveTime, statisticValues, 3, printActivityTags->isChecked(), maxNames->value(), &excludedNamesIndex);
 			if(excludedNamesIndex.size()<namesList->count()){
 				if(count%2==0){
 					tmp+="    <p class=\"back1\"><br /></p>\n\n";
@@ -865,14 +936,23 @@ void StatisticsPrintForm::print(){
 	QPrinter printer(QPrinter::HighResolution);
 
 	assert(paperSizesMap.contains(CBpaperSize->currentText()));
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+	printer.setPageSize(paperSizesMap.value(CBpaperSize->currentText()));
+#else
 	printer.setPaperSize(paperSizesMap.value(CBpaperSize->currentText()));
+#endif
 
 	switch(CBorientationMode->currentIndex()){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+		case 0: printer.setPageOrientation(QPageLayout::Portrait); break;
+		case 1: printer.setPageOrientation(QPageLayout::Landscape); break;
+#else
 		case 0: printer.setOrientation(QPrinter::Portrait); break;
 		case 1: printer.setOrientation(QPrinter::Landscape); break;
+#endif
 		default: assert(0==1);
 	}
-#if QT_VERSION >= 0x050300
+#if QT_VERSION >= QT_VERSION_CHECK(5,3,0)
 	QMarginsF printerMargins;
 	printerMargins.setLeft(leftPageMargin->value());
 	printerMargins.setRight(rightPageMargin->value());
@@ -890,13 +970,22 @@ void StatisticsPrintForm::print(){
 	//QPrintDialog *printDialog = new QPrintDialog(&printer, this);
 	QPrintDialog printDialog(&printer, this);
 	printDialog.setWindowTitle(tr("Print statistics"));
+	
+	//const QString settingsName=QString("StatisticsPrintFormPrintDialog");
+	//restoreFETDialogGeometry(&printDialog, settingsName);
+	
 	if (printDialog.exec() == QDialog::Accepted) {
 		QTextDocument textDocument;
 		textDocument.documentLayout()->setPaintDevice(&printer);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+		textDocument.setPageSize(QSizeF(printer.pageLayout().paintRectPixels(printer.resolution()).size()));
+#else
 		textDocument.setPageSize(QSizeF(printer.pageRect().size()));
+#endif
 		textDocument.setHtml(updateHTMLprintString(true));
 		textDocument.print(&printer);
 	}
+	//saveFETDialogGeometry(&printDialog, settingsName);
 	//delete printDialog;
 #endif
 }
@@ -909,14 +998,23 @@ void StatisticsPrintForm::printPreviewFull(){
 	QPrinter printer(QPrinter::HighResolution);
 
 	assert(paperSizesMap.contains(CBpaperSize->currentText()));
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+	printer.setPageSize(paperSizesMap.value(CBpaperSize->currentText()));
+#else
 	printer.setPaperSize(paperSizesMap.value(CBpaperSize->currentText()));
+#endif
 
 	switch(CBorientationMode->currentIndex()){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+		case 0: printer.setPageOrientation(QPageLayout::Portrait); break;
+		case 1: printer.setPageOrientation(QPageLayout::Landscape); break;
+#else
 		case 0: printer.setOrientation(QPrinter::Portrait); break;
 		case 1: printer.setOrientation(QPrinter::Landscape); break;
+#endif
 		default: assert(0==1);
 	}
-#if QT_VERSION >= 0x050300
+#if QT_VERSION >= QT_VERSION_CHECK(5,3,0)
 	QMarginsF printerMargins;
 	printerMargins.setLeft(leftPageMargin->value());
 	printerMargins.setRight(rightPageMargin->value());
@@ -932,8 +1030,14 @@ void StatisticsPrintForm::printPreviewFull(){
 	printer.setPageMargins(leftPageMargin->value(), topPageMargin->value(), rightPageMargin->value(), bottomPageMargin->value(), QPrinter::Millimeter);
 #endif
 	QPrintPreviewDialog printPreviewFull(&printer, this);
-	connect(&printPreviewFull, SIGNAL(paintRequested(QPrinter*)), SLOT(updatePreviewFull(QPrinter*)));
+	connect(&printPreviewFull, &QPrintPreviewDialog::paintRequested, this, &StatisticsPrintForm::updatePreviewFull);
+
+	const QString settingsName=QString("StatisticsPrintFormPrintPreviewFullDialog");
+	restoreFETDialogGeometry(&printPreviewFull, settingsName);
+
 	printPreviewFull.exec();
+
+	saveFETDialogGeometry(&printPreviewFull, settingsName);
 #endif
 }
 
@@ -946,7 +1050,11 @@ void StatisticsPrintForm::updatePreviewFull(QPrinter* printer){
 #else
 	QTextDocument textDocument;
 	textDocument.documentLayout()->setPaintDevice(printer);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+	textDocument.setPageSize(QSizeF(printer->pageLayout().paintRectPixels(printer->resolution()).size()));
+#else
 	textDocument.setPageSize(QSizeF(printer->pageRect().size()));
+#endif
 	textDocument.setHtml(updateHTMLprintString(true));
 	textDocument.print(printer);
 #endif
@@ -960,14 +1068,22 @@ void StatisticsPrintForm::printPreviewSmall(){
 	QPrinter printer(QPrinter::HighResolution);
 
 	assert(paperSizesMap.contains(CBpaperSize->currentText()));
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+#else
 	printer.setPaperSize(paperSizesMap.value(CBpaperSize->currentText()));
+#endif
 
 	switch(CBorientationMode->currentIndex()){
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+		case 0: printer.setPageOrientation(QPageLayout::Portrait); break;
+		case 1: printer.setPageOrientation(QPageLayout::Landscape); break;
+#else
 		case 0: printer.setOrientation(QPrinter::Portrait); break;
 		case 1: printer.setOrientation(QPrinter::Landscape); break;
+#endif
 		default: assert(0==1);
 	}
-#if QT_VERSION >= 0x050300
+#if QT_VERSION >= QT_VERSION_CHECK(5,3,0)
 	QMarginsF printerMargins;
 	printerMargins.setLeft(leftPageMargin->value());
 	printerMargins.setRight(rightPageMargin->value());
@@ -983,8 +1099,14 @@ void StatisticsPrintForm::printPreviewSmall(){
 	printer.setPageMargins(leftPageMargin->value(), topPageMargin->value(), rightPageMargin->value(), bottomPageMargin->value(), QPrinter::Millimeter);
 #endif
 	QPrintPreviewDialog printPreviewSmall(&printer, this);
-	connect(&printPreviewSmall, SIGNAL(paintRequested(QPrinter*)), SLOT(updatePreviewSmall(QPrinter*)));
+	connect(&printPreviewSmall, &QPrintPreviewDialog::paintRequested, this, &StatisticsPrintForm::updatePreviewSmall);
+
+	const QString settingsName=QString("StatisticsPrintFormPrintPreviewSmallDialog");
+	restoreFETDialogGeometry(&printPreviewSmall, settingsName);
+
 	printPreviewSmall.exec();
+
+	saveFETDialogGeometry(&printPreviewSmall, settingsName);
 #endif
 }
 
@@ -997,7 +1119,11 @@ void StatisticsPrintForm::updatePreviewSmall(QPrinter* printer){
 #else
 	QTextDocument textDocument;
 	textDocument.documentLayout()->setPaintDevice(printer);
+#if QT_VERSION >= QT_VERSION_CHECK(5,15,2)
+	textDocument.setPageSize(QSizeF(printer->pageLayout().paintRectPixels(printer->resolution()).size()));
+#else
 	textDocument.setPageSize(QSizeF(printer->pageRect().size()));
+#endif
 	textDocument.setHtml(updateHTMLprintString(false));
 	textDocument.print(printer);
 #endif

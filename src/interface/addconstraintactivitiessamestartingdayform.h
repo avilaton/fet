@@ -2,8 +2,8 @@
                           addconstraintactivitiessamestartingdayform.h  -  description
                              -------------------
     begin                : June 23, 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -32,8 +32,6 @@ public:
 	AddConstraintActivitiesSameStartingDayForm(QWidget* parent);
 	~AddConstraintActivitiesSameStartingDayForm();
 
-	void updateActivitiesListWidget();
-	
 	bool filterOk(Activity* a);
 
 public slots:
@@ -49,8 +47,8 @@ public slots:
 private:
 	//the id's of the activities listed in the activities list
 	QList<int> activitiesList;
-	//the id-s of the activities listed in the list of simultaneous activities
-	QList<int> simultaneousActivitiesList;
+	//the id-s of the activities listed in the list of selected activities
+	QList<int> selectedActivitiesList;
 };
 
 #endif

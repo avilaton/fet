@@ -2,8 +2,8 @@
                           addconstraintsubactivitiespreferredtimeslotsform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,16 +15,25 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <Qt>
+
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintsubactivitiespreferredtimeslotsform.h"
 #include "timeconstraint.h"
 
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
+#include <QHeaderView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+
+#include <QBrush>
+#include <QColor>
+#include <QPalette>
+
+#define YES		(QString(" "))
+#define NO		(QString("X"))
 
 AddConstraintSubactivitiesPreferredTimeSlotsForm::AddConstraintSubactivitiesPreferredTimeSlotsForm(QWidget* parent): QDialog(parent)
 {
@@ -38,10 +47,11 @@ AddConstraintSubactivitiesPreferredTimeSlotsForm::AddConstraintSubactivitiesPref
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(setAllAllowedPushButton, SIGNAL(clicked()), this, SLOT(setAllSlotsAllowed()));
-	connect(setAllNotAllowedPushButton, SIGNAL(clicked()), this, SLOT(setAllSlotsNotAllowed()));
+	connect(preferredTimesTable, &QTableWidget::itemClicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::itemClicked);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::close);
+	connect(setAllAllowedPushButton, &QPushButton::clicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::setAllSlotsAllowed);
+	connect(setAllNotAllowedPushButton, &QPushButton::clicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::setAllSlotsNotAllowed);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -60,11 +70,48 @@ AddConstraintSubactivitiesPreferredTimeSlotsForm::AddConstraintSubactivitiesPref
 	updateSubjectsComboBox();
 	updateActivityTagsComboBox();
 
-	preferredTimesTable->setHeaders(gt.rules);
-			
+	preferredTimesTable->setRowCount(gt.rules.nHoursPerDay);
+	preferredTimesTable->setColumnCount(gt.rules.nDaysPerWeek);
+
+	for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
+		preferredTimesTable->setHorizontalHeaderItem(j, item);
+	}
+	for(int i=0; i<gt.rules.nHoursPerDay; i++){
+		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
+		preferredTimesTable->setVerticalHeaderItem(i, item);
+	}
+
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			QTableWidgetItem* item=new QTableWidgetItem(YES);
+			item->setTextAlignment(Qt::AlignCenter);
+			item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+			colorItem(item);
+			if(SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES)
+				item->setToolTip(gt.rules.daysOfTheWeek[j]+QString("\n")+gt.rules.hoursOfTheDay[i]);
+			preferredTimesTable->setItem(i, j, item);
+		}
+		
+	preferredTimesTable->resizeRowsToContents();
+
+	connect(preferredTimesTable->horizontalHeader(), &QHeaderView::sectionClicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::horizontalHeaderClicked);
+	connect(preferredTimesTable->verticalHeader(), &QHeaderView::sectionClicked, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::verticalHeaderClicked);
+
+	preferredTimesTable->setSelectionMode(QAbstractItemView::NoSelection);
+	
 	componentNumberSpinBox->setMinimum(1);
 	componentNumberSpinBox->setMaximum(MAX_SPLIT_OF_AN_ACTIVITY);
 	componentNumberSpinBox->setValue(1);
+
+	setStretchAvailabilityTableNicely(preferredTimesTable);
+
+	connect(preferredTimesTable, &QTableWidget::cellEntered, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::cellEntered);
+	preferredTimesTable->setMouseTracking(true);
+
+	connect(durationCheckBox, &QCheckBox::toggled, this, &AddConstraintSubactivitiesPreferredTimeSlotsForm::durationCheckBox_toggled);
+	
+	durationCheckBox_toggled();
 }
 
 AddConstraintSubactivitiesPreferredTimeSlotsForm::~AddConstraintSubactivitiesPreferredTimeSlotsForm()
@@ -72,14 +119,99 @@ AddConstraintSubactivitiesPreferredTimeSlotsForm::~AddConstraintSubactivitiesPre
 	saveFETDialogGeometry(this);
 }
 
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::colorItem(QTableWidgetItem* item)
+{
+	if(USE_GUI_COLORS){
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+		if(item->text()==YES)
+			item->setBackground(QBrush(QColorConstants::DarkGreen));
+		else
+			item->setBackground(QBrush(QColorConstants::DarkRed));
+		item->setForeground(QBrush(QColorConstants::LightGray));
+#else
+		if(item->text()==YES)
+			item->setBackground(QBrush(Qt::darkGreen));
+		else
+			item->setBackground(QBrush(Qt::darkRed));
+		item->setForeground(QBrush(Qt::lightGray));
+#endif
+	}
+}
+
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::horizontalHeaderClicked(int col)
+{
+	highlightOnHorizontalHeaderClicked(preferredTimesTable, col);
+
+	if(col>=0 && col<gt.rules.nDaysPerWeek){
+		QString s=preferredTimesTable->item(0, col)->text();
+		if(s==YES)
+			s=NO;
+		else{
+			assert(s==NO);
+			s=YES;
+		}
+
+		for(int row=0; row<gt.rules.nHoursPerDay; row++){
+			preferredTimesTable->item(row, col)->setText(s);
+			colorItem(preferredTimesTable->item(row,col));
+		}
+	}
+}
+
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::verticalHeaderClicked(int row)
+{
+	highlightOnVerticalHeaderClicked(preferredTimesTable, row);
+
+	if(row>=0 && row<gt.rules.nHoursPerDay){
+		QString s=preferredTimesTable->item(row, 0)->text();
+		if(s==YES)
+			s=NO;
+		else{
+			assert(s==NO);
+			s=YES;
+		}
+	
+		for(int col=0; col<gt.rules.nDaysPerWeek; col++){
+			preferredTimesTable->item(row, col)->setText(s);
+			colorItem(preferredTimesTable->item(row,col));
+		}
+	}
+}
+
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::cellEntered(int row, int col)
+{
+	highlightOnCellEntered(preferredTimesTable, row, col);
+}
+
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::setAllSlotsAllowed()
 {
-	preferredTimesTable->setAllUnmarked();
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			preferredTimesTable->item(i, j)->setText(YES);
+			colorItem(preferredTimesTable->item(i,j));
+		}
 }
 
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::setAllSlotsNotAllowed()
 {
-	preferredTimesTable->setAllMarked();
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			preferredTimesTable->item(i, j)->setText(NO);
+			colorItem(preferredTimesTable->item(i,j));
+		}
+}
+
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::itemClicked(QTableWidgetItem* item)
+{
+	QString s=item->text();
+	if(s==YES)
+		s=NO;
+	else{
+		assert(s==NO);
+		s=YES;
+	}
+	item->setText(s);
+	colorItem(item);
 }
 
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::updateTeachersComboBox(){
@@ -92,7 +224,7 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::updateTeachersComboBox(){
 }
 
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::updateStudentsComboBox(){
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 }
 
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::updateSubjectsComboBox(){
@@ -115,7 +247,7 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::updateActivityTagsComboBo
 
 void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	int duration=-1;
 	if(durationCheckBox->isChecked()){
@@ -138,7 +270,7 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 
 	QString students=studentsComboBox->currentText();
 	if(students!="")
-		assert(gt.rules.searchStudentsSet(students)!=NULL);
+		assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QString subject=subjectsComboBox->currentText();
 	if(subject!="")
@@ -150,12 +282,10 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 	
 	QList<int> days_L;
 	QList<int> hours_L;
-	//int days[MAX_N_CONSTRAINT_SUBACTIVITIES_PREFERRED_TIME_SLOTS];
-	//int hours[MAX_N_CONSTRAINT_SUBACTIVITIES_PREFERRED_TIME_SLOTS];
 	int n=0;
 	for(int j=0; j<gt.rules.nDaysPerWeek; j++)
 		for(int i=0; i<gt.rules.nHoursPerDay; i++)
-			if(!preferredTimesTable->isMarked(i, j)){
+			if(preferredTimesTable->item(i, j)->text()==YES){
 				days_L.append(j);
 				hours_L.append(i);
 				n++;
@@ -165,12 +295,12 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 		int t=QMessageBox::question(this, tr("FET question"),
 		 tr("Warning: 0 slots selected. Are you sure?"),
 		 QMessageBox::Yes, QMessageBox::Cancel);
-						 
+		
 		if(t==QMessageBox::Cancel)
 				return;
 	}
 
-	ctr=new ConstraintSubactivitiesPreferredTimeSlots(weight, componentNumberSpinBox->value(),/*compulsory,*/ teacher, students, subject, activityTag, duration, n, days_L, hours_L);
+	ctr=new ConstraintSubactivitiesPreferredTimeSlots(weight, componentNumberSpinBox->value(), teacher, students, subject, activityTag, duration, n, days_L, hours_L);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
 	if(tmp2){
@@ -178,6 +308,8 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
@@ -186,8 +318,10 @@ void AddConstraintSubactivitiesPreferredTimeSlotsForm::addConstraint()
 	}
 }
 
-void AddConstraintSubactivitiesPreferredTimeSlotsForm::on_durationCheckBox_toggled()
+void AddConstraintSubactivitiesPreferredTimeSlotsForm::durationCheckBox_toggled()
 {
 	durationSpinBox->setEnabled(durationCheckBox->isChecked());
 }
 
+#undef YES
+#undef NO

@@ -2,8 +2,8 @@
                           addconstraintstudentssethomeroomsform.cpp  -  description
                              -------------------
     begin                : April 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,16 +17,14 @@
 
 #include <QMessageBox>
 
+
+
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssethomeroomsform.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetHomeRoomsForm::AddConstraintStudentsSetHomeRoomsForm(QWidget* parent): QDialog(parent)
 {
@@ -37,11 +35,11 @@ AddConstraintStudentsSetHomeRoomsForm::AddConstraintStudentsSetHomeRoomsForm(QWi
 	roomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedRoomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
-	connect(roomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addRoom()));
-	connect(selectedRoomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeRoom()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetHomeRoomsForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetHomeRoomsForm::addConstraint);
+	connect(roomsListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintStudentsSetHomeRoomsForm::addRoom);
+	connect(selectedRoomsListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintStudentsSetHomeRoomsForm::removeRoom);
+	connect(clearPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetHomeRoomsForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -51,7 +49,7 @@ AddConstraintStudentsSetHomeRoomsForm::AddConstraintStudentsSetHomeRoomsForm(QWi
 
 	updateRoomsListWidget();
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
+	populateStudentsComboBox(studentsComboBox);
 }
 
 AddConstraintStudentsSetHomeRoomsForm::~AddConstraintStudentsSetHomeRoomsForm()
@@ -72,7 +70,7 @@ void AddConstraintStudentsSetHomeRoomsForm::updateRoomsListWidget()
 
 void AddConstraintStudentsSetHomeRoomsForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -95,7 +93,7 @@ void AddConstraintStudentsSetHomeRoomsForm::addConstraint()
 	}*/
 
 	QString students=studentsComboBox->currentText();
-	assert(gt.rules.searchStudentsSet(students)!=NULL);
+	assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QStringList roomsList;
 	for(int i=0; i<selectedRoomsListWidget->count(); i++)
@@ -109,6 +107,8 @@ void AddConstraintStudentsSetHomeRoomsForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),

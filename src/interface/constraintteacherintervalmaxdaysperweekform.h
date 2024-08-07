@@ -2,8 +2,8 @@
                           constraintteacherintervalmaxdaysperweekform.h  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,18 +18,28 @@
 #ifndef CONSTRAINTTEACHERINTERVALMAXDAYSPERWEEKFORM_H
 #define CONSTRAINTTEACHERINTERVALMAXDAYSPERWEEKFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintteacherintervalmaxdaysperweekform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintTeacherIntervalMaxDaysPerWeekForm : public TimeConstraintBaseDialog  {
+class ConstraintTeacherIntervalMaxDaysPerWeekForm : public QDialog, Ui::ConstraintTeacherIntervalMaxDaysPerWeekForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintTeacherIntervalMaxDaysPerWeekForm(QWidget* parent);
 	~ConstraintTeacherIntervalMaxDaysPerWeekForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
+
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
 };
 
 #endif

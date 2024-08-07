@@ -2,8 +2,8 @@
                           modifyconstraintactivitypreferredroomform.h  -  description
                              -------------------
     begin                : February 13, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -36,6 +36,12 @@ public:
 
 public slots:
 	void ok();
+	void help();
+	void cancel();
+
+	void removeRealRoom();
+	void clearRealRooms();
+	void addRealRoom();
 };
 
 #endif

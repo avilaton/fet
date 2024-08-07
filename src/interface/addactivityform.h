@@ -2,8 +2,8 @@
                           addactivityform.h  -  description
                              -------------------
     begin                : Wed Apr 23 2003
-    copyright            : (C) 2003 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2003 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,11 +20,12 @@
 
 #include "ui_addactivityform_template.h"
 
-#include <QSet>
-//#include <QHash>
-#include <QList>
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-#include "addremovebykeypress.h"
+#include <QSet>
+#include <QList>
 
 class AddActivityForm : public QDialog, Ui::AddActivityForm_template  {
 	Q_OBJECT
@@ -36,19 +37,9 @@ private:
 	QSpinBox* dur(int i);
 	QCheckBox* activ(int i);
 	
-	QSet<QString> teacherNamesSet;
-	QSet<QString> subjectNamesSet;
-	QSet<QString> activityTagNamesSet;
-	//QHash<QString, int> numberOfStudentsHash;
-
-	AddRemoveByKeyPress * addRemoveTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedTeacherKeyFilter;
-	AddRemoveByKeyPress * addRemoveStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedStudentKeyFilter;
-	AddRemoveByKeyPress * addRemoveActivityTagKeyFilter;
-	AddRemoveByKeyPress * addRemoveSelectedActivityTagKeyFilter;
-
-	void setupAddRemoveKeyFilters();
+	QSet<QString> teachersNamesSet;
+	QSet<QString> subjectsNamesSet;
+	QSet<QString> activityTagsNamesSet;
 
 public:
 	QList<QString> canonicalStudentsSetsNames;
@@ -61,6 +52,8 @@ public:
 	void updateActivityTagsListWidget();
 	void updatePreferredDaysComboBox();
 	void updatePreferredHoursComboBox();
+	
+	void populateSubactivitiesTabWidget(int n);
 
 public slots:
 	void allTeachersRadioButtonToggled(bool checked);
@@ -86,16 +79,12 @@ public slots:
 	void showSubgroupsChanged();
 
 	void addActivity();
+	void addMultipleActivities();
 	void help();
 	
 	void minDaysChanged();
-
-	void splitLineEditTextChanged(const QString &text);
-
-	void createSubject();
-
-private slots:
-	void rewriteSplitLineEdit();
+	
+	void halfCheckBoxToggled();
 };
 
 class SecondMinDaysDialog: public QDialog

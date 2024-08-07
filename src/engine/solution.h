@@ -6,8 +6,8 @@ File solution.h
                           solution.h  -  description
                              -------------------
     begin                : 2002
-    copyright            : (C) 2002 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2002 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -28,77 +28,46 @@ File solution.h
 
 #include <QString>
 #include <QList>
+#include <QTextStream>
 
 class Rules;
+
+class FakeString;
 
 /**
 This class represents a solution (time and space allocation for the activities).
 */
 class Solution{
 public:
-	Solution();
-
 	QList<double> conflictsWeightList;
 	QList<QString> conflictsDescriptionList;
 	double conflictsTotal;
-
+	
+	bool teachersMatrixReady;
+	bool subgroupsMatrixReady;
+	bool roomsMatrixReady;
+	
 	int nPlacedActivities;
+
+	/*
+	You will need to set this to true if altering the times array values.
+	The conflicts calculating routine will reset this to false
+	at the first teachers matrix and subgroups matrix calculation.
+	*/
+	bool changedForMatrixCalculation;
 
 	/**
 	This array represents every activity's start time
 	(time is a unified representation of hour and day,
 	stored as an integer value). We have a special value here:
 	UNALLOCATED_TIME, which is a large number.
-	If changed, resetFitness() must be called.
 	*/
-	int times[MAX_ACTIVITIES];
+	Matrix1D<int> times;
 	
-	int rooms[MAX_ACTIVITIES];
+	Matrix1D<int> rooms;
+	
+	Matrix1D<QList<int>> realRoomsList; //for virtual rooms
 
-	/**
-	Assignment method. We need to have access to the Rules instantiation
-	to know the number of activities.
-	*/
-	void copy(const Rules& r, const Solution& c);
-
-	/**
-	Marks the starting time of all the activities as undefined
-	(all activities are unallocated).
-	*/
-	void makeUnallocated(const Rules& r);
-
-	/**
-	  Clean fitness cached value.
-	  It is needed to force recomputation when calling fitness().
-	  It must be called every time the rules change.
-	*/
-	void resetFitness();
-
-	/**
-	ATTENTION: if the rules or the times array change,
-	the user has to call resetFitness().
-	<p>
-	If conflictsString is not null, then this function will
-	append at this string an explanation of the conflicts.
-	*/
-	double fitness(const Rules& r, QString* conflictsString=NULL);
-
-	void getTeachersTimetable(const Rules& r, Matrix3D<int>& a, Matrix3D<QList<int> >& b) const;
-	//return value is the number of conflicts, which must be 0
-
-	void getSubgroupsTimetable(const Rules& r, Matrix3D<int>& a) const;
-	//return value is the number of conflicts, which must be 0
-
-	void getRoomsTimetable(const Rules& r, Matrix3D<int>& a) const;
-	//return value is the number of conflicts, which must be 0
-
-	int getSubgroupsMatrix(const Rules &r, const Matrix3D<int>** p_a) const;
-
-	int getTeachersMatrix(const Rules &r, const Matrix3D<int>** p_a) const;
-
-	int getRoomsMatrix(const Rules &r, const Matrix3D<int>** p_a) const;
-
-private:
 	/**
 	Fitness; it is calculated only at the initialization or
 	at the modification.
@@ -107,17 +76,50 @@ private:
 	*/
 	double _fitness;
 
-	mutable bool teachersMatrixReady;
-	mutable Matrix3D<int> cached_teachersMatrix;
-	mutable int cached_teachersConflicts;
+	/**
+	Assignment method. We need to have access to the Rules instantiation
+	to know the number of activities.
+	*/
+	void copy(Rules& r, Solution& c);
+	
+	//Used only in timetable generate multiple highest stage (incomplete) solutions.
+	void copyForHighestStage(Rules& r, Solution& c);
 
-	mutable bool subgroupsMatrixReady;
-	mutable Matrix3D<int> cached_subgroupsMatrix;
-	mutable int cached_subgroupsConflicts;
+	/**
+	Initializes, marking all activities as unscheduled (time)
+	*/
+	//void init(Rules& r);
 
-	mutable bool roomsMatrixReady;
-	mutable Matrix3D<int> cached_roomsMatrix;
-	mutable int cached_roomsConflicts;
+	/**
+	Marks the starting time and rooms of all the activities
+	as unallocated.
+	*/
+	void makeUnallocated(Rules& r);
+
+	/**
+	ATTENTION: if the rules change, the user has to reset _fitness to -1
+	<p>
+	If conflictsString is not nullptr, then this function will
+	append at this string an explanation of the conflicts.
+	*/
+	double fitness(Rules& r, FakeString* conflictsString=nullptr);
+
+	void getTeachersTimetable(Rules& r, Matrix3D<int>& a, Matrix3D<QList<int>>& b);
+
+	void getSubgroupsTimetable(Rules& r, Matrix3D<int>& a);
+
+	void getRoomsTimetable(Rules& r, Matrix3D<int>& a, Matrix3D<QList<int>>& va);
+	
+	void getBuildingsTimetable(Rules& r, Matrix3D<QList<int>>& a);
+
+	int getSubgroupsMatrix(Rules& r, Matrix3D<int>& a);
+	//return value is the number of conflicts, which must be 0
+
+	int getTeachersMatrix(Rules& r, Matrix3D<int>& a);
+	//return value is the number of conflicts, which must be 0
+
+	int getRoomsMatrix(Rules& r, Matrix3D<int>& a);
+	//return value is the number of conflicts, which must be 0
 };
 
 #endif

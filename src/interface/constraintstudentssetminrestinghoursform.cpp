@@ -2,8 +2,8 @@
                           constraintstudentssetminrestinghoursform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,29 +15,47 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <QMessageBox>
+
+#include "longtextmessagebox.h"
+
 #include "constraintstudentssetminrestinghoursform.h"
 #include "addconstraintstudentssetminrestinghoursform.h"
 #include "modifyconstraintstudentssetminrestinghoursform.h"
 
-#include "teacherstudentsetsubjectactivitytag_filterwidget.h"
+#include <QListWidget>
+#include <QScrollBar>
+#include <QAbstractItemView>
 
-#include "centerwidgetonscreen.h"
-
-ConstraintStudentsSetMinRestingHoursForm::ConstraintStudentsSetMinRestingHoursForm(QWidget* parent): TimeConstraintBaseDialog(parent)
+ConstraintStudentsSetMinRestingHoursForm::ConstraintStudentsSetMinRestingHoursForm(QWidget* parent): QDialog(parent)
 {
-	//: This is the title of the dialog to see the list of all constraints of this type
-	setWindowTitle(QCoreApplication::translate("ConstraintStudentsSetMinRestingHoursForm_template", "Constraints students set min resting hours"));
+	setupUi(this);
 
-	QString s = QCoreApplication::translate("ConstraintStudentsSetMinRestingHoursForm_template", "This constraint ensures a minimum number of resting hours between the end of a day and the beginning of the next day. Circular means that the time between the end of the last day of the week and the beginning of the first day of the week is also considered.");
-	setInstructionText(s);
+	currentConstraintTextEdit->setReadOnly(true);
 
-	TeacherStudentSetSubjectActivityTag_FilterWidget *filterWidget = new TeacherStudentSetSubjectActivityTag_FilterWidget(gt.rules);
-	filterWidget->setStudentSetsVisible(true);
-	setFilterWidget(filterWidget);
-	connect(filterWidget, &TeacherStudentSetSubjectActivityTag_FilterWidget::FilterChanged, this, &ConstraintStudentsSetMinRestingHoursForm::filterChanged);
+	modifyConstraintPushButton->setDefault(true);
 
+	constraintsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+
+	connect(constraintsListWidget, &QListWidget::currentRowChanged, this, &ConstraintStudentsSetMinRestingHoursForm::constraintChanged);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetMinRestingHoursForm::addConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &ConstraintStudentsSetMinRestingHoursForm::close);
+	connect(removeConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetMinRestingHoursForm::removeConstraint);
+	connect(modifyConstraintPushButton, &QPushButton::clicked, this, &ConstraintStudentsSetMinRestingHoursForm::modifyConstraint);
+
+	connect(constraintsListWidget, &QListWidget::itemDoubleClicked, this, &ConstraintStudentsSetMinRestingHoursForm::modifyConstraint);
+
+	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
+
+	QSize tmp2=studentsComboBox->minimumSizeHint();
+	Q_UNUSED(tmp2);
+	
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
+
 	this->filterChanged();
+
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ConstraintStudentsSetMinRestingHoursForm::filterChanged);
 }
 
 ConstraintStudentsSetMinRestingHoursForm::~ConstraintStudentsSetMinRestingHoursForm()
@@ -45,24 +63,127 @@ ConstraintStudentsSetMinRestingHoursForm::~ConstraintStudentsSetMinRestingHoursF
 	saveFETDialogGeometry(this);
 }
 
-bool ConstraintStudentsSetMinRestingHoursForm::filterOk(const TimeConstraint* ctr) const
+bool ConstraintStudentsSetMinRestingHoursForm::filterOk(TimeConstraint* ctr)
 {
 	if(ctr->type==CONSTRAINT_STUDENTS_SET_MIN_RESTING_HOURS){
 		ConstraintStudentsSetMinRestingHours* c=(ConstraintStudentsSetMinRestingHours*) ctr;
-		TeacherStudentSetSubjectActivityTag_FilterWidget *filter_widget = static_cast<TeacherStudentSetSubjectActivityTag_FilterWidget*>(getFilterWidget());
-		QString studentsName = filter_widget->studentsSet();
-		return c->students==studentsName || studentsName.isEmpty();
+		return c->students==studentsComboBox->currentText() || studentsComboBox->currentText()=="";
 	}
 	else
 		return false;
 }
 
-QDialog * ConstraintStudentsSetMinRestingHoursForm::createAddDialog()
+void ConstraintStudentsSetMinRestingHoursForm::filterChanged()
 {
-	return new AddConstraintStudentsSetMinRestingHoursForm(this);
+	this->visibleConstraintsList.clear();
+	constraintsListWidget->clear();
+	for(int i=0; i<gt.rules.timeConstraintsList.size(); i++){
+		TimeConstraint* ctr=gt.rules.timeConstraintsList[i];
+		if(filterOk(ctr)){
+			visibleConstraintsList.append(ctr);
+			constraintsListWidget->addItem(ctr->getDescription(gt.rules));
+		}
+	}
+
+	if(constraintsListWidget->count()>0)
+		constraintsListWidget->setCurrentRow(0);
+	else
+		this->constraintChanged(-1);
 }
 
-QDialog * ConstraintStudentsSetMinRestingHoursForm::createModifyDialog(TimeConstraint *ctr)
+void ConstraintStudentsSetMinRestingHoursForm::constraintChanged(int index)
 {
-	return new ModifyConstraintStudentsSetMinRestingHoursForm(this, (ConstraintStudentsSetMinRestingHours*)ctr);
+	if(index<0){
+		currentConstraintTextEdit->setPlainText("");
+		return;
+	}
+	assert(index<this->visibleConstraintsList.size());
+	TimeConstraint* ctr=this->visibleConstraintsList.at(index);
+	assert(ctr!=nullptr);
+	currentConstraintTextEdit->setPlainText(ctr->getDetailedDescription(gt.rules));
+}
+
+void ConstraintStudentsSetMinRestingHoursForm::addConstraint()
+{
+	AddConstraintStudentsSetMinRestingHoursForm form(this);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->setCurrentRow(constraintsListWidget->count()-1);
+}
+
+void ConstraintStudentsSetMinRestingHoursForm::modifyConstraint()
+{
+	int valv=constraintsListWidget->verticalScrollBar()->value();
+	int valh=constraintsListWidget->horizontalScrollBar()->value();
+
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+
+	ModifyConstraintStudentsSetMinRestingHoursForm form(this, (ConstraintStudentsSetMinRestingHours*)ctr);
+	setParentAndOtherThings(&form, this);
+	form.exec();
+
+	filterChanged();
+	
+	constraintsListWidget->verticalScrollBar()->setValue(valv);
+	constraintsListWidget->horizontalScrollBar()->setValue(valh);
+
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
+}
+
+void ConstraintStudentsSetMinRestingHoursForm::removeConstraint()
+{
+	int i=constraintsListWidget->currentRow();
+	if(i<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected constraint"));
+		return;
+	}
+	TimeConstraint* ctr=this->visibleConstraintsList.at(i);
+	QString s;
+	s=tr("Remove constraint?");
+	s+="\n\n";
+	s+=ctr->getDetailedDescription(gt.rules);
+	
+	QListWidgetItem* item;
+
+	QString oc;
+
+	switch( LongTextMessageBox::confirmation( this, tr("FET confirmation"),
+		s, tr("Yes"), tr("No"), QString(), 0, 1 ) ){
+	case 0: // The user clicked the OK button or pressed Enter
+		oc=ctr->getDetailedDescription(gt.rules);
+
+		gt.rules.removeTimeConstraint(ctr);
+
+		gt.rules.addUndoPoint(tr("Removed the constraint:\n\n%1").arg(oc));
+		
+		visibleConstraintsList.removeAt(i);
+		constraintsListWidget->setCurrentRow(-1);
+		item=constraintsListWidget->takeItem(i);
+		delete item;
+		
+		break;
+	case 1: // The user clicked the Cancel button or pressed Escape
+		break;
+	}
+	
+	if(i>=constraintsListWidget->count())
+		i=constraintsListWidget->count()-1;
+	if(i>=0)
+		constraintsListWidget->setCurrentRow(i);
+	else
+		this->constraintChanged(-1);
 }

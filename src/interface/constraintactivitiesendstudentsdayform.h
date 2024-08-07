@@ -1,9 +1,9 @@
 /***************************************************************************
                           constraintactivitiesendstudentsdayform.h  -  description
                              -------------------
-    begin                : 15 May 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    begin                : 2008
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,19 +18,28 @@
 #ifndef CONSTRAINTACTIVITIESENDSTUDENTSDAYFORM_H
 #define CONSTRAINTACTIVITIESENDSTUDENTSDAYFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintactivitiesendstudentsdayform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesEndStudentsDayForm : public TimeConstraintBaseDialog  {
+class ConstraintActivitiesEndStudentsDayForm : public QDialog, Ui::ConstraintActivitiesEndStudentsDayForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintActivitiesEndStudentsDayForm(QWidget* parent);
-	virtual ~ConstraintActivitiesEndStudentsDayForm();
+	~ConstraintActivitiesEndStudentsDayForm();
 
-	bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+	
+	void filterChanged();
 };
 
 #endif

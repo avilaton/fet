@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2005 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -16,10 +16,36 @@
  ***************************************************************************/
 
 #include "building.h"
-#include "timetable_defs.h" // for protect*()
+#include "rules.h"
+
+#include <QDataStream>
+
+QDataStream& operator<<(QDataStream& stream, const Building& bd)
+{
+	stream<<bd.name;
+	stream<<bd.longName;
+	stream<<bd.code;
+	stream<<bd.comments;
+
+	return stream;
+}
+
+QDataStream& operator>>(QDataStream& stream, Building& bd)
+{
+	stream>>bd.name;
+	stream>>bd.longName;
+	stream>>bd.code;
+	stream>>bd.comments;
+
+	return stream;
+}
 
 Building::Building()
 {
+	longName=QString("");
+	code=QString("");
+
+	comments=QString("");
 }
 
 Building::~Building()
@@ -31,21 +57,34 @@ void Building::computeInternalStructure(Rules& r)
 	Q_UNUSED(r);
 }
 
-QString Building::getDescription() const
+QString Building::getDescription()
 {
-	QString s=tr("N:%1", "The name of the building").arg(name);
+	QString s=tr("N:%1", "The (short) name of the building").arg(name);
 	
+	s+=", ";
+	s+=tr("LN:%1", "The long name of the building").arg(longName);
+
+	s+=", ";
+	s+=tr("C:%1", "The code of the building").arg(code);
+	
+	QString end=QString("");
 	if(!comments.isEmpty())
-		s+=", "+tr("C: %1", "Comments").arg(comments);
+		end=", "+tr("C: %1", "Comments").arg(comments);
 	
-	return s;
+	return s+end;
 }
 
-QString Building::getDetailedDescription() const
+QString Building::getDetailedDescription()
 {
 	QString s=tr("Building");
 	s+="\n";
-	s+=tr("Name=%1", "The name of the building").arg(name);
+	s+=tr("Name=%1", "The name of the building").arg(this->name);
+	s+="\n";
+
+	s+=tr("Long name=%1", "The long name of the building").arg(this->longName);
+	s+="\n";
+
+	s+=tr("Code=%1", "The code of the building").arg(this->code);
 	s+="\n";
 
 	//Has comments?
@@ -57,17 +96,19 @@ QString Building::getDetailedDescription() const
 	return s;
 }
 
-QString Building::getXmlDescription() const
+QString Building::getXmlDescription()
 {
 	QString s="<Building>\n";
-	s+="	<Name>"+protect(name)+"</Name>\n";
+	s+="	<Name>"+protect(this->name)+"</Name>\n";
+	s+="	<Long_Name>"+protect(this->longName)+"</Long_Name>\n";
+	s+="	<Code>"+protect(this->code)+"</Code>\n";
 	s+="	<Comments>"+protect(comments)+"</Comments>\n";
 	s+="</Building>\n";
 
 	return s;
 }
 
-QString Building::getDetailedDescriptionWithConstraints(const Rules &r) const
+QString Building::getDetailedDescriptionWithConstraints(Rules& r)
 {
 	Q_UNUSED(r);
 
@@ -88,7 +129,10 @@ QString Building::getDetailedDescriptionWithConstraints(const Rules &r) const
 	return s;
 }
 
-bool buildingsAscending(const Building* b1, const Building* b2)
+int buildingsAscending (const Building* b1, const Building* b2)
 {
-	return b1->name.localeAwareCompare(b2->name) < 0;
+	//return b1->name < b2->name;
+	
+	//by Rodolfo Ribeiro Gomes
+	return b1->name.localeAwareCompare(b2->name)<0;
 }

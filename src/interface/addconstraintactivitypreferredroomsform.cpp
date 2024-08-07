@@ -2,8 +2,8 @@
                           addconstraintactivitypreferredroomsform.cpp  -  description
                              -------------------
     begin                : March 28, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,16 +18,11 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintactivitypreferredroomsform.h"
-#include "spaceconstraint.h"
 
 #include <QListWidget>
 #include <QAbstractItemView>
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintActivityPreferredRoomsForm::AddConstraintActivityPreferredRoomsForm(QWidget* parent): QDialog(parent)
 {
@@ -38,15 +33,11 @@ AddConstraintActivityPreferredRoomsForm::AddConstraintActivityPreferredRoomsForm
 	roomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 	selectedRoomsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
-	connect(roomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(addRoom()));
-	connect(selectedRoomsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(removeRoom()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(clearPushButton, SIGNAL(clicked()), this, SLOT(clear()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintActivityPreferredRoomsForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintActivityPreferredRoomsForm::addConstraint);
+	connect(roomsListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintActivityPreferredRoomsForm::addRoom);
+	connect(selectedRoomsListWidget, &QListWidget::itemDoubleClicked, this, &AddConstraintActivityPreferredRoomsForm::removeRoom);
+	connect(clearPushButton, &QPushButton::clicked, this, &AddConstraintActivityPreferredRoomsForm::clear);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -86,12 +77,17 @@ AddConstraintActivityPreferredRoomsForm::AddConstraintActivityPreferredRoomsForm
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 	
-	updateActivitiesComboBox();
+	filterChanged();
 
 	updateRoomsListWidget();
+
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredRoomsForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredRoomsForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredRoomsForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &AddConstraintActivityPreferredRoomsForm::filterChanged);
 }
 
 AddConstraintActivityPreferredRoomsForm::~AddConstraintActivityPreferredRoomsForm()
@@ -104,13 +100,13 @@ bool AddConstraintActivityPreferredRoomsForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -124,13 +120,13 @@ bool AddConstraintActivityPreferredRoomsForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -142,7 +138,7 @@ bool AddConstraintActivityPreferredRoomsForm::filterOk(Activity* act)
 	return ok;
 }
 
-void AddConstraintActivityPreferredRoomsForm::updateActivitiesComboBox(){
+void AddConstraintActivityPreferredRoomsForm::filterChanged(){
 	activitiesComboBox->clear();
 	activitiesList.clear();
 	
@@ -150,31 +146,26 @@ void AddConstraintActivityPreferredRoomsForm::updateActivitiesComboBox(){
 		Activity* act=gt.rules.activitiesList[i];
 		
 		if(filterOk(act)){
-			activitiesComboBox->addItem(act->getDescription());
+			activitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->activitiesList.append(act->id);
 		}
 	}
 }
 
-void AddConstraintActivityPreferredRoomsForm::filterChanged()
-{
-	this->updateActivitiesComboBox();
-}
-
 void AddConstraintActivityPreferredRoomsForm::updateRoomsListWidget()
 {
 	roomsListWidget->clear();
+	selectedRoomsListWidget->clear();
 
 	for(int i=0; i<gt.rules.roomsList.size(); i++){
 		Room* rm= gt.rules.roomsList[i];
-		if (!isRoomAdded(rm->name))
-			roomsListWidget->addItem(rm->name);
+		roomsListWidget->addItem(rm->name);
 	}
 }
 
 void AddConstraintActivityPreferredRoomsForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -218,6 +209,8 @@ void AddConstraintActivityPreferredRoomsForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
@@ -226,25 +219,21 @@ void AddConstraintActivityPreferredRoomsForm::addConstraint()
 	}
 }
 
-bool AddConstraintActivityPreferredRoomsForm::isRoomAdded(QString roomName) const {
-	for(int i=0; i<selectedRoomsListWidget->count(); i++)
-		if(roomName==selectedRoomsListWidget->item(i)->text())
-			return true;
-	return false;
-}
-
 void AddConstraintActivityPreferredRoomsForm::addRoom()
 {
 	if(roomsListWidget->currentRow()<0)
 		return;
 	QString rmName=roomsListWidget->currentItem()->text();
 	assert(rmName!="");
+	int i;
 	//duplicate?
-	if (isRoomAdded(rmName))
+	for(i=0; i<selectedRoomsListWidget->count(); i++)
+		if(rmName==selectedRoomsListWidget->item(i)->text())
+			break;
+	if(i<selectedRoomsListWidget->count())
 		return;
 	selectedRoomsListWidget->addItem(rmName);
 	selectedRoomsListWidget->setCurrentRow(selectedRoomsListWidget->count()-1);
-	updateRoomsListWidget();
 }
 
 void AddConstraintActivityPreferredRoomsForm::removeRoom()
@@ -260,11 +249,9 @@ void AddConstraintActivityPreferredRoomsForm::removeRoom()
 		selectedRoomsListWidget->setCurrentRow(tmp);
 	else
 		selectedRoomsListWidget->setCurrentRow(selectedRoomsListWidget->count()-1);
-	updateRoomsListWidget();
 }
 
 void AddConstraintActivityPreferredRoomsForm::clear()
 {
 	selectedRoomsListWidget->clear();
-	updateRoomsListWidget();
 }

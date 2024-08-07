@@ -2,8 +2,8 @@
                           modifybuildingform.h  -  description
                              -------------------
     begin                : Feb 11, 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,16 +20,21 @@
 
 #include "ui_modifybuildingform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class ModifyBuildingForm : public QDialog, Ui::ModifyBuildingForm_template {
 	Q_OBJECT
 	
 	QString _initialBuildingName;
-public: 
+public:
 	ModifyBuildingForm(QWidget* parent, const QString& initialBuildingName);
 	~ModifyBuildingForm();
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

@@ -2,8 +2,8 @@
                           modifyconstraintteacherminrestinghoursform.cpp  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintteacherminrestinghoursform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTeacherMinRestingHoursForm::ModifyConstraintTeacherMinRestingHou
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMinRestingHoursForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTeacherMinRestingHoursForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -79,11 +78,6 @@ void ModifyConstraintTeacherMinRestingHoursForm::ok()
 		return;
 	}
 
-	this->_ctr->weightPercentage=weight;
-	
-	this->_ctr->minRestingHours=minRestingHoursSpinBox->value();
-	this->_ctr->circular=circularCheckBox->isChecked();
-
 	QString teacher_name=teachersComboBox->currentText();
 	int teacher_ID=gt.rules.searchTeacher(teacher_name);
 	if(teacher_ID<0){
@@ -91,10 +85,26 @@ void ModifyConstraintTeacherMinRestingHoursForm::ok()
 			tr("Invalid teacher"));
 		return;
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
+	this->_ctr->weightPercentage=weight;
+	
+	this->_ctr->minRestingHours=minRestingHoursSpinBox->value();
+	this->_ctr->circular=circularCheckBox->isChecked();
+
 	this->_ctr->teacherName=teacher_name;
 
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	this->close();
+}
+
+void ModifyConstraintTeacherMinRestingHoursForm::cancel()
+{
 	this->close();
 }

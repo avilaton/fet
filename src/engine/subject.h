@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,6 +20,8 @@
 
 #include <QCoreApplication>
 
+#include "timetable_defs.h"
+
 #include <QList>
 #include <QString>
 
@@ -27,6 +29,11 @@ class Subject;
 class Rules;
 
 typedef QList<Subject*> SubjectsList;
+
+class QDataStream;
+
+QDataStream& operator<<(QDataStream& stream, const Subject& sbj);
+QDataStream& operator>>(QDataStream& stream, Subject& sbj);
 
 /**
 This class represents a subject
@@ -38,18 +45,20 @@ class Subject{
 	
 public:
 	QString name;
-
+	QString longName;
+	QString code;
+	
 	QString comments;
 
 	Subject();
 	~Subject();
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
-bool subjectsAscending(const Subject* s1, const Subject* s2);
+int subjectsAscending(const Subject* s1, const Subject* s2);
 
 #endif

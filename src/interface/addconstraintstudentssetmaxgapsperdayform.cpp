@@ -2,8 +2,8 @@
                           addconstraintstudentssetmaxgapsperdayform.cpp  -  description
                              -------------------
     begin                : 2009
-    copyright            : (C) 2009 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2009 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,9 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssetmaxgapsperdayform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetMaxGapsPerDayForm::AddConstraintStudentsSetMaxGapsPerDayForm(QWidget* parent): QDialog(parent)
 {
@@ -32,22 +28,20 @@ AddConstraintStudentsSetMaxGapsPerDayForm::AddConstraintStudentsSetMaxGapsPerDay
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addCurrentConstraint()));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxGapsPerDayForm::addCurrentConstraint);
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetMaxGapsPerDayForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 
 	QSize tmp2=studentsComboBox->minimumSizeHint();
 	Q_UNUSED(tmp2);
-		
+	
 	maxGapsSpinBox->setMinimum(0);
 	maxGapsSpinBox->setMaximum(gt.rules.nHoursPerDay);
 	maxGapsSpinBox->setValue(1);
 
 	updateStudentsSetComboBox();
-	
-	constraintChanged();
 }
 
 AddConstraintStudentsSetMaxGapsPerDayForm::~AddConstraintStudentsSetMaxGapsPerDayForm()
@@ -57,18 +51,12 @@ AddConstraintStudentsSetMaxGapsPerDayForm::~AddConstraintStudentsSetMaxGapsPerDa
 
 void AddConstraintStudentsSetMaxGapsPerDayForm::updateStudentsSetComboBox()
 {
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
-
-	constraintChanged();
-}
-
-void AddConstraintStudentsSetMaxGapsPerDayForm::constraintChanged()
-{
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetMaxGapsPerDayForm::addCurrentConstraint()
 {
-	TimeConstraint *ctr=NULL;
+	TimeConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -86,7 +74,7 @@ void AddConstraintStudentsSetMaxGapsPerDayForm::addCurrentConstraint()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -95,9 +83,12 @@ void AddConstraintStudentsSetMaxGapsPerDayForm::addCurrentConstraint()
 	ctr=new ConstraintStudentsSetMaxGapsPerDay(weight, maxGapsSpinBox->value(), students_name);
 
 	bool tmp2=gt.rules.addTimeConstraint(ctr);
-	if(tmp2)
+	if(tmp2){
 		LongTextMessageBox::information(this, tr("FET information"),
 			tr("Constraint added:")+"\n\n"+ctr->getDetailedDescription(gt.rules));
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
+	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Constraint NOT added - please report error"));

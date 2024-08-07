@@ -2,8 +2,8 @@
                           modifystudentssubgroupform.cpp  -  description
                              -------------------
     begin                : Feb 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,13 +15,9 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "modifystudentssubgroupform.h"
-
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
+
+#include "modifystudentssubgroupform.h"
 
 ModifyStudentsSubgroupForm::ModifyStudentsSubgroupForm(QWidget* parent, const QString& yearName, const QString& groupName, const QString& initialSubgroupName, int initialNumberOfStudents): QDialog(parent)
 {
@@ -29,8 +25,8 @@ ModifyStudentsSubgroupForm::ModifyStudentsSubgroupForm(QWidget* parent, const QS
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyStudentsSubgroupForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyStudentsSubgroupForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -42,7 +38,8 @@ ModifyStudentsSubgroupForm::ModifyStudentsSubgroupForm(QWidget* parent, const QS
 //	this->_yearName=yearName;
 //	this->_groupName=groupName;
 	this->_initialSubgroupName=initialSubgroupName;
-	
+	this->_initialNumberOfStudents=initialNumberOfStudents;
+
 	numberSpinBox->setValue(initialNumberOfStudents);
 	
 	yearNameLineEdit->setText(yearName);
@@ -57,6 +54,11 @@ ModifyStudentsSubgroupForm::~ModifyStudentsSubgroupForm()
 	saveFETDialogGeometry(this);
 }
 
+void ModifyStudentsSubgroupForm::cancel()
+{
+	this->close();
+}
+
 void ModifyStudentsSubgroupForm::ok()
 {
 	if(nameLineEdit->text().isEmpty()){
@@ -67,7 +69,7 @@ void ModifyStudentsSubgroupForm::ok()
 	//QString yearName=yearNameLineEdit->text();
 	//QString groupName=groupNameLineEdit->text();
 	
-	if(this->_initialSubgroupName!=subgroupName && gt.rules.searchStudentsSet(subgroupName)!=NULL){
+	if(this->_initialSubgroupName!=subgroupName && gt.rules.searchStudentsSet(subgroupName)!=nullptr){
 		QMessageBox::information(this, tr("FET information"),
 		 tr("Name exists. If you would like to make more groups to contain a subgroup (overlapping groups),"
  		 " please remove current subgroup (FET will unfortunately remove all related activities and constraints)"
@@ -80,8 +82,13 @@ void ModifyStudentsSubgroupForm::ok()
 		return;
 	}
 
+	QString od=tr("Subgroup name=%1\nNumber of students=%2").arg(this->_initialSubgroupName).arg(this->_initialNumberOfStudents);
+
 	bool t=gt.rules.modifyStudentsSet(this->_initialSubgroupName, subgroupName, numberSpinBox->value());
 	assert(t);
-	
+
+	QString nd=tr("Subgroup name=%1\nNumber of students=%2").arg(subgroupName).arg(numberSpinBox->value());
+	gt.rules.addUndoPoint(tr("The subgroup with description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
+
 	this->close();
 }

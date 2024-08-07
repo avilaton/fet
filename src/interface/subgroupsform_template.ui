@@ -105,6 +105,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="addExistingSubgroupsPushButton">
+       <property name="text">
+        <string extracomment="It refers to adding subgroups in a group, subgroups which exist in (an)other group(s)">Add existing</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="modifySubgroupPushButton">
        <property name="text">
         <string>Modify</string>
@@ -143,6 +150,20 @@
    </item>
    <item row="4" column="0">
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="longNamePushButton">
+       <property name="text">
+        <string>Long name</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="codePushButton">
+       <property name="text">
+        <string>Code</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QPushButton" name="commentsPushButton">
        <property name="text">

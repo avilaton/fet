@@ -2,8 +2,8 @@
                           modifyroomform.h  -  description
                              -------------------
     begin                : Feb 12, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,18 +20,23 @@
 
 #include "ui_modifyroomform_template.h"
 
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
+
 class ModifyRoomForm : public QDialog, Ui::ModifyRoomForm_template {
 	Q_OBJECT
 	
 	QString _initialRoomName;
 	QString _initialRoomBuilding;
 	int _initialRoomCapacity;
-public: 
+public:
 	ModifyRoomForm(QWidget* parent, const QString& initialRoomName, const QString& initialRoomBuilding, int initialRoomCapacity);
 	~ModifyRoomForm();
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

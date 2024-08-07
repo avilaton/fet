@@ -2,8 +2,8 @@
                           modifyconstrainttwoactivitiesgroupedform.cpp  -  description
                              -------------------
     begin                : Aug 21, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,7 +16,6 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstrainttwoactivitiesgroupedform.h"
 #include "timeconstraint.h"
@@ -27,8 +26,8 @@ ModifyConstraintTwoActivitiesGroupedForm::ModifyConstraintTwoActivitiesGroupedFo
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintTwoActivitiesGroupedForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintTwoActivitiesGroupedForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -78,7 +77,7 @@ void ModifyConstraintTwoActivitiesGroupedForm::updateActivitiesComboBox(){
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* act=gt.rules.activitiesList[k];
 		if(filterOk(act)){
-			firstActivitiesComboBox->addItem(act->getDescription());
+			firstActivitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->firstActivitiesList.append(act->id);
 
 			if(act->id==this->_ctr->firstActivityId)
@@ -87,14 +86,14 @@ void ModifyConstraintTwoActivitiesGroupedForm::updateActivitiesComboBox(){
 			i++;
 		}
 	}
-	//assert(j>=0); only first time
+	//assert(j>=0); only the first time
 	firstActivitiesComboBox->setCurrentIndex(j);
 
 	i=0, j=-1;
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* act=gt.rules.activitiesList[k];
 		if(filterOk(act)){
-			secondActivitiesComboBox->addItem(act->getDescription());
+			secondActivitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->secondActivitiesList.append(act->id);
 
 			if(act->id==this->_ctr->secondActivityId)
@@ -103,7 +102,7 @@ void ModifyConstraintTwoActivitiesGroupedForm::updateActivitiesComboBox(){
 			i++;
 		}
 	}
-	//assert(j>=0); only first time
+	//assert(j>=0); only the first time
 	secondActivitiesComboBox->setCurrentIndex(j);
 }
 
@@ -143,13 +142,23 @@ void ModifyConstraintTwoActivitiesGroupedForm::ok()
 			tr("Same activities - impossible"));
 		return;
 	}
-	
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->firstActivityId=fid;
 	this->_ctr->secondActivityId=sid;
 	
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+
+	this->close();
+}
+
+void ModifyConstraintTwoActivitiesGroupedForm::cancel()
+{
 	this->close();
 }

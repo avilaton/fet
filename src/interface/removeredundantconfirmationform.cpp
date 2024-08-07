@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Lalescu Liviu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -19,17 +19,15 @@
 
 #include "timetable_defs.h"
 
-#include "centerwidgetonscreen.h"
-
 RemoveRedundantConfirmationForm::RemoveRedundantConfirmationForm(QWidget* parent): QDialog(parent)
 {
 	setupUi(this);
 	
 	continuePushButton->setDefault(true);
 	
-	connect(continuePushButton, SIGNAL(clicked()), this, SLOT(accept()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(reject()));
-	connect(dontShowAgainCheckBox, SIGNAL(stateChanged(int)), this, SLOT(dontShowAgainCheckBoxToggled()));
+	connect(continuePushButton, &QPushButton::clicked, this, &RemoveRedundantConfirmationForm::accept);
+	connect(cancelPushButton, &QPushButton::clicked, this, &RemoveRedundantConfirmationForm::reject);
+	connect(dontShowAgainCheckBox, &QCheckBox::toggled, this, &RemoveRedundantConfirmationForm::dontShowAgainCheckBoxToggled);
 
 	dontShowAgain=dontShowAgainCheckBox->isChecked();
 	
@@ -43,17 +41,30 @@ RemoveRedundantConfirmationForm::RemoveRedundantConfirmationForm(QWidget* parent
 	s+=tr("Please read carefully the description below:");
 	s+="\n\n";
 	s+=tr("This function is intended to be used after you inputted all data or after you used the advanced function "
-	"of spreading the activities over the week. This function will automatically remove the redundant constraints of "
-	"type min days between activities, so that your data is more correct and the timetable easier for FET to find");
+	 "of spreading the activities evenly over the week. This function will automatically remove the redundant constraints of "
+	 "type min days between activities (and min half days between activities, if you use the Mornings-Afternoons mode), "
+	 "so that your data is more correct and the timetable easier for FET to find.");
 	s+="\n\n";
-	s+=tr("Removing means making their weight percentage 0.0%. This is done so you can still activate them again, if "
-	"needed, and also for you to be able to see when they are broken, in the soft conflicts list");
+	s+=tr("The function is only useful for the redundant constraints with weight < 100%.");
 	s+="\n\n";
-	s+=tr("This function might be usable if you have constraints of type activities same starting time and/or "
-	"constraints activities same starting day");
+	s+=tr("NOTE: If in a group of redundant constraints there is at least one with weight 100%, no constraint from this group "
+	 "will be removed.");
+	s+="\n\n";
+	s+=tr("Removing means making their weight percentage 0%. This is done so you can still activate them again, if "
+	 "needed, and also for you to be able to see when they are broken, in the soft conflicts list.");
+	s+="\n\n";
+	s+=tr("This function might be useful if you have active constraints of type activities same starting time and/or "
+	 "activities same starting day and/or max 0 days between activities and/or max 0 half days between activities "
+	 "(if you use the Mornings-Afternoons mode) with weight 100%.");
+	s+="\n\n";
+	s+=tr("IMPORTANT NOTE: If you activate/deactivate some constraints of type same starting time / same starting day / "
+	 "max 0 (half) days between activities, or increase above 0 the number of max (half) days allowed between activities "
+	 "of some constraints after you applied this function, you need to rethink what happens to the removed redundant "
+	 "constraints, and maybe reactivate some of them, or apply the advanced function of spreading the activities "
+	 "evenly over the week, again. Unfortunately, the program cannot correctly do this on its own.");
 	s+="\n\n";
 	s+=tr("Please SAVE/BACKUP your current file and keep it safe, in case anything goes wrong, and only continue if "
-	"you did that already. Current function might modify much your data");
+	 "you did that already. The current function might modify much your data.");
 	
 	plainTextEdit->setPlainText(s);
 }

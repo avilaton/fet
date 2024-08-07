@@ -2,8 +2,8 @@
                           studentsstatisticsform.h  -  description
                              -------------------
     begin                : March 25, 2006
-    copyright            : (C) 2006 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2006 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -38,12 +38,12 @@ public:
 	StudentsStatisticsForm(QWidget* parent);
 	~StudentsStatisticsForm();
 	
-	void insertStudentsSet(StudentsSet* set, int row);
+	void insertStudentsSet(StudentsSet* studentsSet, int row);
 	
 public slots:
 	void checkBoxesModified();
 
-	void on_helpPushButton_clicked();
+	void helpPushButton_clicked();
 };
 
 #endif

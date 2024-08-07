@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>461</width>
-    <height>261</height>
+    <width>517</width>
+    <height>294</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -39,9 +39,6 @@
        </property>
        <property name="insertPolicy">
         <enum>QComboBox::NoInsert</enum>
-       </property>
-       <property name="autoCompletion">
-        <bool>false</bool>
        </property>
        <property name="duplicatesEnabled">
         <bool>false</bool>
@@ -75,7 +72,8 @@
        </property>
        <property name="text">
         <string>Weight percentage
-(recommended: 0.0%-100.0%)</string>
+(recommended: 100.0%,
+allowed: 0.0%-100.0%)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>
@@ -146,6 +144,13 @@
       <widget class="QPushButton" name="addConstraintPushButton">
        <property name="text">
         <string>Add constraint</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addConstraintsPushButton">
+       <property name="text">
+        <string>Add constraints</string>
        </property>
       </widget>
      </item>

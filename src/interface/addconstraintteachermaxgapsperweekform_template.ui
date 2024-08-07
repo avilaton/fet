@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>632</width>
-    <height>334</height>
+    <width>814</width>
+    <height>348</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -77,9 +77,6 @@ Note: teacher not available and break are not counted as gaps.</string>
      <property name="insertPolicy">
       <enum>QComboBox::NoInsert</enum>
      </property>
-     <property name="autoCompletion">
-      <bool>false</bool>
-     </property>
      <property name="duplicatesEnabled">
       <bool>false</bool>
      </property>
@@ -127,6 +124,13 @@ Note: teacher not available and break are not counted as gaps.</string>
       <widget class="QPushButton" name="addConstraintPushButton">
        <property name="text">
         <string>Add constraint</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addConstraintsPushButton">
+       <property name="text">
+        <string>Add constraints</string>
        </property>
       </widget>
      </item>

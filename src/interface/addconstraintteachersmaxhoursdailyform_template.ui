@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>463</width>
-    <height>169</height>
+    <width>527</width>
+    <height>206</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -26,7 +26,8 @@
        </property>
        <property name="text">
         <string>Weight percentage
-(recommended: 0.0%-100.0%)</string>
+(recommended: 100.0%,
+allowed: 0.0%-100.0%)</string>
        </property>
        <property name="wordWrap">
         <bool>false</bool>
@@ -71,6 +72,13 @@
       <widget class="QPushButton" name="addConstraintPushButton">
        <property name="text">
         <string>Add constraint</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="addConstraintsPushButton">
+       <property name="text">
+        <string>Add constraints</string>
        </property>
       </widget>
      </item>

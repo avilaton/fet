@@ -3,7 +3,7 @@
                              -------------------
     begin                : 8 Apr 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,13 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintstudentssethomeroomform.h"
-#include "spaceconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 AddConstraintStudentsSetHomeRoomForm::AddConstraintStudentsSetHomeRoomForm(QWidget* parent): QDialog(parent)
 {
@@ -32,8 +27,8 @@ AddConstraintStudentsSetHomeRoomForm::AddConstraintStudentsSetHomeRoomForm(QWidg
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetHomeRoomForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintStudentsSetHomeRoomForm::addConstraint);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,7 +49,7 @@ AddConstraintStudentsSetHomeRoomForm::~AddConstraintStudentsSetHomeRoomForm()
 }
 
 void AddConstraintStudentsSetHomeRoomForm::updateStudentsComboBox(){
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox);
+	populateStudentsComboBox(studentsComboBox);
 }
 
 void AddConstraintStudentsSetHomeRoomForm::updateRoomsComboBox()
@@ -68,7 +63,7 @@ void AddConstraintStudentsSetHomeRoomForm::updateRoomsComboBox()
 
 void AddConstraintStudentsSetHomeRoomForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -80,7 +75,7 @@ void AddConstraintStudentsSetHomeRoomForm::addConstraint()
 	}
 
 	QString students=studentsComboBox->currentText();
-	assert(gt.rules.searchStudentsSet(students)!=NULL);
+	assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	int i=roomsComboBox->currentIndex();
 	if(i<0 || roomsComboBox->count()<=0){
@@ -98,10 +93,12 @@ void AddConstraintStudentsSetHomeRoomForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - error ?"));
+			tr("Constraint NOT added - error?"));
 		delete ctr;
 	}
 }

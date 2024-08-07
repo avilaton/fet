@@ -2,8 +2,8 @@
                           modifyconstraintactivitypreferredtimeslotsform.h  -  description
                              -------------------
     begin                : Feb 14, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -35,6 +35,8 @@ public:
 
 	bool filterOk(Activity* a);
 
+	void colorItem(QTableWidgetItem* item);
+
 private:
 	//the id's of the activities listed in the activities combo
 	QList<int> activitiesList;
@@ -43,6 +45,13 @@ public slots:
 	void filterChanged();
 	
 	void ok();
+	void cancel();
+	
+	void itemClicked(QTableWidgetItem* item);
+	void horizontalHeaderClicked(int col);
+	void verticalHeaderClicked(int row);
+	
+	void cellEntered(int row, int col);
 	
 	void setAllSlotsAllowed();
 	void setAllSlotsNotAllowed();

@@ -3,7 +3,7 @@
                              -------------------
     begin                : 8 Apr 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,10 +16,8 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintsubjectpreferredroomform.h"
-#include "spaceconstraint.h"
 
 ModifyConstraintSubjectPreferredRoomForm::ModifyConstraintSubjectPreferredRoomForm(QWidget* parent, ConstraintSubjectPreferredRoom* ctr): QDialog(parent)
 {
@@ -27,8 +25,8 @@ ModifyConstraintSubjectPreferredRoomForm::ModifyConstraintSubjectPreferredRoomFo
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintSubjectPreferredRoomForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintSubjectPreferredRoomForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -54,12 +52,17 @@ ModifyConstraintSubjectPreferredRoomForm::~ModifyConstraintSubjectPreferredRoomF
 
 void ModifyConstraintSubjectPreferredRoomForm::updateSubjectsComboBox()
 {
+	int i=0, j=-1;
 	subjectsComboBox->clear();
-	for(int i=0; i<gt.rules.subjectsList.size(); i++){
-		Subject* s=gt.rules.subjectsList[i];
-		subjectsComboBox->addItem(s->name);
+	for(int k=0; k<gt.rules.subjectsList.size(); k++){
+		Subject* sb=gt.rules.subjectsList[k];
+		subjectsComboBox->addItem(sb->name);
+		if(sb->name==this->_ctr->subjectName)
+			j=i;
+		i++;
 	}
-	subjectsComboBox->setCurrentText(this->_ctr->subjectName);
+	assert(j>=0);
+	subjectsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintSubjectPreferredRoomForm::updateRoomsComboBox()
@@ -75,6 +78,11 @@ void ModifyConstraintSubjectPreferredRoomForm::updateRoomsComboBox()
 	}
 	assert(j>=0);
 	roomsComboBox->setCurrentIndex(j);
+}
+
+void ModifyConstraintSubjectPreferredRoomForm::cancel()
+{
+	this->close();
 }
 
 void ModifyConstraintSubjectPreferredRoomForm::ok()
@@ -104,12 +112,17 @@ void ModifyConstraintSubjectPreferredRoomForm::ok()
 	}
 	QString room=roomsComboBox->currentText();
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->roomName=room;
 	this->_ctr->subjectName=subject;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }

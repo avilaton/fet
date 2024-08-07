@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <https://lalescu.ro/liviu/>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2013 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -27,16 +27,20 @@ using namespace std;
 #include "longtextmessagebox.h"
 
 #ifdef FET_COMMAND_LINE
-void commandLineMessage(const QString& title, const QString& message)
+void commandLineMessage(QWidget* parent, const QString& title, const QString& message)
 {
+	Q_UNUSED(parent);
+
 	cout<<qPrintable(FetCommandLine::tr("Title: %1").arg(title))<<endl;
 	cout<<qPrintable(FetCommandLine::tr("Message: %1").arg(message))<<endl;
 	cout<<endl;
 }
 
-int commandLineMessage(const QString& title, const QString& message,
+int commandLineMessage(QWidget* parent, const QString& title, const QString& message,
  const QString& button0Text, const QString& button1Text, const QString& button2Text, int defaultButton, int escapeButton)
 {
+	Q_UNUSED(parent);
+
 	cout<<qPrintable(FetCommandLine::tr("Title: %1").arg(title))<<endl;
 	cout<<qPrintable(FetCommandLine::tr("Message: %1").arg(message))<<endl;
 
@@ -60,14 +64,82 @@ int commandLineMessage(const QString& title, const QString& message,
 
 //Rules
 
+int RulesConstraintIgnored::mediumConfirmation(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}
+
+void RulesImpossible::warning(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+void RulesReconcilableMessage::warning(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+int RulesReconcilableMessage::warning(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}
+
+int RulesReconcilableMessage::mediumConfirmation(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}
+
+void RulesReconcilableMessage::information(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+int RulesReconcilableMessage::information(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}
+
+void RulesIrreconcilableMessage::warning(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+/*int RulesIrreconcilableMessage::warning(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}*/
+
+void RulesUsualInformation::information(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+void RulesReadingWrongConstraint::warning(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
 void IrreconcilableCriticalMessage::critical(QWidget* parent, const QString& title, const QString& message)
 {
 #ifndef FET_COMMAND_LINE
 	QMessageBox::critical(parent, title, message);
 #else
-	Q_UNUSED(parent);
-
-	commandLineMessage(title, message);
+	commandLineMessage(parent, title, message);
 #endif
 }
 
@@ -78,6 +150,14 @@ int GeneratePreReconcilableMessage::mediumConfirmation(QWidget* parent, const QS
  int defaultButton, int escapeButton)
 {
 	return LongTextMessageBox::mediumConfirmation(parent, title, message, button0Text, button1Text, button2Text,
+	 defaultButton, escapeButton);
+}
+
+int GeneratePreReconcilableMessage::largeConfirmation(QWidget* parent, const QString& title, const QString& message,
+ const QString& button0Text, const QString& button1Text, const QString& button2Text,
+ int defaultButton, int escapeButton)
+{
+	return LongTextMessageBox::largeConfirmation(parent, title, message, button0Text, button1Text, button2Text,
 	 defaultButton, escapeButton);
 }
 
@@ -130,6 +210,16 @@ int TimetableExportMessage::warning(QWidget* parent, const QString& title, const
 	 defaultButton, escapeButton);
 }
 
+void TimetableExportMessage::information(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
+void TimetableExportMessage::warning(QWidget* parent, const QString& title, const QString& message)
+{
+	LongTextMessageBox::mediumInformation(parent, title, message);
+}
+
 //TimeConstraint
 
 void TimeConstraintIrreconcilableMessage::information(QWidget* parent, const QString& title, const QString& message)
@@ -175,25 +265,29 @@ QProgressDialog::QProgressDialog(QWidget* parent)
 	Q_UNUSED(parent);
 }
 
-void QProgressDialog::setWindowTitle(const QString& title){
+void QProgressDialog::setWindowTitle(const QString& title)
+{
 	if(VERBOSE){
 		cout<<qPrintable(FetCommandLine::tr("Progress title: %1").arg(title))<<endl;
 	}
 }
 
-void QProgressDialog::setLabelText(const QString& label){
+void QProgressDialog::setLabelText(const QString& label)
+{
 	if(VERBOSE){
 		cout<<qPrintable(FetCommandLine::tr("Progress label: %1").arg(label))<<endl;
 	}
 }
 
-void QProgressDialog::setRange(int a, int b){
+void QProgressDialog::setRange(int a, int b)
+{
 	if(VERBOSE){
 		cout<<qPrintable(FetCommandLine::tr("Progress range: %1..%2").arg(a).arg(b))<<endl;
 	}
 }
 
-void QProgressDialog::setModal(bool m){
+void QProgressDialog::setModal(bool m)
+{
 	if(VERBOSE){
 		if(m)
 			cout<<qPrintable(FetCommandLine::tr("Progress setModal(true)"))<<endl;
@@ -202,12 +296,14 @@ void QProgressDialog::setModal(bool m){
 	}
 }
 
-void QProgressDialog::setValue(int v){
+void QProgressDialog::setValue(int v)
+{
 	Q_UNUSED(v);
 	//cout<<qPrintable(FetCommandLine::tr("Progress value: %1").arg(v))<<endl;
 }
 
-bool QProgressDialog::wasCanceled(){
+bool QProgressDialog::wasCanceled()
+{
 	return false;
 }
 

@@ -2,8 +2,8 @@
                           constraintactivitiesmaxsimultaneousinselectedtimeslotsform.h  -  description
                              -------------------
     begin                : Sept 26, 2011
-    copyright            : (C) 2011 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2011 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,21 +18,30 @@
 #ifndef CONSTRAINTACTIVITIESMAXSIMULTANEOUSINSELECTEDTIMESLOTSFORM_H
 #define CONSTRAINTACTIVITIESMAXSIMULTANEOUSINSELECTEDTIMESLOTSFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintactivitiesmaxsimultaneousinselectedtimeslotsform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesMaxSimultaneousInSelectedTimeSlotsForm : public TimeConstraintBaseDialog  {
+class ConstraintActivitiesMaxSimultaneousInSelectedTimeSlotsForm : public QDialog, Ui::ConstraintActivitiesMaxSimultaneousInSelectedTimeSlotsForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
 
 	ConstraintActivitiesMaxSimultaneousInSelectedTimeSlotsForm(QWidget* parent);
 	~ConstraintActivitiesMaxSimultaneousInSelectedTimeSlotsForm();
 
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
-	virtual bool filterOk(const TimeConstraint *ctr) const;
+	bool filterOk(TimeConstraint* ctr);
 
-	void setHelp();
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+
+	void filterChanged();
+	
+	void help();
 };
 
 #endif

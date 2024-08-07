@@ -3,7 +3,7 @@
                              -------------------
     begin                : 8 Apr 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,10 +18,8 @@
 #include <QMessageBox>
 
 #include "longtextmessagebox.h"
-#include "centerwidgetonscreen.h"
 
 #include "addconstraintteacherhomeroomform.h"
-#include "spaceconstraint.h"
 
 AddConstraintTeacherHomeRoomForm::AddConstraintTeacherHomeRoomForm(QWidget* parent): QDialog(parent)
 {
@@ -29,8 +27,8 @@ AddConstraintTeacherHomeRoomForm::AddConstraintTeacherHomeRoomForm(QWidget* pare
 
 	addConstraintPushButton->setDefault(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(addConstraintPushButton, SIGNAL(clicked()), this, SLOT(addConstraint()));
+	connect(closePushButton, &QPushButton::clicked, this, &AddConstraintTeacherHomeRoomForm::close);
+	connect(addConstraintPushButton, &QPushButton::clicked, this, &AddConstraintTeacherHomeRoomForm::addConstraint);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -52,7 +50,7 @@ AddConstraintTeacherHomeRoomForm::~AddConstraintTeacherHomeRoomForm()
 
 void AddConstraintTeacherHomeRoomForm::updateTeachersComboBox(){
 	teachersComboBox->clear();
-	for(Teacher* tch : qAsConst(gt.rules.teachersList))
+	for(Teacher* tch : std::as_const(gt.rules.teachersList))
 		teachersComboBox->addItem(tch->name);
 }
 
@@ -67,7 +65,7 @@ void AddConstraintTeacherHomeRoomForm::updateRoomsComboBox()
 
 void AddConstraintTeacherHomeRoomForm::addConstraint()
 {
-	SpaceConstraint *ctr=NULL;
+	SpaceConstraint *ctr=nullptr;
 
 	double weight;
 	QString tmp=weightLineEdit->text();
@@ -97,10 +95,12 @@ void AddConstraintTeacherHomeRoomForm::addConstraint()
 		s+="\n\n";
 		s+=ctr->getDetailedDescription(gt.rules);
 		LongTextMessageBox::information(this, tr("FET information"), s);
+
+		gt.rules.addUndoPoint(tr("Added the constraint:\n\n%1").arg(ctr->getDetailedDescription(gt.rules)));
 	}
 	else{
 		QMessageBox::warning(this, tr("FET information"),
-			tr("Constraint NOT added - error ?"));
+			tr("Constraint NOT added - error?"));
 		delete ctr;
 	}
 }

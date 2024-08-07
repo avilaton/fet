@@ -2,8 +2,8 @@
                           helpinstructionsform.cpp  -  description
                              -------------------
     begin                : July 19, 2007
-    copyright            : (C) 2007 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2007 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -17,7 +17,7 @@
 
 #include "helpinstructionsform.h"
 
-#include "centerwidgetonscreen.h"
+#include "timetable_defs.h"
 
 HelpInstructionsForm::HelpInstructionsForm(QWidget* parent): QDialog(parent)
 {
@@ -27,7 +27,7 @@ HelpInstructionsForm::HelpInstructionsForm(QWidget* parent): QDialog(parent)
 	
 	plainTextEdit->setReadOnly(true);
 
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(closePushButton, &QPushButton::clicked, this, &HelpInstructionsForm::close);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -46,13 +46,13 @@ void HelpInstructionsForm::setText()
 
 	s+=tr("Instructions.");
 	s+="\n\n";
-	s+=tr("Last modified on %1.").arg(tr("12 October 2009"));
+	s+=tr("Last modified on %1.").arg(tr("2 November 2021"));
 	s+="\n\n";
 	s+=tr("These are some small instructions which you have to follow in order to input a solvable data set.");
 	s+="\n\n";
 	s+=tr("If you get an impossible timetable and your institution allows beginning later for students, please reconsider your students (set) early "
 		"constraints to allow more beginnings at second hour. Also, removing or weakening other constraints might help. If FET cannot find "
-		"a good timetable for your school, make sure to report this, as FET needs to be improved. Maybe small changes to your datafile "
+		"a good timetable for your school, make sure to report this, as FET needs to be improved. Maybe small changes to your data file "
 		"can bring good solutions, or maybe there are aspects which have to be changed in FET.");
 	s+="\n\n";
 	s+=tr("An impossible timetable might also be caused by incorrect years division. Please check statistics/students for all subgroups, "
@@ -65,9 +65,9 @@ void HelpInstructionsForm::setText()
 		"number of hours (periods) per day to your required needs, not larger. It is a good practice to choose a value for the number "
 		"of days and number of hours from the beginning (you can change their names anytime you want afterwards).");
 	s+="\n\n";
-	s+=tr("1) To say that component activities of a larger split activity are not in the same day, FET automatically adds a "
+	s+=tr("1) To say that component activities of a larger split activity are not on the same day, FET automatically adds a "
 		"constraint min days between activities with default 95% weight. If you want to ensure no two activities of same type "
-		"are in the same day, you will have to modify the weight from 95% to higher values (see these constraints in the Time constraints "
+		"are on the same day, you will have to modify the weight from 95% to higher values (see these constraints in the Time constraints "
 		"menu->Activities->Min days between a set of activities constraints. You have there a powerful filter to change many "
 		"constraints with a few clicks).");
 	s+="\n\n";
@@ -83,7 +83,7 @@ void HelpInstructionsForm::setText()
 		"100% (even 99.75% or more) for an impossible constraint, FET will be able to detect that it is impossible and obtain a "
 		"timetable in the end, so the weight is subjective. So, the best way would be to choose a 99.75% for all constraints, "
 		"but the time of generation might be larger than with 95%. You could try at first the 95% minimum recommended value, then "
-		"highten the weight percentage up to maybe 99.75% or 100%. I am not sure here, I have not enough sample files (please contribute with advice).");
+		"heighten the weight percentage up to maybe 99.75% or 100%. I am not sure here, I have not enough sample files (please contribute with advice).");
 	s+="\n\n";
 	s+=tr("If you would like to change the default 95% for another value for some constraints of type min days, the easiest way "
 		"is in Data/Time constraints/Min days between activities dialog, where starting with version 5.6.1 there is a "
@@ -96,12 +96,12 @@ void HelpInstructionsForm::setText()
 		"activities per week from the same group, you can add 2 constraints, min 2 days and min 1 day, both with 95%. This will ensure that "
 		"in 99.75% of cases the min 1 day will be respected.");
 	s+="\n\n";
-	s+=tr("2) If you have a course lesson with say 4-5 activities per week, difficult lessons (Maths), which you would like to schedule "
+	s+=tr("2) If you have a course activity with say 4-5 activities per week, difficult activities (math), which you would like to schedule "
 		"in the beginning of the day (say 3 out of 4-5 need to be in the first half of the day), the best approach is to use constraint "
 		"subactivities preferred time slots or starting times, specifying possibly the subject and component number: 1, 2 and maybe 3"
 		", adding 3 constraints for this subject (see FAQ for more details). You can also add constraints for component numbers 3, 4 "
-		"and 5 for subject Maths (this way, if activity is split into 4 it will get 2 early, if it is split into 5 it will get 3 "
-		"early - a nice trick). Similarly, if you have say Bio with 1 or 2 splits per week, you can add constraint with component number = 2.");
+		"and 5 for subject math (this way, if activity is split into 4 it will get 2 early, if it is split into 5 it will get 3 "
+		"early - a nice trick). Similarly, if you have say biology with 1 or 2 splits per week, you can add constraint with component number = 2.");
 	s+="\n\n";
 	s+=tr("3) From the way the algorithm is conceived, the automatic generation is faster if you use students set (or teacher) "
 		"not available and/or constraint activity(ies) preferred time slots or preferred starting times to specify impossible slots, "
@@ -142,7 +142,7 @@ void HelpInstructionsForm::setText()
 		"min hours daily (probably with 2 hours), but please make sure your timetable is possible. This constraint is "
 		"smart, it only considers non-empty days.");
 	s+="\n\n";
-	s+=tr("13) If you have for instance 7 hours of Maths on a 5 days week (more lessons than days), "
+	s+=tr("13) If you have for instance 7 hours of math on a 5 days week (more activities than days), "
 		"please respect the correct way to add these as a split activity. See question Q-1-27-March-2008 from FAQ. It is important!");
 	s+="\n\n";
 	s+=tr("14) It is recommended to remove redundant min days between activities constraints after adding constraints same starting day or time "
@@ -155,10 +155,7 @@ void HelpInstructionsForm::setText()
 	s+=tr("16) If you have activities which you want to put in the last slots of a day (like say "
 		"the meetings with the class master), please use the constraint a set of activities end students day (or singular activity ends students day).");
 	s+="\n\n";
-	s+=tr("17) If you have activities split into 3 activities per week and need them to be not "
-		"in 3 consecutive days, there is an entry in the FAQ explaining how to specify this (question Q1-5-September-2008).");
-	s+="\n\n";
-	s+=tr("18) If you use the not perfect constraints activity tag max hours daily or students max gaps per day (there are 4+2"
+	s+=tr("17) If you use the not perfect constraints activity tag max hours daily or students max gaps per day (there are 4+2"
 		" types of constraints in this category), use them with caution not to obtain an impossible timetable. If the timetable is impossible, it may be because of them."
 		" You are advised to add such constraints only in the end, after you are sure that the other constraints are good and the timetable is possible.");
 		

@@ -2,8 +2,8 @@
                           changemindaysselectivelyform.h  -  description
                              -------------------
     begin                : July 30, 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -24,6 +24,7 @@
 class QLineEdit;
 class QComboBox;
 class QSpinBox;
+class QString;
 
 class ChangeMinDaysSelectivelyForm : public QDialog, Ui::ChangeMinDaysSelectivelyForm_template  {
 	Q_OBJECT
@@ -35,14 +36,17 @@ public:
 	double oldWeight;
 	int oldDays;
 	int oldConsecutive;
+	QString oldConsecutiveString;
 	int oldNActs;
 	
 	double newWeight;
 	int newDays;
 	int newConsecutive;
+	QString newConsecutiveString;
 
 public slots:
 	void ok();
+	void cancel();
 };
 
 #endif

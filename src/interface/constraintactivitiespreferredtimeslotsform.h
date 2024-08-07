@@ -2,8 +2,8 @@
                           constraintactivitiespreferredtimeslots.h  -  description
                              -------------------
     begin                : 15 May 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,19 +18,28 @@
 #ifndef CONSTRAINTACTIVITIESPREFERREDTIMESLOTSFORM_H
 #define CONSTRAINTACTIVITIESPREFERREDTIMESLOTSFORM_H
 
-#include "timeconstraint_basedialog.h"
+#include "ui_constraintactivitiespreferredtimeslotsform_template.h"
+#include "timetable_defs.h"
+#include "timetable.h"
+#include "fet.h"
 
-class ConstraintActivitiesPreferredTimeSlotsForm : public TimeConstraintBaseDialog  {
+class ConstraintActivitiesPreferredTimeSlotsForm : public QDialog, Ui::ConstraintActivitiesPreferredTimeSlotsForm_template  {
 	Q_OBJECT
 public:
+	TimeConstraintsList visibleConstraintsList;
+
 	ConstraintActivitiesPreferredTimeSlotsForm(QWidget* parent);
 	~ConstraintActivitiesPreferredTimeSlotsForm();
+	
+	bool filterOk(TimeConstraint* ctr);
 
-	bool filterOk(const TimeConstraint* ctr) const;
-
-protected:
-	virtual QDialog *createAddDialog();
-	virtual QDialog *createModifyDialog(TimeConstraint *ctr);
+public slots:
+	void constraintChanged(int index);
+	void addConstraint();
+	void modifyConstraint();
+	void removeConstraint();
+	
+	void filterChanged();
 };
 
 #endif

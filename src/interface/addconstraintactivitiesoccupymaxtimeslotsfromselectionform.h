@@ -2,8 +2,8 @@
                           addconstraintactivitiesoccupymaxtimeslotsfromselectionform.h  -  description
                              -------------------
     begin                : Sept 26, 2011
-    copyright            : (C) 2011 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2011 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -25,14 +25,14 @@
 
 #include <QList>
 
-class AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm : public QDialog, Ui::AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm_template  {
+class AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm : public QDialog, Ui::AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm_template {
 	Q_OBJECT
 	
 public:
 	AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm(QWidget* parent);
 	~AddConstraintActivitiesOccupyMaxTimeSlotsFromSelectionForm();
 
-	void updateActivitiesListWidget();
+	void colorItem(QTableWidgetItem* item);
 	
 	bool filterOk(Activity* act);
 
@@ -47,6 +47,12 @@ public slots:
 
 	void addCurrentConstraint();
 
+	void itemClicked(QTableWidgetItem* item);
+	void horizontalHeaderClicked(int col);
+	void verticalHeaderClicked(int row);
+	
+	void cellEntered(int row, int col);
+	
 	void setAllUnselected();
 	void setAllSelected();
 	

@@ -2,8 +2,8 @@
                           modifystudentsgroupform.cpp  -  description
                              -------------------
     begin                : Feb 8, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,13 +15,9 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "modifystudentsgroupform.h"
-
-#include "timetable.h"
-#include "fet.h"
-
-#include "centerwidgetonscreen.h"
 #include <QMessageBox>
+
+#include "modifystudentsgroupform.h"
 
 ModifyStudentsGroupForm::ModifyStudentsGroupForm(QWidget* parent, const QString& yearName, const QString& initialGroupName, int initialNumberOfStudents): QDialog(parent)
 {
@@ -29,8 +25,8 @@ ModifyStudentsGroupForm::ModifyStudentsGroupForm(QWidget* parent, const QString&
 	
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyStudentsGroupForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyStudentsGroupForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -38,10 +34,10 @@ ModifyStudentsGroupForm::ModifyStudentsGroupForm(QWidget* parent, const QString&
 	numberSpinBox->setMaximum(MAX_ROOM_CAPACITY);
 	numberSpinBox->setMinimum(0);
 	numberSpinBox->setValue(0);
-				
-//	this->_yearName=yearName;
+	
+	//this->_yearName=yearName;
 	this->_initialGroupName=initialGroupName;
-//	this->_initialNumberOfStudents=initialNumberOfStudents;
+	this->_initialNumberOfStudents=initialNumberOfStudents;
 	numberSpinBox->setValue(initialNumberOfStudents);
 	yearNameLineEdit->setText(yearName);
 	nameLineEdit->setText(initialGroupName);
@@ -54,6 +50,11 @@ ModifyStudentsGroupForm::~ModifyStudentsGroupForm()
 	saveFETDialogGeometry(this);
 }
 
+void ModifyStudentsGroupForm::cancel()
+{
+	this->close();
+}
+
 void ModifyStudentsGroupForm::ok()
 {
 	if(nameLineEdit->text().isEmpty()){
@@ -63,7 +64,7 @@ void ModifyStudentsGroupForm::ok()
 	//QString yearName=yearNameLineEdit->text();
 	QString groupName=nameLineEdit->text();
 	
-	if(this->_initialGroupName!=groupName && gt.rules.searchStudentsSet(groupName)!=NULL){
+	if(this->_initialGroupName!=groupName && gt.rules.searchStudentsSet(groupName)!=nullptr){
 		QMessageBox::information(this, tr("FET information"),
 		 tr("Name exists. If you would like to make more years to contain a group (overlapping years),"
 		 " please remove current group (FET will unfortunately remove all related activities and constraints)"
@@ -76,8 +77,13 @@ void ModifyStudentsGroupForm::ok()
 		return;
 	}
 	
+	QString od=tr("Group name=%1\nNumber of students=%2").arg(this->_initialGroupName).arg(this->_initialNumberOfStudents);
+	
 	bool t=gt.rules.modifyStudentsSet(this->_initialGroupName, groupName, numberSpinBox->value());
 	assert(t);
+
+	QString nd=tr("Group name=%1\nNumber of students=%2").arg(groupName).arg(numberSpinBox->value());
+	gt.rules.addUndoPoint(tr("The group with the description:\n\n%1\nwas modified into\n\n%2").arg(od).arg(nd));
 	
 	this->close();
 }

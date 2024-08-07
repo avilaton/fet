@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 
@@ -21,12 +21,8 @@
 #include "buildingsform.h"
 #include "addbuildingform.h"
 #include "modifybuildingform.h"
-#include "interface/editcommentsform.h"
-
-#include "timetableexport.h"
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include <QListWidget>
 #include <QScrollBar>
@@ -36,6 +32,13 @@
 #include <QSettings>
 #include <QObject>
 #include <QMetaObject>
+
+extern const QString COMPANY;
+extern const QString PROGRAM;
+
+extern bool students_schedule_ready;
+extern bool rooms_buildings_schedule_ready;
+extern bool teachers_schedule_ready;
 
 BuildingsForm::BuildingsForm(QWidget* parent): QDialog(parent)
 {
@@ -47,24 +50,26 @@ BuildingsForm::BuildingsForm(QWidget* parent): QDialog(parent)
 
 	buildingsListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-	connect(addBuildingPushButton, SIGNAL(clicked()), this, SLOT(addBuilding()));
-	connect(removeBuildingPushButton, SIGNAL(clicked()), this, SLOT(removeBuilding()));
-	connect(buildingsListWidget, SIGNAL(currentRowChanged(int)), this, SLOT(buildingChanged(int)));
-	connect(closePushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(modifyBuildingPushButton, SIGNAL(clicked()), this, SLOT(modifyBuilding()));
+	connect(addBuildingPushButton, &QPushButton::clicked, this, &BuildingsForm::addBuilding);
+	connect(removeBuildingPushButton, &QPushButton::clicked, this, &BuildingsForm::removeBuilding);
+	connect(buildingsListWidget, &QListWidget::currentRowChanged, this, &BuildingsForm::buildingChanged);
+	connect(closePushButton, &QPushButton::clicked, this, &BuildingsForm::close);
+	connect(modifyBuildingPushButton, &QPushButton::clicked, this, &BuildingsForm::modifyBuilding);
 
-	connect(moveBuildingUpPushButton, SIGNAL(clicked()), this, SLOT(moveBuildingUp()));
-	connect(moveBuildingDownPushButton, SIGNAL(clicked()), this, SLOT(moveBuildingDown()));
+	connect(moveBuildingUpPushButton, &QPushButton::clicked, this, &BuildingsForm::moveBuildingUp);
+	connect(moveBuildingDownPushButton, &QPushButton::clicked, this, &BuildingsForm::moveBuildingDown);
 
-	connect(sortBuildingsPushButton, SIGNAL(clicked()), this, SLOT(sortBuildings()));
-	connect(buildingsListWidget, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(modifyBuilding()));
+	connect(sortBuildingsPushButton, &QPushButton::clicked, this, &BuildingsForm::sortBuildings);
+	connect(buildingsListWidget, &QListWidget::itemDoubleClicked, this, &BuildingsForm::modifyBuilding);
 
-	connect(commentsPushButton, SIGNAL(clicked()), this, SLOT(comments()));
+	connect(longNamePushButton, &QPushButton::clicked, this, &BuildingsForm::longName);
+	connect(codePushButton, &QPushButton::clicked, this, &BuildingsForm::code);
+	connect(commentsPushButton, &QPushButton::clicked, this, &BuildingsForm::comments);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
 	//restore splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	if(settings.contains(this->metaObject()->className()+QString("/splitter-state")))
 		splitter->restoreState(settings.value(this->metaObject()->className()+QString("/splitter-state")).toByteArray());
 	
@@ -75,7 +80,7 @@ BuildingsForm::~BuildingsForm()
 {
 	saveFETDialogGeometry(this);
 	//save splitter state
-	QSettings settings;
+	QSettings settings(COMPANY, PROGRAM);
 	settings.setValue(this->metaObject()->className()+QString("/splitter-state"), splitter->saveState());
 }
 
@@ -111,6 +116,7 @@ void BuildingsForm::filterChanged()
 void BuildingsForm::addBuilding()
 {
 	AddBuildingForm addBuildingForm(this);
+	setParentAndOtherThings(&addBuildingForm, this);
 	addBuildingForm.exec();
 	
 	filterChanged();
@@ -127,16 +133,20 @@ void BuildingsForm::removeBuilding()
 	}
 	
 	Building* bu=visibleBuildingsList.at(ind);
-	assert(bu!=NULL);
+	assert(bu!=nullptr);
 
 	if(QMessageBox::warning( this, tr("FET"),
-		tr("Are you sure you want to delete this building?"),
-		tr("Yes"), tr("No"), 0, 0, 1 ) == 1)
+	 tr("Are you sure you want to delete this building?"),
+	 QMessageBox::Yes | QMessageBox::No) == QMessageBox::No)
 		return;
-		
+	
+	QString on=bu->name;
+	
 	bool tmp=gt.rules.removeBuilding(bu->name);
 	assert(tmp);
 	
+	gt.rules.addUndoPoint(tr("Removed the building %1.").arg(on));
+
 	visibleBuildingsList.removeAt(ind);
 	buildingsListWidget->setCurrentRow(-1);
 	QListWidgetItem* item=buildingsListWidget->takeItem(ind);
@@ -160,7 +170,7 @@ void BuildingsForm::buildingChanged(int index)
 	QString s;
 	Building* building=visibleBuildingsList.at(index);
 
-	assert(building!=NULL);
+	assert(building!=nullptr);
 	s=building->getDetailedDescriptionWithConstraints(gt.rules);
 	currentBuildingTextEdit->setPlainText(s);
 }
@@ -174,20 +184,37 @@ void BuildingsForm::moveBuildingUp()
 		return;
 	if(i==0)
 		return;
-		
+	
 	QString s1=buildingsListWidget->item(i)->text();
 	QString s2=buildingsListWidget->item(i-1)->text();
 	
+	Building* bu1=gt.rules.buildingsList.at(i);
+	Building* bu2=gt.rules.buildingsList.at(i-1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	buildingsListWidget->item(i)->setText(s2);
 	buildingsListWidget->item(i-1)->setText(s1);
 	
-	gt.rules.buildingsList.swap(i, i-1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
-
-	visibleBuildingsList.swap(i, i-1);
+	gt.rules.buildingsList[i]=bu2;
+	gt.rules.buildingsList[i-1]=bu1;
+	
+	gt.rules.addUndoPoint(tr("Moved the building %1 up.").arg(bu1->name));
+	
+	//Begin bug fix on 2017-08-29
+	Building* vb1=visibleBuildingsList[i];
+	Building* vb2=visibleBuildingsList[i-1];
+	visibleBuildingsList[i]=vb2;
+	visibleBuildingsList[i-1]=vb1;
+	//End bug fix
+	
 	buildingsListWidget->setCurrentRow(i-1);
+	buildingChanged(i-1);
 }
 
 void BuildingsForm::moveBuildingDown()
@@ -203,21 +230,40 @@ void BuildingsForm::moveBuildingDown()
 	QString s1=buildingsListWidget->item(i)->text();
 	QString s2=buildingsListWidget->item(i+1)->text();
 	
+	Building* bu1=gt.rules.buildingsList.at(i);
+	Building* bu2=gt.rules.buildingsList.at(i+1);
+	
+	gt.rules.internalStructureComputed=false;
+	setRulesModifiedAndOtherThings(&gt.rules);
+	
+	teachers_schedule_ready=false;
+	students_schedule_ready=false;
+	rooms_buildings_schedule_ready=false;
+
 	buildingsListWidget->item(i)->setText(s2);
 	buildingsListWidget->item(i+1)->setText(s1);
 	
-	gt.rules.buildingsList.swap(i, i+1);
-	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
-	CachedSchedule::invalidate();
-
-	visibleBuildingsList.swap(i, i+1);
+	gt.rules.buildingsList[i]=bu2;
+	gt.rules.buildingsList[i+1]=bu1;
+	
+	gt.rules.addUndoPoint(tr("Moved the building %1 down.").arg(bu1->name));
+	
+	//Begin bug fix on 2017-08-29
+	Building* vb1=visibleBuildingsList[i];
+	Building* vb2=visibleBuildingsList[i+1];
+	visibleBuildingsList[i]=vb2;
+	visibleBuildingsList[i+1]=vb1;
+	//End bug fix
+	
 	buildingsListWidget->setCurrentRow(i+1);
+	buildingChanged(i+1);
 }
 
 void BuildingsForm::sortBuildings()
 {
 	gt.rules.sortBuildingsAlphabetically();
+
+	gt.rules.addUndoPoint(tr("Sorted the buildings."));
 
 	filterChanged();
 }
@@ -235,6 +281,7 @@ void BuildingsForm::modifyBuilding()
 	
 	Building* bu=visibleBuildingsList.at(ci);
 	ModifyBuildingForm form(this, bu->name);
+	setParentAndOtherThings(&form, this);
 	form.exec();
 
 	filterChanged();
@@ -258,18 +305,178 @@ void BuildingsForm::comments()
 	}
 	
 	Building* bu=gt.rules.buildingsList[ind];
-	assert(bu!=NULL);
+	assert(bu!=nullptr);
 
-	EditCommentsForm dialog("BuildingsCommentsDialog", this, tr("Building comments"));
-	dialog.setComments(bu->comments);
+	QDialog getCommentsDialog(this);
 	
-	int t=dialog.exec();
+	getCommentsDialog.setWindowTitle(tr("Building comments"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCommentsDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QPlainTextEdit* commentsPT=new QPlainTextEdit();
+	commentsPT->setPlainText(bu->comments);
+	commentsPT->selectAll();
+	commentsPT->setFocus();
+	
+	vl->addWidget(commentsPT);
+	vl->addLayout(hl);
+	
+	getCommentsDialog.setLayout(vl);
+	
+	const QString settingsName=QString("BuildingsCommentsDialog");
+	
+	getCommentsDialog.resize(500, 320);
+	centerWidgetOnScreen(&getCommentsDialog);
+	restoreFETDialogGeometry(&getCommentsDialog, settingsName);
+	
+	int t=getCommentsDialog.exec();
+	saveFETDialogGeometry(&getCommentsDialog, settingsName);
 	
 	if(t==QDialog::Accepted){
-		bu->comments=dialog.getComments();
+		QString oc=bu->comments;
+	
+		bu->comments=commentsPT->toPlainText();
+		
+		gt.rules.addUndoPoint(tr("Changed the comments for the building %1 from\n%2\nto\n%3.").arg(bu->name).arg(oc).arg(bu->comments));
 	
 		gt.rules.internalStructureComputed=false;
-		gt.rules.setModified(true);
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		buildingChanged(ind);
+	}
+}
+
+void BuildingsForm::longName()
+{
+	int ind=buildingsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected building"));
+		return;
+	}
+	
+	Building* bu=gt.rules.buildingsList[ind];
+	assert(bu!=nullptr);
+
+	QDialog getLongNameDialog(this);
+	
+	getLongNameDialog.setWindowTitle(tr("Building long name"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getLongNameDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* longNameLE=new QLineEdit();
+	longNameLE->setText(bu->longName);
+	longNameLE->selectAll();
+	longNameLE->setFocus();
+	
+	vl->addWidget(longNameLE);
+	vl->addLayout(hl);
+	
+	getLongNameDialog.setLayout(vl);
+	
+	const QString settingsName=QString("BuildingLongNameDialog");
+	
+	getLongNameDialog.resize(300, 200);
+	centerWidgetOnScreen(&getLongNameDialog);
+	restoreFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	int t=getLongNameDialog.exec();
+	saveFETDialogGeometry(&getLongNameDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oln=bu->longName;
+	
+		bu->longName=longNameLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the long name for the building %1 from\n%2\nto\n%3.").arg(bu->name).arg(oln).arg(bu->longName));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
+
+		buildingChanged(ind);
+	}
+}
+
+void BuildingsForm::code()
+{
+	int ind=buildingsListWidget->currentRow();
+	if(ind<0){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected building"));
+		return;
+	}
+	
+	Building* bu=gt.rules.buildingsList[ind];
+	assert(bu!=nullptr);
+
+	QDialog getCodeDialog(this);
+	
+	getCodeDialog.setWindowTitle(tr("Building code"));
+	
+	QPushButton* okPB=new QPushButton(tr("OK"));
+	okPB->setDefault(true);
+	QPushButton* cancelPB=new QPushButton(tr("Cancel"));
+	
+	connect(okPB, &QPushButton::clicked, &getCodeDialog, &QDialog::accept);
+	connect(cancelPB, &QPushButton::clicked, &getCodeDialog, &QDialog::reject);
+
+	QHBoxLayout* hl=new QHBoxLayout();
+	hl->addStretch();
+	hl->addWidget(okPB);
+	hl->addWidget(cancelPB);
+	
+	QVBoxLayout* vl=new QVBoxLayout();
+	
+	QLineEdit* codeLE=new QLineEdit();
+	codeLE->setText(bu->code);
+	codeLE->selectAll();
+	codeLE->setFocus();
+	
+	vl->addWidget(codeLE);
+	vl->addLayout(hl);
+	
+	getCodeDialog.setLayout(vl);
+	
+	const QString settingsName=QString("BuildingCodeDialog");
+	
+	getCodeDialog.resize(300, 200);
+	centerWidgetOnScreen(&getCodeDialog);
+	restoreFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	int t=getCodeDialog.exec();
+	saveFETDialogGeometry(&getCodeDialog, settingsName);
+	
+	if(t==QDialog::Accepted){
+		QString oc=bu->code;
+	
+		bu->code=codeLE->text();
+	
+		gt.rules.addUndoPoint(tr("Changed the code for the building %1 from\n%2\nto\n%3.").arg(bu->name).arg(oc).arg(bu->code));
+	
+		gt.rules.internalStructureComputed=false;
+		setRulesModifiedAndOtherThings(&gt.rules);
 
 		buildingChanged(ind);
 	}

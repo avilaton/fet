@@ -3,7 +3,7 @@
                              -------------------
     begin                : 13 Feb 2005
     copyright            : (C) 2005 by Liviu Lalescu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -18,11 +18,10 @@
 #include <QMessageBox>
 
 #include "modifyconstraintactivitypreferredroomform.h"
-#include "spaceconstraint.h"
 
 #include "lockunlock.h"
 
-#include "centerwidgetonscreen.h"
+#include "longtextmessagebox.h"
 
 ModifyConstraintActivityPreferredRoomForm::ModifyConstraintActivityPreferredRoomForm(QWidget* parent, ConstraintActivityPreferredRoom* ctr): QDialog(parent)
 {
@@ -30,8 +29,13 @@ ModifyConstraintActivityPreferredRoomForm::ModifyConstraintActivityPreferredRoom
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomForm::ok);
+	connect(helpPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomForm::help);
+
+	connect(selectedRealRoomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintActivityPreferredRoomForm::removeRealRoom);
+	connect(clearPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredRoomForm::clearRealRooms);
+	connect(allRealRoomsListWidget, &QListWidget::itemDoubleClicked, this, &ModifyConstraintActivityPreferredRoomForm::addRealRoom);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -51,6 +55,17 @@ ModifyConstraintActivityPreferredRoomForm::ModifyConstraintActivityPreferredRoom
 
 	updateActivitiesComboBox();
 	updateRoomsComboBox();
+
+	allRealRoomsListWidget->clear();
+	for(Room* rm : std::as_const(gt.rules.roomsList))
+		if(rm->isVirtual==false)
+			allRealRoomsListWidget->addItem(rm->name);
+	allRealRoomsListWidget->setCurrentRow(0);
+
+	selectedRealRoomsListWidget->clear();
+	for(const QString& rrn : std::as_const(_ctr->preferredRealRoomsNames))
+		selectedRealRoomsListWidget->addItem(rrn);
+	selectedRealRoomsListWidget->setCurrentRow(0);
 }
 
 ModifyConstraintActivityPreferredRoomForm::~ModifyConstraintActivityPreferredRoomForm()
@@ -64,7 +79,7 @@ void ModifyConstraintActivityPreferredRoomForm::updateActivitiesComboBox()
 	activitiesComboBox->clear();
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* act=gt.rules.activitiesList[k];
-		activitiesComboBox->addItem(act->getDescription());
+		activitiesComboBox->addItem(act->getDescription(gt.rules));
 		if(act->id==this->_ctr->activityId)
 			j=i;
 		i++;
@@ -86,6 +101,53 @@ void ModifyConstraintActivityPreferredRoomForm::updateRoomsComboBox()
 	}
 	assert(j>=0);
 	roomsComboBox->setCurrentIndex(j);
+}
+
+void ModifyConstraintActivityPreferredRoomForm::removeRealRoom()
+{
+	int ind=selectedRealRoomsListWidget->currentRow();
+	if(ind<0 || ind>=selectedRealRoomsListWidget->count()){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected real room."));
+		return;
+	}
+
+	QListWidgetItem* item=selectedRealRoomsListWidget->takeItem(ind);
+	delete item;
+
+	if(ind>=selectedRealRoomsListWidget->count())
+		ind=selectedRealRoomsListWidget->count()-1;
+	selectedRealRoomsListWidget->setCurrentRow(ind);
+}
+
+void ModifyConstraintActivityPreferredRoomForm::clearRealRooms()
+{
+	selectedRealRoomsListWidget->clear();
+}
+
+void ModifyConstraintActivityPreferredRoomForm::addRealRoom()
+{
+	int ind=allRealRoomsListWidget->currentRow();
+	if(ind<0 || ind>=allRealRoomsListWidget->count()){
+		QMessageBox::information(this, tr("FET information"), tr("Invalid selected real room."));
+		return;
+	}
+
+	bool exists=false;
+	for(int i=0; i<selectedRealRoomsListWidget->count(); i++)
+		if(selectedRealRoomsListWidget->item(i)->text()==allRealRoomsListWidget->item(ind)->text()){
+			exists=true;
+			break;
+		}
+	
+	if(!exists){
+		selectedRealRoomsListWidget->addItem(allRealRoomsListWidget->item(ind)->text());
+		selectedRealRoomsListWidget->setCurrentRow(selectedRealRoomsListWidget->count()-1);
+	}
+}
+
+void ModifyConstraintActivityPreferredRoomForm::cancel()
+{
+	this->close();
 }
 
 void ModifyConstraintActivityPreferredRoomForm::ok()
@@ -115,6 +177,65 @@ void ModifyConstraintActivityPreferredRoomForm::ok()
 	}
 	QString room=roomsComboBox->currentText();
 
+	int ri=gt.rules.searchRoom(room);
+	assert(ri>=0);
+	Room* rm=gt.rules.roomsList.at(ri);
+	
+	if(rm->isVirtual==false){
+		if(selectedRealRoomsListWidget->count()>0){
+			QMessageBox::warning(this, tr("FET information"), tr("The preferred room of the activity is a real room, not a virtual one."
+			 " This implies that the selected real rooms list should be empty."));
+			return;
+		}
+	}
+	else{
+		if(selectedRealRoomsListWidget->count()>0 && weight<100.0){
+			QMessageBox::warning(this, tr("FET information"), tr("If the preferred room is virtual and the list of real rooms is not empty,"
+			 " the weight percentage must be exactly 100%."));
+			return;
+		}
+		
+		if(selectedRealRoomsListWidget->count()>0 && rm->realRoomsSetsList.count()!=selectedRealRoomsListWidget->count()){
+			QMessageBox::warning(this, tr("FET information"), tr("The preferred room of the activity is a virtual room."
+			 " This implies that the number of selected real rooms in the list should either be zero or equal to the"
+			 " number of sets of real rooms of the preferred virtual room, which is %1.").arg(rm->realRoomsSetsList.count()));
+			return;
+		}
+		
+		QSet<QString> rrs;
+		for(const QStringList& tl : std::as_const(rm->realRoomsSetsList))
+			for(const QString& s : std::as_const(tl))
+				if(!rrs.contains(s))
+					rrs.insert(s);
+		
+		QStringList incorrectList;
+		for(int i=0; i<selectedRealRoomsListWidget->count(); i++){
+			bool found=false;
+			QString rrn=selectedRealRoomsListWidget->item(i)->text();
+			if(rrs.contains(rrn))
+				found=true;
+				
+			if(!found)
+				incorrectList.append(rrn);
+		}
+		if(!incorrectList.isEmpty()){
+			switch(LongTextMessageBox::confirmation(this, tr("FET information"), tr("The selected real rooms: %1 are not found in the sets of sets of real rooms of the"
+			 " selected preferred virtual room. This is probably wrong. Are you sure you want to add this constraint?").arg(incorrectList.join(", ")),
+			 tr("Yes"), tr("No"), QString(), 0, 1)){
+			case 0:
+				break;
+			case 1:
+				return;
+			}
+		}
+	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
+	QStringList lst;
+	for(int i=0; i<selectedRealRoomsListWidget->count(); i++)
+		lst.append(selectedRealRoomsListWidget->item(i)->text());
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->roomName=room;
 	
@@ -136,12 +257,32 @@ void ModifyConstraintActivityPreferredRoomForm::ok()
 	}
 	
 	this->_ctr->permanentlyLocked=permLockedCheckBox->isChecked();
+	
+	_ctr->preferredRealRoomsNames=lst;
+
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
 
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
-	LockUnlock::computeLockedUnlockedActivitiesOnlySpace(&gt.rules);
+	LockUnlock::computeLockedUnlockedActivitiesOnlySpace();
 	LockUnlock::increaseCommunicationSpinBox();
 	
 	this->close();
+}
+
+void ModifyConstraintActivityPreferredRoomForm::help()
+{
+	QString s;
+	
+	s+=tr("A room can be real (the simplest and the most used scenario) or virtual. You can read more about this in the rooms dialog, by clicking the Help button there.");
+	s+="\n\n";
+	s+=tr("If the preferred room selected in the combo box is real, the list of selected real rooms must remain empty.");
+	s+="\n\n";
+	s+=tr("If the preferred room selected in the combo box is virtual, you can select also the list of real rooms to be allocated to the "
+	 "selected activity (if the preferred room selected in the combo box is virtual and the list of selected real rooms is not empty, the "
+	 "weight of the constraint must be 100.0%).");
+	
+	LongTextMessageBox::largeInformation(this, tr("FET help"), s);
 }

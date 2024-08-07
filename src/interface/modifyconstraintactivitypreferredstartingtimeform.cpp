@@ -2,8 +2,8 @@
                           modifyconstraintactivitypreferredstartingtimeform.cpp  -  description
                              -------------------
     begin                : Feb 11, 2005
-    copyright            : (C) 2005 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2005 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,15 +16,11 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
 
 #include "modifyconstraintactivitypreferredstartingtimeform.h"
 #include "timeconstraint.h"
 
 #include "lockunlock.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintActivityPreferredStartingTimeForm::ModifyConstraintActivityPreferredStartingTimeForm(QWidget* parent, ConstraintActivityPreferredStartingTime* ctr): QDialog(parent)
 {
@@ -32,12 +28,8 @@ ModifyConstraintActivityPreferredStartingTimeForm::ModifyConstraintActivityPrefe
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(teachersComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(studentsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(subjectsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
-	connect(activityTagsComboBox, SIGNAL(activated(QString)), this, SLOT(filterChanged()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredStartingTimeForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivityPreferredStartingTimeForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -85,11 +77,11 @@ ModifyConstraintActivityPreferredStartingTimeForm::ModifyConstraintActivityPrefe
 	}
 	activityTagsComboBox->setCurrentIndex(0);
 
-	StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, QString(""), true);
+	populateStudentsComboBox(studentsComboBox, QString(""), true);
 	studentsComboBox->setCurrentIndex(0);
 	
 	updatePeriodGroupBox();
-	updateActivitiesComboBox();
+	filterChanged();
 
 	if(ctr->day>=0 && ctr->day<gt.rules.nDaysPerWeek)
 		dayComboBox->setCurrentIndex(ctr->day);
@@ -102,6 +94,11 @@ ModifyConstraintActivityPreferredStartingTimeForm::ModifyConstraintActivityPrefe
 		startHourComboBox->setCurrentIndex(-1);
 	
 	permLockedCheckBox->setChecked(this->_ctr->permanentlyLocked);
+	
+	connect(teachersComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(studentsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(subjectsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityPreferredStartingTimeForm::filterChanged);
+	connect(activityTagsComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &ModifyConstraintActivityPreferredStartingTimeForm::filterChanged);
 }
 
 ModifyConstraintActivityPreferredStartingTimeForm::~ModifyConstraintActivityPreferredStartingTimeForm()
@@ -114,13 +111,13 @@ bool ModifyConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 	QString tn=teachersComboBox->currentText();
 	QString stn=studentsComboBox->currentText();
 	QString sbn=subjectsComboBox->currentText();
-	QString sbtn=activityTagsComboBox->currentText();
+	QString atn=activityTagsComboBox->currentText();
 	int ok=true;
 
 	//teacher
 	if(tn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->teachersNames.begin(); it!=act->teachersNames.end(); it++)
+		for(QStringList::const_iterator it=act->teachersNames.constBegin(); it!=act->teachersNames.constEnd(); it++)
 			if(*it == tn){
 				ok2=true;
 				break;
@@ -134,13 +131,13 @@ bool ModifyConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 		ok=false;
 		
 	//activity tag
-	if(sbtn!="" && !act->activityTagsNames.contains(sbtn))
+	if(atn!="" && !act->activityTagsNames.contains(atn))
 		ok=false;
 		
 	//students
 	if(stn!=""){
 		bool ok2=false;
-		for(QStringList::Iterator it=act->studentsNames.begin(); it!=act->studentsNames.end(); it++)
+		for(QStringList::const_iterator it=act->studentsNames.constBegin(); it!=act->studentsNames.constEnd(); it++)
 			if(*it == stn){
 				ok2=true;
 				break;
@@ -152,19 +149,14 @@ bool ModifyConstraintActivityPreferredStartingTimeForm::filterOk(Activity* act)
 	return ok;
 }
 
-void ModifyConstraintActivityPreferredStartingTimeForm::filterChanged()
-{
-	this->updateActivitiesComboBox();
-}
-
-void ModifyConstraintActivityPreferredStartingTimeForm::updateActivitiesComboBox(){
+void ModifyConstraintActivityPreferredStartingTimeForm::filterChanged(){
 	activitiesComboBox->clear();
 	activitiesList.clear();
 	int i=0, j=-1;
 	for(int k=0; k<gt.rules.activitiesList.size(); k++){
 		Activity* act=gt.rules.activitiesList[k];
 		if(filterOk(act)){
-			activitiesComboBox->addItem(act->getDescription());
+			activitiesComboBox->addItem(act->getDescription(gt.rules));
 			this->activitiesList.append(act->id);
 			if(act->id==this->_ctr->activityId)
 				j=i;
@@ -233,7 +225,7 @@ void ModifyConstraintActivityPreferredStartingTimeForm::ok()
 		
 		bool duplicate=false;
 		
-		for(TimeConstraint* tc : qAsConst(gt.rules.timeConstraintsList))
+		for(TimeConstraint* tc : std::as_const(gt.rules.timeConstraintsList))
 			if(tc!=this->_ctr && tc->type==CONSTRAINT_ACTIVITY_PREFERRED_STARTING_TIME)
 				if( ( *((ConstraintActivityPreferredStartingTime*)tc) ) == apst){
 					duplicate=true;
@@ -245,6 +237,8 @@ void ModifyConstraintActivityPreferredStartingTimeForm::ok()
 			return;
 		}
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
 
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->day=day;
@@ -268,12 +262,20 @@ void ModifyConstraintActivityPreferredStartingTimeForm::ok()
 	}
 	
 	this->_ctr->permanentlyLocked=permanentlyLocked;
-	
+
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
-	LockUnlock::computeLockedUnlockedActivitiesOnlyTime(&gt.rules);
+	LockUnlock::computeLockedUnlockedActivitiesOnlyTime();
 	LockUnlock::increaseCommunicationSpinBox();
 
+	this->close();
+}
+
+void ModifyConstraintActivityPreferredStartingTimeForm::cancel()
+{
 	this->close();
 }

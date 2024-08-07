@@ -2,8 +2,8 @@
                           modifyconstraintactivitiespreferredstartingtimesform.cpp  -  description
                              -------------------
     begin                : 15 May 2004
-    copyright            : (C) 2004 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2004 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -15,15 +15,23 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <Qt>
+
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintactivitiespreferredstartingtimesform.h"
 #include "timeconstraint.h"
 
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
+#include <QHeaderView>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+
+#include <QBrush>
+#include <QColor>
+#include <QPalette>
+
+#define YES		(QString(" "))
+#define NO		(QString("X"))
 
 ModifyConstraintActivitiesPreferredStartingTimesForm::ModifyConstraintActivitiesPreferredStartingTimesForm(QWidget* parent, ConstraintActivitiesPreferredStartingTimes* ctr): QDialog(parent)
 {
@@ -41,10 +49,11 @@ ModifyConstraintActivitiesPreferredStartingTimesForm::ModifyConstraintActivities
 
 	okPushButton->setDefault(true);
 
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(setAllAllowedPushButton, SIGNAL(clicked()), this, SLOT(setAllSlotsAllowed()));
-	connect(setAllNotAllowedPushButton, SIGNAL(clicked()), this, SLOT(setAllSlotsNotAllowed()));
+	connect(preferredTimesTable, &QTableWidget::itemClicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::itemClicked);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::cancel);
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::ok);
+	connect(setAllAllowedPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::setAllSlotsAllowed);
+	connect(setAllNotAllowedPushButton, &QPushButton::clicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::setAllSlotsNotAllowed);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -61,25 +70,71 @@ ModifyConstraintActivitiesPreferredStartingTimesForm::ModifyConstraintActivities
 	this->_ctr=ctr;
 
 	updateTeachersComboBox();
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 	updateSubjectsComboBox();
 	updateActivityTagsComboBox();
 
-	preferredTimesTable->setHeaders(gt.rules);
+	preferredTimesTable->setRowCount(gt.rules.nHoursPerDay);
+	preferredTimesTable->setColumnCount(gt.rules.nDaysPerWeek);
 
+	for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.daysOfTheWeek[j]);
+		preferredTimesTable->setHorizontalHeaderItem(j, item);
+	}
+	for(int i=0; i<gt.rules.nHoursPerDay; i++){
+		QTableWidgetItem* item=new QTableWidgetItem(gt.rules.hoursOfTheDay[i]);
+		preferredTimesTable->setVerticalHeaderItem(i, item);
+	}
+
+	Matrix2D<bool> currentMatrix;
+	currentMatrix.resize(gt.rules.nHoursPerDay, gt.rules.nDaysPerWeek);
+	
 	for(int i=0; i<gt.rules.nHoursPerDay; i++)
 		for(int j=0; j<gt.rules.nDaysPerWeek; j++)
-			preferredTimesTable->setMarked(i, j, true);
+			currentMatrix[i][j]=false;
 	for(int k=0; k<ctr->nPreferredStartingTimes_L; k++){
 		if(ctr->hours_L[k]==-1 || ctr->days_L[k]==-1)
 			assert(0);
 		int i=ctr->hours_L[k];
 		int j=ctr->days_L[k];
 		if(i>=0 && i<gt.rules.nHoursPerDay && j>=0 && j<gt.rules.nDaysPerWeek)
-			preferredTimesTable->setMarked(i, j, false);
+			currentMatrix[i][j]=true;
 	}
 
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			QTableWidgetItem* item= new QTableWidgetItem();
+			item->setTextAlignment(Qt::AlignCenter);
+			item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsEnabled);
+			if(SHOW_TOOLTIPS_FOR_CONSTRAINTS_WITH_TABLES)
+				item->setToolTip(gt.rules.daysOfTheWeek[j]+QString("\n")+gt.rules.hoursOfTheDay[i]);
+			preferredTimesTable->setItem(i, j, item);
+			
+			if(!currentMatrix[i][j])
+				item->setText(NO);
+			else
+				item->setText(YES);
+				
+			colorItem(item);
+		}
+	
+	preferredTimesTable->resizeRowsToContents();
+	
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
+
+	connect(preferredTimesTable->horizontalHeader(), &QHeaderView::sectionClicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::horizontalHeaderClicked);
+	connect(preferredTimesTable->verticalHeader(), &QHeaderView::sectionClicked, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::verticalHeaderClicked);
+
+	preferredTimesTable->setSelectionMode(QAbstractItemView::NoSelection);
+
+	setStretchAvailabilityTableNicely(preferredTimesTable);
+
+	connect(preferredTimesTable, &QTableWidget::cellEntered, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::cellEntered);
+	preferredTimesTable->setMouseTracking(true);
+
+	connect(durationCheckBox, &QCheckBox::toggled, this, &ModifyConstraintActivitiesPreferredStartingTimesForm::durationCheckBox_toggled);
+	
+	durationCheckBox_toggled();
 }
 
 ModifyConstraintActivitiesPreferredStartingTimesForm::~ModifyConstraintActivitiesPreferredStartingTimesForm()
@@ -87,51 +142,162 @@ ModifyConstraintActivitiesPreferredStartingTimesForm::~ModifyConstraintActivitie
 	saveFETDialogGeometry(this);
 }
 
+void ModifyConstraintActivitiesPreferredStartingTimesForm::colorItem(QTableWidgetItem* item)
+{
+	if(USE_GUI_COLORS){
+#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
+		if(item->text()==YES)
+			item->setBackground(QBrush(QColorConstants::DarkGreen));
+		else
+			item->setBackground(QBrush(QColorConstants::DarkRed));
+		item->setForeground(QBrush(QColorConstants::LightGray));
+#else
+		if(item->text()==YES)
+			item->setBackground(QBrush(Qt::darkGreen));
+		else
+			item->setBackground(QBrush(Qt::darkRed));
+		item->setForeground(QBrush(Qt::lightGray));
+#endif
+	}
+}
+
+void ModifyConstraintActivitiesPreferredStartingTimesForm::horizontalHeaderClicked(int col)
+{
+	highlightOnHorizontalHeaderClicked(preferredTimesTable, col);
+
+	if(col>=0 && col<gt.rules.nDaysPerWeek){
+		QString s=preferredTimesTable->item(0, col)->text();
+		if(s==YES)
+			s=NO;
+		else{
+			assert(s==NO);
+			s=YES;
+		}
+
+		for(int row=0; row<gt.rules.nHoursPerDay; row++){
+			preferredTimesTable->item(row, col)->setText(s);
+			colorItem(preferredTimesTable->item(row,col));
+		}
+	}
+}
+
+void ModifyConstraintActivitiesPreferredStartingTimesForm::verticalHeaderClicked(int row)
+{
+	highlightOnVerticalHeaderClicked(preferredTimesTable, row);
+
+	if(row>=0 && row<gt.rules.nHoursPerDay){
+		QString s=preferredTimesTable->item(row, 0)->text();
+		if(s==YES)
+			s=NO;
+		else{
+			assert(s==NO);
+			s=YES;
+		}
+	
+		for(int col=0; col<gt.rules.nDaysPerWeek; col++){
+			preferredTimesTable->item(row, col)->setText(s);
+			colorItem(preferredTimesTable->item(row,col));
+		}
+	}
+}
+
+void ModifyConstraintActivitiesPreferredStartingTimesForm::cellEntered(int row, int col)
+{
+	highlightOnCellEntered(preferredTimesTable, row, col);
+}
+
 void ModifyConstraintActivitiesPreferredStartingTimesForm::setAllSlotsAllowed()
 {
-	preferredTimesTable->setAllUnmarked();
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			preferredTimesTable->item(i, j)->setText(YES);
+			colorItem(preferredTimesTable->item(i,j));
+		}
 }
 
 void ModifyConstraintActivitiesPreferredStartingTimesForm::setAllSlotsNotAllowed()
 {
-	preferredTimesTable->setAllMarked();
+	for(int i=0; i<gt.rules.nHoursPerDay; i++)
+		for(int j=0; j<gt.rules.nDaysPerWeek; j++){
+			preferredTimesTable->item(i, j)->setText(NO);
+			colorItem(preferredTimesTable->item(i,j));
+		}
+}
+
+void ModifyConstraintActivitiesPreferredStartingTimesForm::itemClicked(QTableWidgetItem* item)
+{
+	QString s=item->text();
+	if(s==YES)
+		s=NO;
+	else{
+		assert(s==NO);
+		s=YES;
+	}
+	item->setText(s);
+	colorItem(item);
 }
 
 void ModifyConstraintActivitiesPreferredStartingTimesForm::updateTeachersComboBox(){
+	int i=0, j=-1;
 	teachersComboBox->clear();
 	teachersComboBox->addItem("");
-	for(int i=0; i<gt.rules.teachersList.size(); i++){
-		Teacher* t=gt.rules.teachersList[i];
+	if(this->_ctr->teacherName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.teachersList.size(); k++){
+		Teacher* t=gt.rules.teachersList[k];
 		teachersComboBox->addItem(t->name);
+		if(t->name==this->_ctr->teacherName)
+			j=i;
+		i++;
 	}
-	teachersComboBox->setCurrentText(this->_ctr->teacherName);
+	assert(j>=0);
+	teachersComboBox->setCurrentIndex(j);
 }
 
-void ModifyConstraintActivitiesPreferredStartingTimesForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->studentsName, true);
-	if (j < 0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->studentsName);
+void ModifyConstraintActivitiesPreferredStartingTimesForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->studentsName, true);
+	if(j<0)
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->studentsName);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesPreferredStartingTimesForm::updateSubjectsComboBox(){
+	int i=0, j=-1;
 	subjectsComboBox->clear();
 	subjectsComboBox->addItem("");
-	for(int i=0; i<gt.rules.subjectsList.size(); i++){
-		Subject* s=gt.rules.subjectsList[i];
+	if(this->_ctr->subjectName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.subjectsList.size(); k++){
+		Subject* s=gt.rules.subjectsList[k];
 		subjectsComboBox->addItem(s->name);
+		if(s->name==this->_ctr->subjectName)
+			j=i;
+		i++;
 	}
-	subjectsComboBox->setCurrentText(this->_ctr->subjectName);
+	assert(j>=0);
+	subjectsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesPreferredStartingTimesForm::updateActivityTagsComboBox(){
+	int i=0, j=-1;
 	activityTagsComboBox->clear();
 	activityTagsComboBox->addItem("");
-	for(int i=0; i<gt.rules.activityTagsList.size(); i++){
-		ActivityTag* s=gt.rules.activityTagsList[i];
+	if(this->_ctr->activityTagName=="")
+		j=i;
+	i++;
+	for(int k=0; k<gt.rules.activityTagsList.size(); k++){
+		ActivityTag* s=gt.rules.activityTagsList[k];
 		activityTagsComboBox->addItem(s->name);
+		if(s->name==this->_ctr->activityTagName)
+			j=i;
+		i++;
 	}
-	activityTagsComboBox->setCurrentText(this->_ctr->activityTagName);
+	assert(j>=0);
+	activityTagsComboBox->setCurrentIndex(j);
 }
 
 void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
@@ -143,7 +309,7 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 	}
 
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->studentsName);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->studentsName);
 		return;
 	}
 
@@ -162,7 +328,7 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 
 	QString students=studentsComboBox->currentText();
 	if(students!="")
-		assert(gt.rules.searchStudentsSet(students)!=NULL);
+		assert(gt.rules.searchStudentsSet(students)!=nullptr);
 
 	QString subject=subjectsComboBox->currentText();
 	if(subject!="")
@@ -185,7 +351,7 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 		  " this possible gap might be counted in teachers' and students' timetable)")
 		  +"\n\n"+tr("Do you want to add current constraint?"),
 		 QMessageBox::Yes, QMessageBox::Cancel);
-						 
+		
 		if(t==QMessageBox::Cancel)
 				return;
 	}
@@ -202,7 +368,7 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 		  " gap might be counted in teacher's timetable)")
 		  +"\n\n"+tr("Do you want to add current constraint?"),
 		 QMessageBox::Yes, QMessageBox::Cancel);
-						 
+		
 		if(t==QMessageBox::Cancel)
 				return;
 	}
@@ -219,19 +385,17 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 		  " gap might be counted in students' timetable)")
 		  +"\n\n"+tr("Do you want to add current constraint?"),
 		 QMessageBox::Yes, QMessageBox::Cancel);
-						 
+		
 		if(t==QMessageBox::Cancel)
 				return;
 	}
 
 	QList<int> days_L;
 	QList<int> hours_L;
-	//int days[MAX_N_CONSTRAINT_ACTIVITIES_PREFERRED_STARTING_TIMES];
-	//int hours[MAX_N_CONSTRAINT_ACTIVITIES_PREFERRED_STARTING_TIMES];
 	int n=0;
 	for(int j=0; j<gt.rules.nDaysPerWeek; j++)
 		for(int i=0; i<gt.rules.nHoursPerDay; i++)
-			if(!preferredTimesTable->isMarked(i, j)){
+			if(preferredTimesTable->item(i, j)->text()==YES){
 				days_L.append(j);
 				hours_L.append(i);
 				n++;
@@ -241,10 +405,12 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 		int t=QMessageBox::question(this, tr("FET question"),
 		 tr("Warning: 0 slots selected. Are you sure?"),
 		 QMessageBox::Yes, QMessageBox::Cancel);
-						 
+		
 		if(t==QMessageBox::Cancel)
 				return;
 	}
+
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
 
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->teacherName=teacher;
@@ -257,13 +423,24 @@ void ModifyConstraintActivitiesPreferredStartingTimesForm::ok()
 
 	this->_ctr->duration=duration;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
 	this->close();
 }
 
-void ModifyConstraintActivitiesPreferredStartingTimesForm::on_durationCheckBox_toggled()
+void ModifyConstraintActivitiesPreferredStartingTimesForm::cancel()
+{
+	this->close();
+}
+
+void ModifyConstraintActivitiesPreferredStartingTimesForm::durationCheckBox_toggled()
 {
 	durationSpinBox->setEnabled(durationCheckBox->isChecked());
 }
+
+#undef YES
+#undef NO

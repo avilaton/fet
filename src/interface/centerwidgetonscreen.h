@@ -6,8 +6,8 @@ File centerwidgetonscreen.h
                           centerwidgetonscreen.h  -  description
                              -------------------
     begin                : 13 July 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -24,20 +24,45 @@ File centerwidgetonscreen.h
 
 #include <QString>
 
+class QComboBox;
+
 class QWidget;
+class QTableView;
 class QTableWidget;
+
+class Rules;
 
 void centerWidgetOnScreen(QWidget* widget);
 void forceCenterWidgetOnScreen(QWidget* widget);
 //void centerWidgetOnParent(QWidget* widget, QWidget* parent);
+
+int maxScreenWidth(QWidget* widget);
 
 int maxRecommendedWidth(QWidget* widget);
 
 void saveFETDialogGeometry(QWidget* widget, const QString& alternativeName=QString());
 void restoreFETDialogGeometry(QWidget* widget, const QString& alternativeName=QString());
 
-void setStretchAvailabilityTableNicely(QTableWidget* notAllowedTimesTable);
+void setParentAndOtherThings(QWidget* widget, QWidget* parent);
 
+void setStretchAvailabilityTableNicely(QTableWidget* tableWidget);
+
+void setRulesModifiedAndOtherThings(Rules* rules);
+void setRulesUnmodifiedAndOtherThings(Rules* rules);
+
+void showWarningForInvisibleSubgroupConstraint(QWidget* parent, const QString& initialSubgroupName);
+void showWarningCannotModifyConstraintInvisibleSubgroupConstraint(QWidget* parent, const QString& initialSubgroupName);
+void showWarningForInvisibleSubgroupActivity(QWidget* parent, const QString& initialSubgroupName);
+
+int populateStudentsComboBox(QComboBox* studentsComboBox, const QString& selectedStudentsSet=QString(""), bool addEmptyAtBeginning=false);
+
+//void closeAllTimetableViewDialogs();
 void updateAllTimetableViewDialogs();
+
+void highlightOnHorizontalHeaderClicked(QTableWidget* tableWidget, int col);
+void highlightOnVerticalHeaderClicked(QTableWidget* tableWidget, int row);
+void highlightOnCellEntered(QTableWidget* tableWidget, int row, int col);
+
+void tableViewSetHighlightHeader(QTableView* tableWidget);
 
 #endif

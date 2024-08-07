@@ -2,8 +2,8 @@
                           modifyconstraintstudentssetintervalmaxdaysperweekform.cpp  -  description
                              -------------------
     begin                : 2008
-    copyright            : (C) 2008 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2008 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -16,14 +16,9 @@
  ***************************************************************************/
 
 #include <QMessageBox>
-#include "centerwidgetonscreen.h"
-#include "invisiblesubgrouphelper.h"
 
 #include "modifyconstraintstudentssetintervalmaxdaysperweekform.h"
 #include "timeconstraint.h"
-
-#include "fetguisettings.h"
-#include "studentscomboboxhelper.h"
 
 ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm(QWidget* parent, ConstraintStudentsSetIntervalMaxDaysPerWeek* ctr): QDialog(parent)
 {
@@ -31,8 +26,8 @@ ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ModifyConstraintStudentsS
 
 	okPushButton->setDefault(true);
 
-	connect(okPushButton, SIGNAL(clicked()), this, SLOT(ok()));
-	connect(cancelPushButton, SIGNAL(clicked()), this, SLOT(close()));
+	connect(okPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ok);
+	connect(cancelPushButton, &QPushButton::clicked, this, &ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::cancel);
 
 	centerWidgetOnScreen(this);
 	restoreFETDialogGeometry(this);
@@ -50,7 +45,7 @@ ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ModifyConstraintStudentsS
 	weightLineEdit->setText(CustomFETString::number(ctr->weightPercentage));
 	
 	updateMaxDaysSpinBox();
-	updateStudentsComboBox();
+	updateStudentsComboBox(parent);
 	
 	maxDaysSpinBox->setValue(ctr->maxDaysPerWeek);
 	
@@ -71,10 +66,12 @@ ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::~ModifyConstraintStudents
 	saveFETDialogGeometry(this);
 }
 
-void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateStudentsComboBox(){
-	int j=StudentsComboBoxHelper::populateStudentsComboBox(gt.rules, studentsComboBox, this->_ctr->students, true);
+void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateStudentsComboBox(QWidget* parent){
+	int j=populateStudentsComboBox(studentsComboBox, this->_ctr->students);
 	if(j<0)
-		InvisibleSubgroupHelper::showWarningForConstraintCase(this, this->_ctr->students);
+		showWarningForInvisibleSubgroupConstraint(parent, this->_ctr->students);
+	else
+		assert(j>=0);
 	studentsComboBox->setCurrentIndex(j);
 }
 
@@ -86,7 +83,7 @@ void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::updateMaxDaysSpinBox
 void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ok()
 {
 	if(studentsComboBox->currentIndex()<0){
-		InvisibleSubgroupHelper::showWarningCannotModifyConstraintCase(this, this->_ctr->students);
+		showWarningCannotModifyConstraintInvisibleSubgroupConstraint(this, this->_ctr->students);
 		return;
 	}
 
@@ -108,7 +105,7 @@ void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ok()
 
 	QString students_name=studentsComboBox->currentText();
 	StudentsSet* s=gt.rules.searchStudentsSet(students_name);
-	if(s==NULL){
+	if(s==nullptr){
 		QMessageBox::warning(this, tr("FET information"),
 			tr("Invalid students set"));
 		return;
@@ -132,6 +129,8 @@ void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ok()
 		return;
 	}
 
+	QString oldcs=this->_ctr->getDetailedDescription(gt.rules);
+
 	this->_ctr->weightPercentage=weight;
 	this->_ctr->maxDaysPerWeek=max_days;
 	this->_ctr->students=students_name;
@@ -139,8 +138,16 @@ void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::ok()
 	this->_ctr->startHour=startHour;
 	this->_ctr->endHour=endHour;
 
+	QString newcs=this->_ctr->getDetailedDescription(gt.rules);
+	gt.rules.addUndoPoint(tr("Modified the constraint:\n\n%1\ninto\n\n%2").arg(oldcs).arg(newcs));
+
 	gt.rules.internalStructureComputed=false;
-	gt.rules.setModified(true);
+	setRulesModifiedAndOtherThings(&gt.rules);
 	
+	this->close();
+}
+
+void ModifyConstraintStudentsSetIntervalMaxDaysPerWeekForm::cancel()
+{
 	this->close();
 }

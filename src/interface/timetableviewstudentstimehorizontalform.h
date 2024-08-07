@@ -2,8 +2,8 @@
                           timetableviewstudentstimehorizontalform.h  -  description
                              -------------------
     begin                : 2017
-    copyright            : (C) 2017 by Lalescu Liviu
-    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)
+    copyright            : (C) 2017 by Liviu Lalescu
+    email                : Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address)
  ***************************************************************************/
 
 /***************************************************************************
@@ -60,7 +60,7 @@ private:
 
 	QStringList usedStudentsList;
 	QSet<QString> usedStudentsSet;
-	//QHash<QString, QList<int> > activitiesForStudentsSet; //activity index in internal activities list
+	//QHash<QString, QList<int>> activitiesForStudentsSet; //activity index in internal activities list
 	
 	//QHash<QString, ConstraintStudentsSetNotAvailableTimes*> notAvailableHash;
 
@@ -82,6 +82,11 @@ public slots:
 	void lockTime();
 	void lockSpace();
 	void lockTimeSpace();
+
+	void lockDays();
+	void unlockDays();
+	void unlockAllDays();
+
 	void updateStudentsTimetableTable();
 
 	void currentItemChanged(QTableWidgetItem* current, QTableWidgetItem* previous);
@@ -93,14 +98,7 @@ public slots:
 	
 protected:
 //	void resizeEvent(QResizeEvent* event);
-	QColor stringToColor(QString s); //by Marco Vassura
-
-private:
-	/** Search for StudentSet in Rules::internalSubgroupsList
-	 * @param row index in TimetableView row
-	 * @returns index on Rules::internalSubgroupsList, or -1 on failure.
-	 */
-	int getStudentSetInternalIndexFromRow(int row);
+	QColor stringToColor(const QString& s); //by Marco Vassura
 };
 
 #endif

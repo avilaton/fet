@@ -3,7 +3,7 @@
 // Description: This file is part of FET
 //
 //
-// Author: Liviu Lalescu <Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find here the e-mail address)>
+// Author: Liviu Lalescu (Please see https://lalescu.ro/liviu/ for details about contacting Liviu Lalescu (in particular, you can find there the email address))
 // Copyright (C) 2003 Liviu Lalescu <https://lalescu.ro/liviu/>
 //
 /***************************************************************************
@@ -20,8 +20,14 @@
 
 #include <QCoreApplication>
 
-#include <QList>
+#include "timetable_defs.h"
 
+#include <QList>
+#include <QString>
+#include <QStringList>
+
+//If you change any of these const int-s, you need to update the const QString FET_DATA_FORMAT_VERSION from timetable_defs.cpp to a new value,
+//because of the disk history feature.
 const int STUDENTS_SET=0;
 const int STUDENTS_YEAR=1;
 const int STUDENTS_GROUP=2;
@@ -39,6 +45,17 @@ typedef QList<StudentsGroup*> StudentsGroupsList;
 
 typedef QList<StudentsSubgroup*> StudentsSubgroupsList;
 
+class QDataStream;
+
+/*QDataStream& operator<<(QDataStream& stream, const StudentsYear& year);
+QDataStream& operator>>(QDataStream& stream, StudentsYear& year);
+
+QDataStream& operator<<(QDataStream& stream, const StudentsGroup& group);
+QDataStream& operator>>(QDataStream& stream, StudentsGroup& group);
+
+QDataStream& operator<<(QDataStream& stream, const StudentsSubgroup& subgroup);
+QDataStream& operator>>(QDataStream& stream, StudentsSubgroup& subgroup);*/
+
 /**
 This class represents a set of students, for instance years, groups or subgroups.
 
@@ -50,11 +67,13 @@ class StudentsSet
 
 public:
 	QString name;
+	QString longName;
+	QString code;
 	int numberOfStudents;
 	int type;
 	
 	QString comments;
-
+	
 	StudentsSet();
 	virtual ~StudentsSet();
 };
@@ -66,15 +85,18 @@ class StudentsYear: public StudentsSet
 public:
 	StudentsGroupsList groupsList;
 
+	QList<QStringList> divisions;
+	QString separator; //The separator when dividing a year by categories.
+
 	int indexInAugmentedYearsList; //internal
 
 	StudentsYear();
 	~StudentsYear();
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
 class StudentsGroup: public StudentsSet
@@ -89,10 +111,10 @@ public:
 	StudentsGroup();
 	~StudentsGroup();
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
 class StudentsSubgroup: public StudentsSet
@@ -107,16 +129,16 @@ public:
 	StudentsSubgroup();
 	~StudentsSubgroup();
 
-	QString getXmlDescription() const;
-	QString getDescription() const;
-	QString getDetailedDescription() const;
-	QString getDetailedDescriptionWithConstraints(const Rules& r) const;
+	QString getXmlDescription();
+	QString getDescription();
+	QString getDetailedDescription();
+	QString getDetailedDescriptionWithConstraints(Rules& r);
 };
 
-bool yearsAscending(const StudentsYear* y1, const StudentsYear* y2);
+int yearsAscending(const StudentsYear* y1, const StudentsYear* y2);
 
-bool groupsAscending(const StudentsGroup* g1, const StudentsGroup* g2);
+int groupsAscending(const StudentsGroup* g1, const StudentsGroup* g2);
 
-bool subgroupsAscending(const StudentsSubgroup* s1, const StudentsSubgroup* s2);
+int subgroupsAscending(const StudentsSubgroup* s1, const StudentsSubgroup* s2);
 
 #endif
